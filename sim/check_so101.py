@@ -25,7 +25,7 @@ for _ in range(2000):
     mujoco.mj_step(model, data)
 assert np.all(np.isfinite(data.qpos)), "simulation diverged"
 
-renderer = mujoco.Renderer(model, 480, 640)
+renderer = mujoco.Renderer(model, 360, 640)  # 16:9, matches the OV2710 sensor
 frames = []
 for cam in ("front", "wrist_cam"):
     renderer.update_scene(data, camera=cam)

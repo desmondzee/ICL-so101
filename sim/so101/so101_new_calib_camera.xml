@@ -124,8 +124,11 @@
                     <geom type="mesh" class="collision" mesh="wrist_camera_so101_v1" material="wrist_camera_so101_v1_material"/>
                     <!-- Render camera: lens tip is at +z 0.026 in this body and the lens looks along +z.
                          MuJoCo cameras look along their local -z, hence the 180deg flip about x.
-                         fovy is a placeholder; match it to your real camera's vertical FOV. -->
-                    <camera name="wrist_cam" pos="0 0 0.028" quat="0 1 0 0" fovy="70"/>
+                         Intrinsics: OV2710 (1920x1080, 3um pixels -> 5.76x3.24mm active area) with the
+                         stock 3.6mm M12 lens. Pinhole FOV ~77deg H / ~48deg V / ~85deg diag; the vendor
+                         "90deg" figure includes lens distortion, which MuJoCo does not model. -->
+                    <camera name="wrist_cam" pos="0 0 0.028" quat="0 1 0 0"
+                            resolution="1920 1080" sensorsize="0.00576 0.00324" focal="0.0036 0.0036"/>
                   </body>
                 </body>
                 <!-- Link moving_jaw_so101_v1 -->
