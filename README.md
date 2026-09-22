@@ -11,6 +11,20 @@ SO-101 arm model for MuJoCo, with the wrist camera attached, set up for RL train
   - `scene.xml`, `so101_new_calib.xml`, `so101_old_calib.*`: the upstream files without the camera.
 - `cad/wrist_camera/`: STEP and STL for the Hex-Nut wrist camera mount (32x32 UVC module), from `Optional/SO101_Wrist_Cam_Hex-Nut_Mount_32x32_UVC_Module`. This is the mount the sim model uses.
 - `sim/check_so101.py`: smoke test. It loads the scene, drives the joints, and renders both cameras to `sim/check_so101.png`.
+- `sim/check_grasp.py`: grasp test. At 5 cube positions it uses IK to put the jaws around a 30 mm cube, closes the gripper and lifts; the cube must come up with it.
+
+## Changes from upstream (in `so101_new_calib_camera.xml` / `scene_camera.xml`)
+
+- `wrist_cam`: OV2710 camera at the lens, see above.
+- Jaw collisions: MuJoCo collides meshes as their convex hulls, which filled the gap between the jaws. The palm, the fixed finger and the moving finger now use boxes fitted to the meshes (`palm_collision`, `fixed_jaw_*`, `moving_jaw_*`). The finger pads have high friction (condim 4) and stiff contacts.
+- Gripper force limit is 1.47 Nm instead of 3.35 Nm, matching the 50% torque cap LeRobot sets on the real gripper.
+- The scene uses `cone="elliptic" impratio="10"` so grasped objects don't slip out.
+
+## Workspace notes (for end-effector-space control)
+
+- The arm has 5 DOF, so it cannot reach an arbitrary 6-DoF end-effector pose. Specify position plus approach direction (the IK in `check_grasp.py` constrains position and "fingers pointing down"), and leave the wrist roll free or command it separately.
+- A straight-down grasp is reachable only in a limited region: at 0.30 m out it works near the table but not about 10 cm above it, because wrist_flex hits its limit.
+- The gripper is asymmetric (one finger is fixed). A ~30 mm object sits about 10 mm to the moving-jaw side of the fixed finger (`GRASP_OFFSET` in `check_grasp.py`). The fixed fingertip is 24 mm below that point.
 
 ## Quick start
 

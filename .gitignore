@@ -1,3 +1,4 @@
 .venv/
 __pycache__/
 sim/check_so101.png
+sim/check_grasp.png
