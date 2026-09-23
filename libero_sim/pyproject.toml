@@ -1,0 +1,36 @@
+# Separate environment for the vanilla LIBERO simulator (third_party/LIBERO).
+# Kept apart from the root project: LIBERO needs robosuite 1.4 / MuJoCo 2.3 / NumPy 1.x,
+# while the root SO-101 sim uses MuJoCo 3 / NumPy 2.
+# Pins follow third_party/LIBERO/requirements.txt, minus the lifelong-learning training
+# stack (transformers, wandb, robomimic, hydra, thop, einops). Python is 3.10 instead of
+# the official 3.8 so that macOS arm64 wheels exist; torch is CPU (only used to load init states).
+[project]
+name = "libero-sim"
+version = "0.1.0"
+requires-python = "==3.10.*"
+dependencies = [
+    "libero",
+    "robosuite==1.4.0",
+    "mujoco==2.3.7",
+    "bddl==1.0.1",
+    "numpy==1.22.4",
+    "gym==0.25.2",
+    "easydict==1.9",
+    "cloudpickle==2.1.0",
+    "matplotlib==3.5.3",
+    "opencv-python==4.6.0.66",
+    "future==0.18.2",
+    "torch>=2.0,<2.5",
+    "h5py",
+    "imageio",
+    "pyyaml",
+    "termcolor",
+    "tqdm",
+    "huggingface_hub",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+libero = { path = "../third_party/LIBERO", editable = true }

@@ -35,3 +35,23 @@ uv run python -m mujoco.viewer --mjcf sim/so101/scene_camera.xml
 ```
 
 Actuators are position servos (`shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper`), and `ctrl` is the target in radians. "New calib" means joint zero is the middle of each joint's range, which matches LeRobot. The gripper is a hinge in radians: the lower limit (−0.175) is closed and the upper limit (1.745) is fully open. LeRobot uses 0 for closed and 100 for open, so `pct = 100 * (q - q_min) / (q_max - q_min)`.
+
+## LIBERO (vanilla)
+
+- `third_party/LIBERO`: git submodule pinned to upstream `8f1084e`. After cloning this repo, run `git submodule update --init`.
+- `libero_sim/`: a separate uv environment for it (Python 3.10, robosuite 1.4.0, MuJoCo 2.3.7, NumPy 1.22). It is kept separate because the root environment uses MuJoCo 3 and NumPy 2. The training stack (transformers, wandb, robomimic) is left out; torch is CPU-only.
+
+Setup:
+
+```sh
+git submodule update --init
+cd libero_sim && uv sync
+```
+
+LIBERO reads its paths from `$LIBERO_CONFIG_PATH/config.yaml`. If that file is missing, the first `import libero` prompts interactively and writes `~/.libero/config.yaml`. Keep the config in the repo instead: create `libero_sim/.libero/config.yaml` (gitignored, absolute paths) with the keys `assets`, `bddl_files`, `benchmark_root`, `datasets` and `init_states`, pointing into `third_party/LIBERO/libero/`. Then run with:
+
+```sh
+export LIBERO_CONFIG_PATH=$PWD/libero_sim/.libero
+```
+
+Note: MuJoCo 2.3.7 has no camera `sensorsize`/`focal` attributes, so an SO-101 robosuite model must use `fovy="48.46"` for the OV2710.
