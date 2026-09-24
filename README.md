@@ -58,6 +58,7 @@ A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://githu
   - `action.ee`: the commanded TCP pose (xyz, rotation vector, gripper rad).
   - `observation.environment_state`: the TCP pose plus the soup, cheese and basket poses.
   - The task string is stored on every frame, and `demo_summary.json` holds the grasp/lift/in-basket checks for each episode.
+- `sim/export_frames.py`: for each example, replays its seed and saves `frames/first.png` (scene at reset) and `frames/last.png` (task completed). Both use the overhead camera, with the robot's visual geoms (group 2) hidden, so they show only the environment state before and after the task.
 - `sim/export_examples.py`: splits the recorded dataset into `data/examples/so101_libero_basket/episode_XXX/`. This folder is tracked in git, for sharing test data. Each rollout is its own one-episode LeRobot dataset, so its `videos/observation.images.{wrist,overhead}/chunk-000/file-000.mp4` show exactly one task completion. The videos are H.264 and play directly on macOS. `episode.json` holds the task, seed and grasp/lift/in-basket checks. Load one with `LeRobotDataset("x", root="data/examples/so101_libero_basket/episode_000", video_backend="pyav")`.
 
 ```sh
@@ -65,6 +66,7 @@ git submodule update --init
 uv sync
 uv run python sim/record_demos.py --episodes 5
 uv run python sim/export_examples.py
+uv run python sim/export_frames.py
 ```
 
 Notes:
