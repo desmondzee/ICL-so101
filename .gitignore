@@ -5,3 +5,4 @@ sim/check_grasp.png
 libero_sim/.libero/
 data/*
 !data/examples/
+.DS_Store
