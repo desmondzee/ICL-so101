@@ -18,13 +18,15 @@ from libero_scene import build_scene_xml, table_top_z
 
 SCALE = 0.5
 ROBOT_XY = np.array([-0.26, 0.0])
-REGIONS = {
-    "basket": ((-0.01, 0.25), (0.01, 0.27)),
-    "alphabet_soup": ((0.025, -0.125), (0.075, -0.075)),
-    "cream_cheese": ((-0.175, 0.035), (-0.125, 0.085)),
-    "tomato_sauce": ((0.075, -0.225), (0.125, -0.175)),
-    "ketchup": ((-0.225, -0.175), (-0.175, -0.125)),
+OBJECTS = ("basket", "alphabet_soup", "cream_cheese", "tomato_sauce", "ketchup")
+SPAWN = {
+    "basket": ((0.20, 0.27), (-50, 50), 0.05),
+    "alphabet_soup": ((0.17, 0.29), (-55, 55), 0.025),
+    "cream_cheese": ((0.17, 0.29), (-55, 55), 0.025),
+    "tomato_sauce": ((0.16, 0.30), (-65, 65), 0.02),
+    "ketchup": ((0.16, 0.30), (-65, 65), 0.02),
 }
+CLEARANCE = 0.03
 TARGETS = ("alphabet_soup", "cream_cheese")
 TASK = "put both the alphabet soup and the cream cheese box in the basket"
 WRIST_CAM_POS = (0.0025, 0.06157, -0.01877)
@@ -69,7 +71,7 @@ class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
                 self.model.body(name).id,
                 [g for g in range(self.model.ngeom) if self.model.geom_bodyid[g] == self.model.body(f"{name}_upright").id and self.model.geom_contype[g]],
             )
-            for name in REGIONS
+            for name in OBJECTS
         }
         self._contain_site = self.model.site("basket_contain_region").id
         self._set_target_geoms(self._objects[TARGETS[0]][2])
@@ -96,9 +98,16 @@ class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
         return bool(np.all(np.abs(local) <= self.model.site_size[self._contain_site]))
 
     def _task_reset(self):
-        for name, (lo, hi) in REGIONS.items():
+        placed = []
+        for name in OBJECTS:
+            (r_lo, r_hi), (a_lo, a_hi), radius = SPAWN[name]
+            while True:
+                r, a = self.np_random.uniform(r_lo, r_hi), np.radians(self.np_random.uniform(a_lo, a_hi))
+                xy = np.array([r * np.cos(a), r * np.sin(a)])
+                if all(np.linalg.norm(xy - p) >= radius + q + CLEARANCE for p, q in placed):
+                    break
+            placed.append((xy, radius))
             adr = self._objects[name][0]
-            xy = self.np_random.uniform(lo, hi) * SCALE - ROBOT_XY
             self.data.qpos[adr : adr + 3] = [*xy, 0.002 if name == "basket" else 0.03]
             self.data.qpos[adr + 3 : adr + 7] = [1, 0, 0, 0]
 

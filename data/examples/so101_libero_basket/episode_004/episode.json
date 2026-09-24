@@ -1,8 +1,8 @@
 {
   "task": "put both the alphabet soup and the cream cheese box in the basket",
   "fps": 50,
-  "frames": 494,
-  "seed": 4,
+  "frames": 519,
+  "seed": 7,
   "log": [
     [
       "alphabet_soup",
