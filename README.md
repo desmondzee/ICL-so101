@@ -41,10 +41,14 @@ Actuators are position servos (`shoulder_pan`, `shoulder_lift`, `elbow_flex`, `w
 A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://github.com/johnsutor/so101-nexus) (pinned `0.7.0`, MuJoCo 3, LeRobot 0.5).
 
 - `third_party/LIBERO`: git submodule pinned to upstream `8f1084e`. Only its assets and task definitions are used, not its robosuite code. After cloning, run `git submodule update --init`.
-- `sim/libero_scene.py`: builds one MJCF from LIBERO's living-room arena (floor, walls, wall unit, table) and LIBERO objects, all scaled by 0.5, plus the Nexus SO-101. The table top is at robot-base height. LIBERO's hand-made collision boxes are kept (moved to group 3). Objects get density 1000 kg/m³ and stiff, high-priority contacts.
+- `sim/libero_scene.py`: builds one MJCF from LIBERO's living-room arena (floor, walls, wall unit, table) and LIBERO objects, all scaled by 0.5, plus the Nexus SO-101. The table top is at robot-base height. LIBERO's hand-made collision boxes are kept (moved to group 3). Physics and rendering come from Nexus rather than ad-hoc values:
+  - `MUJOCO_SCENE_OPTION_XML`: timestep 0.005, implicitfast, elliptic cones, impratio 10, noslip 3.
+  - `SCENE_VISUAL_XML` and `SCENE_LIGHTS_XML` for rendering.
+  - Nexus's graspable-object contacts: condim 4, friction `1 0.05 0.001`, MuJoCo default solref/solimp.
+  - Masses use Nexus's GSO method: convex-hull volume of the scaled mesh × an assumed effective density (`EFFECTIVE_DENSITY`).
 - `sim/libero_basket_env.py`: `LiberoBasketEnv`, a Nexus `SO101NexusMuJoCoBaseEnv` subclass. The task is LIBERO-10 "put both the alphabet soup and the cream cheese box in the basket", with the tomato sauce and ketchup as distractors, and object positions sampled from the scaled LIBERO regions. Details:
-  - Control runs at 30 Hz. The default control mode is `pd_ee_pose`, using Nexus's IK with its default orientation weight of 0.01 (orientation leeway).
-  - Cameras are `wrist_camera` (the Nexus wrist cam, pinned to its mount pose with no randomisation, `fovy` 48.5) and a top-down `overhead_camera`, both 640x480.
+  - Control runs at 50 Hz, Nexus's native 4 × 0.005 s. The default control mode is `pd_ee_pose`, using Nexus's IK with its default orientation weight of 0.01 (orientation leeway).
+  - Cameras are `wrist_camera` (the Nexus wrist cam, pinned to its mount pose with no randomisation, `fovy` 48.5) and a top-down `overhead_camera`, both 640x480, recorded at 50 fps.
   - `info["success"]` is true when both objects are inside the basket's LIBERO `contain_region`.
   - The gripper is capped at 1.47 Nm, LeRobot's real 50% limit.
 - `sim/scripted.py`: `PickPlace` state machine with the gripper pointing down. For each object it approaches, descends, closes, checks the grasp with Nexus's contact-based `_is_grasping` (retrying once if needed), lifts, carries, lowers into the basket, releases and retreats.

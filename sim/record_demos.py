@@ -13,7 +13,7 @@ from libero_basket_env import TARGETS, TASK, LiberoBasketEnv
 from scripted import PickPlace
 
 ROOT = Path(__file__).resolve().parents[1] / "data" / "so101_libero_basket"
-FPS = 30
+FPS = 50
 H, W = 480, 640
 ENV_STATE = [f"{p}_{k}" for p in ("tcp", *TARGETS, "basket") for k in ("x", "y", "z", "qw", "qx", "qy", "qz")]
 FEATURES = {

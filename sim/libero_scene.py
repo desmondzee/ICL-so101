@@ -5,7 +5,9 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from scipy.spatial import ConvexHull
 from so101_nexus import get_so101_mujoco_model_path
+from so101_nexus.scene import MUJOCO_SCENE_OPTION_XML, SCENE_LIGHTS_XML, SCENE_VISUAL_XML
 
 ASSETS = Path(__file__).resolve().parents[1] / "third_party/LIBERO/libero/libero/assets"
 ARENA = ASSETS / "scenes/libero_living_room_tabletop_base_style.xml"
@@ -22,6 +24,13 @@ UPRIGHT = {
     "cream_cheese": [],
     "tomato_sauce": [(0, np.pi / 2)],
     "ketchup": [(0, np.pi / 2), (2, np.pi / 2)],
+}
+EFFECTIVE_DENSITY = {
+    "basket": 150,
+    "alphabet_soup": 900,
+    "cream_cheese": 900,
+    "tomato_sauce": 900,
+    "ketchup": 700,
 }
 REFS = ("mesh", "material", "texture")
 
@@ -76,39 +85,42 @@ def _upright_quat(steps):
     return q
 
 
-def _load(path, s, prefix=None, density=None):
+def _load(path, s, prefix=None):
     root = ET.parse(path).getroot()
     _absolute_files(root, path.parent)
     _scale(root, s)
     _hide_collision(root)
-    if density:
-        for el in root.iter("geom"):
-            el.set("density", str(density) if el.get("contype") != "0" else "0")
-            if el.get("contype") != "0":
-                el.attrib.update(priority="2", solref="0.004 1", solimp="0.95 0.99 0.001", condim="4")
     if prefix:
         _prefix(root, prefix)
     return root
+
+
+def _hull_volume(root):
+    mj = ET.Element("mujoco")
+    mj.append(copy.deepcopy(root.find("asset")))
+    model = mujoco.MjModel.from_xml_string(ET.tostring(mj, encoding="unicode"))
+    return ConvexHull(model.mesh_vert[: model.mesh_vertnum[0]]).volume
+
+
+def _set_object_physics(root, mass):
+    boxes = [el for el in root.iter("geom") if el.get("contype") != "0"]
+    volume = sum(8 * np.prod(_vec(el, "size")) for el in boxes)
+    for el in root.iter("geom"):
+        if el.get("contype") == "0":
+            el.set("density", "0")
+    for el in boxes:
+        el.attrib.update(density=f"{mass / volume:.6g}", condim="4", friction="1 0.05 0.001")
+
+
+def _xml_fragment(xml):
+    return list(ET.fromstring(f"<root>{xml}</root>"))
 
 
 def build_scene_xml(scale, robot_pos, table_top_z):
     arena = _load(ARENA, scale)
     mj = ET.Element("mujoco", model="libero_living_room_so101")
     ET.SubElement(mj, "include", file=str(get_so101_mujoco_model_path()))
-    ET.SubElement(
-        mj,
-        "option",
-        timestep=f"{1 / 180:.8f}",
-        cone="elliptic",
-        integrator="implicitfast",
-        impratio="10",
-        iterations="10",
-        ls_iterations="20",
-        noslip_iterations="3",
-    )
-    visual = ET.SubElement(mj, "visual")
-    ET.SubElement(visual, "quality", shadowsize="8192", offsamples="8")
-    ET.SubElement(visual, "headlight", diffuse="0.3 0.3 0.3", ambient="0.35 0.35 0.35", specular="0 0 0")
+    mj.extend(_xml_fragment(MUJOCO_SCENE_OPTION_XML + SCENE_VISUAL_XML))
     asset = ET.SubElement(mj, "asset")
     worldbody = ET.SubElement(mj, "worldbody")
     offset = np.array([-robot_pos[0], -robot_pos[1], -table_top_z])
@@ -118,20 +130,10 @@ def build_scene_xml(scale, robot_pos, table_top_z):
     for el in arena.find("worldbody"):
         if el.tag != "camera":
             world.append(el)
-    ET.SubElement(
-        worldbody,
-        "light",
-        name="key",
-        pos="0.3 0.6 1.6",
-        dir="-0.15 -0.35 -0.92",
-        directional="false",
-        castshadow="true",
-        cutoff="35",
-        diffuse="0.6 0.6 0.6",
-        specular="0.1 0.1 0.1",
-    )
+    worldbody.extend(_xml_fragment(SCENE_LIGHTS_XML))
     for name, path in OBJECTS.items():
-        obj = _load(path, scale, name, density=1000)
+        obj = _load(path, scale, name)
+        _set_object_physics(obj, _hull_volume(obj) * EFFECTIVE_DENSITY[name])
         asset.extend(obj.find("asset"))
         inner = obj.find("worldbody/body")
         body = ET.SubElement(worldbody, "body", name=name, pos="0 0 -1")

@@ -2,12 +2,12 @@
     "codebase_version": "v3.0",
     "robot_type": "so101_follower",
     "total_episodes": 1,
-    "total_frames": 311,
+    "total_frames": 501,
     "total_tasks": 1,
     "chunks_size": 1000,
     "data_files_size_in_mb": 100,
     "video_files_size_in_mb": 200,
-    "fps": 30,
+    "fps": 50,
     "splits": {
         "train": "0:1"
     },
@@ -32,7 +32,7 @@
                 "video.codec": "h264",
                 "video.pix_fmt": "yuv420p",
                 "video.is_depth_map": false,
-                "video.fps": 30,
+                "video.fps": 50,
                 "video.channels": 3,
                 "has_audio": false
             }
@@ -55,7 +55,7 @@
                 "video.codec": "h264",
                 "video.pix_fmt": "yuv420p",
                 "video.is_depth_map": false,
-                "video.fps": 30,
+                "video.fps": 50,
                 "video.channels": 3,
                 "has_audio": false
             }

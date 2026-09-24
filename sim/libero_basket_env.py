@@ -56,8 +56,6 @@ def default_config(width=640, height=480):
 
 
 class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
-    _N_SUBSTEPS = 6
-
     def __init__(self, config=None, render_mode=None, control_mode="pd_ee_pose", robot_init_qpos_noise=0.02):
         self._init_common(
             config=config or default_config(),
