@@ -1,8 +1,3 @@
-"""Grasp test: IK the open jaws around the cube, close, lift, check the cube came with them.
-Runs at several cube positions.
-
-    uv run python sim/check_grasp.py   # writes sim/check_grasp.png
-"""
 from pathlib import Path
 
 import mujoco
@@ -17,8 +12,6 @@ arm_dofs = [model.joint(n).dofadr[0] for n in ARM]
 arm_act = [model.actuator(n).id for n in ARM]
 grip_act = model.actuator("gripper").id
 gripper = model.body("gripper").id
-# Where a ~30 mm object sits between the open jaw pads, in the gripper body frame
-# (the fixed pad inner face is at x = -0.0079).
 GRASP_OFFSET = np.array([0.010, 0.0, -0.080])
 
 
@@ -27,7 +20,6 @@ def grasp_point(d):
 
 
 def ik(target, seed, iters=200):
-    """Damped least squares from `seed` qpos: grasp point to target, gripper pointing straight down."""
     d = mujoco.MjData(model)
     d.qpos[:] = seed
     jacp, jacr = np.zeros((3, model.nv)), np.zeros((3, model.nv))
@@ -35,7 +27,7 @@ def ik(target, seed, iters=200):
         mujoco.mj_kinematics(model, d)
         mujoco.mj_comPos(model, d)
         R = d.xmat[gripper].reshape(3, 3)
-        approach = -R[:, 2]                      # fingers point along gripper -z
+        approach = -R[:, 2]
         err = np.concatenate([target - grasp_point(d), np.cross(approach, [0, 0, -1])])
         mujoco.mj_jac(model, d, jacp, jacr, grasp_point(d), gripper)
         J = np.vstack([jacp, jacr])[:, arm_dofs]
@@ -48,7 +40,6 @@ def ik(target, seed, iters=200):
 
 
 def move(data, target, grip, waypoints=40, steps_per=50):
-    """Straight-line Cartesian move of the grasp point (a single joint-space jump swings the fingers)."""
     start, seed = grasp_point(data).copy(), data.qpos.copy()
     data.ctrl[grip_act] = grip
     for a in np.linspace(0, 1, waypoints)[1:]:
@@ -67,24 +58,20 @@ def pick(cube_xy):
     cube = model.body("cube").id
     start = data.xpos[cube].copy()
     OPEN, CLOSED = 1.2, -0.17
-    # Reset straight into a ready pose above the cube (moving there from the
-    # outstretched home pose flips the wrist and knocks the cube over).
-    # Seed from a top-down arm pose aimed at the cube; seeding from the outstretched
-    # home pose can leave the IK stuck on the wrist_flex limit.
     seed = data.qpos.copy()
     for name, q in zip(ARM, [np.arctan2(-start[1], start[0]), 0.6, -0.4, 1.35, 0.0]):
         seed[model.joint(name).qposadr[0]] = q
-    ready, _ = ik(start + [0, 0, 0.05], seed)   # top-down is unreachable much higher at 0.30 m out
+    ready, _ = ik(start + [0, 0, 0.05], seed)
     data.qpos[:] = ready
     data.qpos[model.joint("gripper").qposadr[0]] = OPEN
     data.ctrl[arm_act] = [ready[model.joint(n).qposadr[0]] for n in ARM]
     data.ctrl[grip_act] = OPEN
     mujoco.mj_forward(model, data)
-    move(data, start + [0, 0, 0.012], OPEN)            # jaws around it; fixed tip is 24 mm below the grasp point
-    for _ in range(1000):                               # close
+    move(data, start + [0, 0, 0.012], OPEN)
+    for _ in range(1000):
         data.ctrl[grip_act] = CLOSED
         mujoco.mj_step(model, data)
-    move(data, start + [0, 0, 0.10], CLOSED)           # lift
+    move(data, start + [0, 0, 0.10], CLOSED)
     for _ in range(500):
         mujoco.mj_step(model, data)
     return data, data.xpos[cube][2] - start[2]

@@ -48,7 +48,7 @@ A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://githu
   - Masses use Nexus's GSO method: convex-hull volume of the scaled mesh × an assumed effective density (`EFFECTIVE_DENSITY`).
 - `sim/libero_basket_env.py`: `LiberoBasketEnv`, a Nexus `SO101NexusMuJoCoBaseEnv` subclass. The task is LIBERO-10 "put both the alphabet soup and the cream cheese box in the basket", with the tomato sauce and ketchup as distractors, and object positions sampled from the scaled LIBERO regions. Details:
   - Control runs at 50 Hz, Nexus's native 4 × 0.005 s. The default control mode is `pd_ee_pose`, using Nexus's IK with its default orientation weight of 0.01 (orientation leeway).
-  - Cameras are `wrist_camera` (the Nexus wrist cam, pinned to its mount pose with no randomisation, `fovy` 48.5) and a top-down `overhead_camera`, both 640x480, recorded at 50 fps.
+  - Cameras are `wrist_camera` and a top-down `overhead_camera`, both 640x480, recorded at 50 fps. The wrist camera is pinned (no randomisation) to the official TheRobotStudio SO-101 camera pose, which is the lens of the hex-nut mount model in `sim/so101/`: pos (2.5, 61.6, −18.8) mm, 25.1° pitch in the gripper body frame, and OV2710 intrinsics (`fovy` 48.46).
   - `info["success"]` is true when both objects are inside the basket's LIBERO `contain_region`.
   - The gripper is capped at 1.47 Nm, LeRobot's real 50% limit.
 - `sim/scripted.py`: `PickPlace` state machine with the gripper pointing down. For each object it approaches, descends, closes, checks the grasp with Nexus's contact-based `_is_grasping` (retrying once if needed), lifts, carries, lowers into the basket, releases and retreats.
@@ -69,4 +69,4 @@ uv run python sim/export_examples.py
 
 Notes:
 - To read the dataset, pass `video_backend="pyav"` to `LeRobotDataset`. LeRobot's default decoder (torchcodec) needs a system FFmpeg (`brew install ffmpeg`).
-- The robot is the Nexus (MuJoCo Menagerie) SO-101, whose finger collisions and grasp detection Nexus is tuned for. Its wrist camera mount differs from the hex-nut mount in `sim/so101/`, although the camera intrinsics match the OV2710.
+- The robot is the Nexus (MuJoCo Menagerie) SO-101, whose finger collisions and grasp detection Nexus is tuned for. Only the wrist camera pose is changed. The Menagerie camera-mount mesh is still drawn but does not block the camera's view.

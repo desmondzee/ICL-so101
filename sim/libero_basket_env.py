@@ -27,6 +27,9 @@ REGIONS = {
 }
 TARGETS = ("alphabet_soup", "cream_cheese")
 TASK = "put both the alphabet soup and the cream cheese box in the basket"
+WRIST_CAM_POS = (0.0025, 0.06157, -0.01877)
+WRIST_CAM_QUAT = (0.97616, -0.21706, 0.0, 0.0)
+WRIST_CAM_FOVY = 48.46
 
 
 def default_config(width=640, height=480):
@@ -39,17 +42,7 @@ def default_config(width=640, height=480):
             JointPositions(),
             JointVelocities(),
             EndEffectorPose(),
-            WristCamera(
-                width=width,
-                height=height,
-                fov_deg_range=(48.5, 48.5),
-                pitch_deg_range=(-32.66, -32.66),
-                pos_x_noise=0.0,
-                pos_y_center=0.055,
-                pos_y_noise=0.0,
-                pos_z_center=-0.045,
-                pos_z_noise=0.0,
-            ),
+            WristCamera(width=width, height=height),
             OverheadCamera(width=width, height=height),
         ],
     )
@@ -81,6 +74,11 @@ class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
         self._contain_site = self.model.site("basket_contain_region").id
         self._set_target_geoms(self._objects[TARGETS[0]][2])
         self._finish_model_setup()
+
+    def _randomize_wrist_camera(self):
+        self.model.cam_pos[self._wrist_cam_id] = WRIST_CAM_POS
+        self.model.cam_quat[self._wrist_cam_id] = WRIST_CAM_QUAT
+        self.model.cam_fovy[self._wrist_cam_id] = WRIST_CAM_FOVY
 
     @property
     def task_description(self):
