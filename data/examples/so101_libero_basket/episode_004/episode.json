@@ -1,0 +1,40 @@
+{
+  "task": "put both the alphabet soup and the cream cheese box in the basket",
+  "fps": 30,
+  "frames": 301,
+  "seed": 4,
+  "log": [
+    [
+      "alphabet_soup",
+      "grasp",
+      0,
+      true
+    ],
+    [
+      "alphabet_soup",
+      "lifted",
+      true
+    ],
+    [
+      "alphabet_soup",
+      "in_basket",
+      true
+    ],
+    [
+      "cream_cheese",
+      "grasp",
+      0,
+      true
+    ],
+    [
+      "cream_cheese",
+      "lifted",
+      true
+    ],
+    [
+      "cream_cheese",
+      "in_basket",
+      true
+    ]
+  ]
+}

@@ -48,19 +48,19 @@ A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://githu
   - `info["success"]` is true when both objects are inside the basket's LIBERO `contain_region`.
   - The gripper is capped at 1.47 Nm, LeRobot's real 50% limit.
 - `sim/scripted.py`: `PickPlace` state machine with the gripper pointing down. For each object it approaches, descends, closes, checks the grasp with Nexus's contact-based `_is_grasping` (retrying once if needed), lifts, carries, lowers into the basket, releases and retreats.
-- `sim/record_demos.py`: records successful episodes to a LeRobot dataset in `data/so101_libero_basket` (gitignored). Failed episodes are discarded.
+- `sim/record_demos.py`: records successful episodes to a LeRobot dataset in `data/so101_libero_basket` (gitignored; everything in `data/` except `data/examples/` is ignored). Failed episodes are discarded.
   - Videos: `observation.images.wrist` and `observation.images.overhead`.
   - Joint data: `observation.state` and `action` (joint targets), in LeRobot units: degrees, and 0-100 for the gripper.
   - `action.ee`: the commanded TCP pose (xyz, rotation vector, gripper rad).
   - `observation.environment_state`: the TCP pose plus the soup, cheese and basket poses.
   - The task string is stored on every frame, and `demo_summary.json` holds the grasp/lift/in-basket checks for each episode.
-- `sim/export_previews.py`: writes H.264 side-by-side (wrist | overhead) previews to `data/so101_libero_basket/previews/`. The dataset videos themselves are AV1.
+- `sim/export_examples.py`: splits the recorded dataset into `data/examples/so101_libero_basket/episode_XXX/`. This folder is tracked in git, for sharing test data. Each rollout is its own one-episode LeRobot dataset, so its `videos/observation.images.{wrist,overhead}/chunk-000/file-000.mp4` show exactly one task completion. The videos are H.264 and play directly on macOS. `episode.json` holds the task, seed and grasp/lift/in-basket checks. Load one with `LeRobotDataset("x", root="data/examples/so101_libero_basket/episode_000", video_backend="pyav")`.
 
 ```sh
 git submodule update --init
 uv sync
 uv run python sim/record_demos.py --episodes 5
-uv run python sim/export_previews.py
+uv run python sim/export_examples.py
 ```
 
 Notes:

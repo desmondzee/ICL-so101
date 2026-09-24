@@ -66,7 +66,7 @@ def record(episodes, seed):
         grasps = [entry for entry in sm.log if entry[1] in ("grasp", "lifted", "in_basket")]
         if info["success"]:
             ds.save_episode()
-            summary.append({"seed": s, "frames": ds.meta.total_frames, "log": grasps})
+            summary.append({"seed": s, "log": grasps})
             print(f"episode {len(summary) - 1} seed {s}: success")
         else:
             ds.clear_episode_buffer()

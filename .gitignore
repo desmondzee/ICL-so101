@@ -3,4 +3,5 @@ __pycache__/
 sim/check_so101.png
 sim/check_grasp.png
 libero_sim/.libero/
-data/
+data/*
+!data/examples/
