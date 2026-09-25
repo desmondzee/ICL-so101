@@ -2,7 +2,7 @@
 
 Generate reference-guided clips with Reactor [H3 Reference Turbo Realtime](https://docs.reactor.inc/model-api-reference/h3-reference-to-video-turbo-realtime/overview). One command opens one session, queues every task in a folder, and writes an MP4 plus a contact sheet into each task directory.
 
-Set `REACTOR_API_KEY` in the environment or in `.env`. `ffmpeg` must be on `PATH`.
+Set `REACTOR_API_KEY` in the environment, or copy `.env.example` to `.env` and fill it in. `ffmpeg` must be on `PATH`.
 
 ```sh
 uv sync
