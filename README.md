@@ -48,24 +48,23 @@ A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://githu
   - Masses use Nexus's GSO method: convex-hull volume of the scaled mesh × an assumed effective density (`EFFECTIVE_DENSITY`).
 - `sim/libero_basket_env.py`: `LiberoBasketEnv`, a Nexus `SO101NexusMuJoCoBaseEnv` subclass. The task is LIBERO-10 "put both the alphabet soup and the cream cheese box in the basket", with the tomato sauce and ketchup as distractors. Each reset samples every object (including the basket) over the arm's reachable arc (`SPAWN`: radius and angle range from the base, plus a footprint radius), with at least `CLEARANCE` between footprints, so each rollout starts from a different layout. Details:
   - Control runs at 50 Hz, Nexus's native 4 × 0.005 s. The default control mode is `pd_ee_pose`, using Nexus's IK with its default orientation weight of 0.01 (orientation leeway).
-  - Cameras are `wrist_camera` and an `overhead_camera` tilted to 60° elevation (`OVERHEAD_ELEVATION`, looking forward from behind the base), both 640x480, recorded at 50 fps. The wrist camera is pinned (no randomisation) to the official TheRobotStudio SO-101 camera pose, which is the lens of the hex-nut mount model in `sim/so101/`: pos (2.5, 61.6, −18.8) mm, 25.1° pitch in the gripper body frame, and OV2710 intrinsics (`fovy` 48.46).
+  - Cameras are `wrist_camera` and an `overhead_camera` tilted to 60° elevation and turned −30° in azimuth (`OVERHEAD_ELEVATION`, `OVERHEAD_AZIMUTH`), so the robot sits on the right of the frame and reaches across the table, both 640x480, recorded at 50 fps. The wrist camera is pinned (no randomisation) to the official TheRobotStudio SO-101 camera pose, which is the lens of the hex-nut mount model in `sim/so101/`: pos (2.5, 61.6, −18.8) mm, 25.1° pitch in the gripper body frame, and OV2710 intrinsics (`fovy` 48.46).
   - `info["success"]` is true when both objects are inside the basket's LIBERO `contain_region`.
   - The gripper is capped at 1.47 Nm, LeRobot's real 50% limit.
 - `sim/scripted.py`: `PickPlace` state machine with the gripper pointing down. For each object it approaches, descends, closes, checks the grasp with Nexus's contact-based `_is_grasping` (retrying once if needed), lifts, carries, lowers into the basket, releases and retreats.
-- `sim/record_demos.py`: records successful episodes (seeds counting up from `--seed`; about two in three succeed) to a LeRobot dataset in `data/so101_libero_basket` (gitignored; everything in `data/` except `data/examples/` is ignored). Failed episodes are discarded.
+- `sim/record_demos.py`: records successful rollouts (seeds counting up from `--seed`; about two in three succeed, failures are discarded). Each one goes straight into `data/examples/so101_libero_basket/episode_XXX/` as its own one-episode LeRobot dataset with H.264 videos (tracked in git). Each episode contains:
   - Videos: `observation.images.wrist` and `observation.images.overhead`.
   - Joint data: `observation.state` and `action` (joint targets), in LeRobot units: degrees, and 0-100 for the gripper.
   - `action.ee`: the commanded TCP pose (xyz, rotation vector, gripper rad).
   - `observation.environment_state`: the TCP pose plus the soup, cheese and basket poses.
-  - The task string is stored on every frame, and `demo_summary.json` holds the grasp/lift/in-basket checks for each episode.
+  - The task string on every frame, and `episode.json` with the task, seed and grasp/lift/in-basket checks.
+  - Load one with `LeRobotDataset("x", root="data/examples/so101_libero_basket/episode_000", video_backend="pyav")`.
 - `sim/export_frames.py`: for each example, replays its seed and saves `frames/first.png` (scene at reset) and `frames/last.png` (task completed). Both use the overhead camera, with the robot's visual geoms (group 2) hidden, so they show only the environment state before and after the task.
-- `sim/export_examples.py`: splits the recorded dataset into `data/examples/so101_libero_basket/episode_XXX/`. This folder is tracked in git, for sharing test data. Each rollout is its own one-episode LeRobot dataset, so its `videos/observation.images.{wrist,overhead}/chunk-000/file-000.mp4` show exactly one task completion. The videos are H.264 and play directly on macOS. `episode.json` holds the task, seed and grasp/lift/in-basket checks. Load one with `LeRobotDataset("x", root="data/examples/so101_libero_basket/episode_000", video_backend="pyav")`.
 
 ```sh
 git submodule update --init
 uv sync
 uv run python sim/record_demos.py --episodes 5
-uv run python sim/export_examples.py
 uv run python sim/export_frames.py
 ```
 

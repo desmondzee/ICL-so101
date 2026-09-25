@@ -1,12 +1,10 @@
 import json
-from pathlib import Path
 
 import mujoco
 from PIL import Image
 
-from export_examples import OUT
 from libero_basket_env import TARGETS, LiberoBasketEnv
-from record_demos import closing_dirs
+from record_demos import OUT, closing_dirs
 from scripted import PickPlace
 
 
@@ -20,7 +18,7 @@ def render_without_robot(env):
 
 def export():
     env = LiberoBasketEnv()
-    for folder in sorted(Path(OUT).glob("episode_*")):
+    for folder in sorted(OUT.glob("episode_*")):
         info = json.loads((folder / "episode.json").read_text())
         frames = folder / "frames"
         frames.mkdir(exist_ok=True)

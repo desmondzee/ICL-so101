@@ -12,7 +12,7 @@ from so101_nexus.lerobot_dataset import sim_qpos_to_dataset_row
 from libero_basket_env import TARGETS, TASK, LiberoBasketEnv
 from scripted import PickPlace
 
-ROOT = Path(__file__).resolve().parents[1] / "data" / "so101_libero_basket"
+OUT = Path(__file__).resolve().parents[1] / "data" / "examples" / "so101_libero_basket"
 FPS = 50
 H, W = 480, 640
 ENV_STATE = [f"{p}_{k}" for p in ("tcp", *TARGETS, "basket") for k in ("x", "y", "z", "qw", "qx", "qy", "qz")]
@@ -33,23 +33,26 @@ def closing_dirs(env):
 
 
 def record(episodes, seed):
-    if ROOT.exists():
-        shutil.rmtree(ROOT)
-    ds = LeRobotDataset.create(
-        repo_id="local/so101_libero_basket",
-        fps=FPS,
-        features=FEATURES,
-        root=ROOT,
-        robot_type="so101_follower",
-        use_videos=True,
-    )
+    if OUT.exists():
+        shutil.rmtree(OUT)
     env = LiberoBasketEnv()
     limits = (env._target_low[-1], env._target_high[-1])
-    summary = []
+    saved = 0
     s = seed
-    while len(summary) < episodes:
+    while saved < episodes:
+        folder = OUT / f"episode_{saved:03d}"
+        ds = LeRobotDataset.create(
+            repo_id=f"local/{OUT.name}_episode_{saved:03d}",
+            fps=FPS,
+            features=FEATURES,
+            root=folder,
+            robot_type="so101_follower",
+            use_videos=True,
+            vcodec="h264",
+        )
         obs, info = env.reset(seed=s)
         sm = PickPlace(env, TARGETS, closing_dirs(env))
+        frames = 0
         for ee in sm.actions():
             state = sim_qpos_to_dataset_row(env._get_current_qpos(), gripper_limits_rad=limits)
             env_state = np.concatenate([env._get_tcp_pose(), env.object_poses()])
@@ -63,17 +66,21 @@ def record(episodes, seed):
             obs, _, _, _, info = env.step(ee)
             target = sim_qpos_to_dataset_row(env.data.ctrl[env._actuator_ids].copy(), gripper_limits_rad=limits)
             ds.add_frame({**frame, "action": target.astype(np.float32), "task": TASK})
-        grasps = [entry for entry in sm.log if entry[1] in ("grasp", "lifted", "in_basket")]
+            frames += 1
+        log = [entry for entry in sm.log if entry[1] in ("grasp", "lifted", "in_basket")]
         if info["success"]:
             ds.save_episode()
-            summary.append({"seed": s, "log": grasps})
-            print(f"episode {len(summary) - 1} seed {s}: success")
+            ds.finalize()
+            meta = {"task": TASK, "fps": FPS, "frames": frames, "seed": s, "log": log}
+            (folder / "episode.json").write_text(json.dumps(meta, indent=2, default=bool))
+            print(f"episode {saved} seed {s}: success")
+            saved += 1
         else:
             ds.clear_episode_buffer()
-            print(f"seed {s}: failed, discarded {grasps}")
+            ds.finalize()
+            shutil.rmtree(folder)
+            print(f"seed {s}: failed, discarded {log}")
         s += 1
-    ds.finalize()
-    (ROOT / "demo_summary.json").write_text(json.dumps(summary, indent=2, default=bool))
     env.close()
 
 

@@ -33,6 +33,7 @@ WRIST_CAM_POS = (0.0025, 0.06157, -0.01877)
 WRIST_CAM_QUAT = (0.97616, -0.21706, 0.0, 0.0)
 WRIST_CAM_FOVY = 48.46
 OVERHEAD_ELEVATION = -60.0
+OVERHEAD_AZIMUTH = -30.0
 
 
 def default_config(width=640, height=480):
@@ -79,6 +80,7 @@ class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
         self._finish_model_setup()
         if self._overhead_obs_cam is not None:
             self._overhead_obs_cam.elevation = OVERHEAD_ELEVATION
+            self._overhead_obs_cam.azimuth = OVERHEAD_AZIMUTH
 
     def _randomize_wrist_camera(self):
         self.model.cam_pos[self._wrist_cam_id] = WRIST_CAM_POS
