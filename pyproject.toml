@@ -6,6 +6,8 @@ dependencies = [
     "mujoco",
     "numpy",
     "pillow",
+    "python-dotenv>=1.2.3",
+    "reactor-sdk>=1.6.0",
     "so101-nexus[teleop]==0.7.0",
 ]
 

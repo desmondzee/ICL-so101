@@ -70,3 +70,7 @@ uv run python sim/export_examples.py
 Notes:
 - To read the dataset, pass `video_backend="pyav"` to `LeRobotDataset`. LeRobot's default decoder (torchcodec) needs a system FFmpeg (`brew install ffmpeg`).
 - The robot is the Nexus (MuJoCo Menagerie) SO-101, whose finger collisions and grasp detection Nexus is tuned for. Only the wrist camera pose is changed. The Menagerie camera-mount mesh is still drawn but does not block the camera's view.
+
+## H3 video generation
+
+[`humangen`](humangen/README.md) turns task directories into generated `video.mp4` files through one Reactor H3 session. Each task names a still in `frames/`. `uv run python -m humangen example/tasks`.
