@@ -32,6 +32,7 @@ TASK = "put both the alphabet soup and the cream cheese box in the basket"
 WRIST_CAM_POS = (0.0025, 0.06157, -0.01877)
 WRIST_CAM_QUAT = (0.97616, -0.21706, 0.0, 0.0)
 WRIST_CAM_FOVY = 48.46
+OVERHEAD_ELEVATION = -75.0
 
 
 def default_config(width=640, height=480):
@@ -76,6 +77,8 @@ class LiberoBasketEnv(SO101NexusMuJoCoBaseEnv):
         self._contain_site = self.model.site("basket_contain_region").id
         self._set_target_geoms(self._objects[TARGETS[0]][2])
         self._finish_model_setup()
+        if self._overhead_obs_cam is not None:
+            self._overhead_obs_cam.elevation = OVERHEAD_ELEVATION
 
     def _randomize_wrist_camera(self):
         self.model.cam_pos[self._wrist_cam_id] = WRIST_CAM_POS
