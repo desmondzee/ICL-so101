@@ -5,3 +5,6 @@ sim/check_grasp.png
 data/*
 !data/examples/
 .DS_Store
+.env
+outputs/
+*.ts
