@@ -48,4 +48,8 @@ outputs/zero_wam/video_run2/*
 !outputs/zero_wam/video/stseed-100000/
 !outputs/zero_wam/video_run2/stseed-100000/
 !outputs/zero_wam/*/run.log
+!outputs/zero_wam/so101/
+outputs/zero_wam/so101/**
+!outputs/zero_wam/so101/**/
+!outputs/zero_wam/so101/**/*.mp4
 *.ts
