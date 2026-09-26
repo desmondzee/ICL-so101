@@ -28,42 +28,42 @@
     "id": "episode_000",
     "view": {
       "camera_key": "observation.images.up",
-      "shot": "high front-angle view of a robot workspace on a white table"
+      "shot": "high front view of a white table surface with a robotic arm"
     },
     "entities": [
       {
         "id": "robot",
-        "name": "black robotic arm",
+        "name": "so100 follower arm",
         "kind": "actor",
         "attributes": {
           "color": "black",
-          "material": null,
+          "material": "plastic",
           "shape": null
         },
-        "grounding": "center-right",
+        "grounding": "articulated robotic arm in the center",
         "box_2d": [
-          154,
-          384,
-          684,
-          573
+          152,
+          381,
+          686,
+          574
         ],
         "visibility": "visible",
         "identity_status": "known"
       },
       {
-        "id": "pink_lego_brick",
+        "id": "pink_brick",
         "name": "pink lego brick",
         "kind": "object",
         "attributes": {
           "color": "pink",
           "material": "plastic",
-          "shape": "cuboid"
+          "shape": "rectangular"
         },
-        "grounding": "lower-left foreground",
+        "grounding": "small pink rectangular brick in the lower middle-left area",
         "box_2d": [
-          797,
+          798,
           325,
-          878,
+          879,
           369
         ],
         "visibility": "visible",
@@ -71,25 +71,25 @@
       },
       {
         "id": "transparent_box",
-        "name": "transparent plastic box",
+        "name": "transparent box",
         "kind": "container",
         "attributes": {
           "color": "transparent",
           "material": "plastic",
-          "shape": "rectangular box"
+          "shape": "rectangular"
         },
-        "grounding": "upper-left, taped to table",
+        "grounding": "clear plastic container taped down to the table on the mid-left",
         "box_2d": [
           323,
-          117,
-          509,
-          378
+          119,
+          508,
+          377
         ],
         "visibility": "visible",
         "identity_status": "known"
       },
       {
-        "id": "table",
+        "id": "table_surface",
         "name": "white table surface",
         "kind": "surface",
         "attributes": {
@@ -97,12 +97,12 @@
           "material": null,
           "shape": "flat"
         },
-        "grounding": "workspace surface",
+        "grounding": "white surface occupying the tabletop area",
         "box_2d": [
-          333,
+          334,
           0,
-          997,
-          998
+          1000,
+          1000
         ],
         "visibility": "visible",
         "identity_status": "known"
@@ -111,39 +111,39 @@
     "initial_state": [
       {
         "relation": "inside",
-        "subject": "pink_lego_brick",
+        "subject": "pink_brick",
         "object": "transparent_box",
         "value": false
       },
       {
         "relation": "held_by",
-        "subject": "pink_lego_brick",
+        "subject": "pink_brick",
         "object": "robot",
         "value": false
       },
       {
         "relation": "supported_by",
-        "subject": "pink_lego_brick",
-        "object": "table",
+        "subject": "pink_brick",
+        "object": "table_surface",
         "value": true
       },
       {
         "relation": "supported_by",
         "subject": "transparent_box",
-        "object": "table",
+        "object": "table_surface",
         "value": true
       },
       {
         "relation": "supported_by",
         "subject": "robot",
-        "object": "table",
+        "object": "table_surface",
         "value": true
       }
     ],
     "evidence": [
       {
         "asset": "lerobot/svla_so101_pickplace@f641879:observation.images.up#episode=0&frame=0",
-        "detail": "first frame of episode 0"
+        "detail": "first frame of episode 0 from observation.images.up camera"
       }
     ]
   },
@@ -156,35 +156,38 @@
       {
         "role": "robot",
         "kind": "actor",
+        "name": "so100 follower arm",
         "appearance": "black articulated robotic arm with a two-finger gripper"
       },
       {
-        "role": "pink_lego_brick",
+        "role": "pink_brick",
         "kind": "object",
-        "appearance": "small pink rectangular lego brick"
+        "name": "pink lego brick",
+        "appearance": "small rectangular pink lego brick"
       },
       {
         "role": "transparent_box",
         "kind": "container",
-        "appearance": "clear rectangular plastic container secured with orange tape"
+        "name": "transparent box",
+        "appearance": "clear plastic shallow rectangular container taped to the white surface"
       }
     ],
     "steps": [
       {
-        "id": "place_pink_lego_brick_in_box",
+        "id": "step1",
         "action": "pick_place",
-        "object": "pink_lego_brick",
+        "object": "pink_brick",
         "destination": "transparent_box",
         "after": [
           {
             "relation": "inside",
-            "subject": "pink_lego_brick",
+            "subject": "pink_brick",
             "object": "transparent_box",
             "value": true
           },
           {
             "relation": "held_by",
-            "subject": "pink_lego_brick",
+            "subject": "pink_brick",
             "object": "robot",
             "value": false
           }
@@ -195,13 +198,13 @@
     "goals": [
       {
         "relation": "inside",
-        "subject": "pink_lego_brick",
+        "subject": "pink_brick",
         "object": "transparent_box",
         "value": true
       },
       {
         "relation": "held_by",
-        "subject": "pink_lego_brick",
+        "subject": "pink_brick",
         "object": "robot",
         "value": false
       }
@@ -214,8 +217,8 @@
       "entity": "robot"
     },
     {
-      "role": "pink_lego_brick",
-      "entity": "pink_lego_brick"
+      "role": "pink_brick",
+      "entity": "pink_brick"
     },
     {
       "role": "transparent_box",
@@ -224,7 +227,7 @@
   ],
   "segments": [
     {
-      "step": "place_pink_lego_brick_in_box",
+      "step": "step1",
       "start": 0,
       "end": 303,
       "grasp": 166,

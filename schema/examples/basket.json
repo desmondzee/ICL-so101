@@ -214,21 +214,25 @@
       {
         "role": "item_a",
         "kind": "object",
+        "name": "alphabet soup can",
         "appearance": "alphabet soup can"
       },
       {
         "role": "item_b",
         "kind": "object",
+        "name": "blue cream cheese box",
         "appearance": "blue cream cheese box"
       },
       {
         "role": "destination",
         "kind": "container",
+        "name": "white-lined wicker basket",
         "appearance": "wicker basket"
       },
       {
         "role": "robot",
         "kind": "actor",
+        "name": "SO-101 arm",
         "appearance": "SO-101 arm"
       }
     ],

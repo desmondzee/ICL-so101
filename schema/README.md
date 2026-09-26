@@ -11,6 +11,7 @@ Records for HumanGen-style human-robot pairs. A VLM fills the scene and task; co
 
 - Relations: `supported_by`, `inside`, `held_by`, `touching`, `at`, `left_of`, `right_of`, `in_front_of`, `behind`; unary `open`, `switched_on`, `folded`, `upright`.
 - Actions: `pick_place`, `lift`, `slide`, `stack`, `open`, `close`, `press`, `pour`, `fold`.
+- Task roles carry a short `name`; bound scene entities must reuse it verbatim, so prompts name objects the same way in every episode.
 - Segments come from the gripper: a hold is where the gripper state stays above the command while the command is closed (`source.py`).
 - `accepted` follows HumanGen's filter: semantic score 5, physics score ≥ 3, other checks pass.
 - `validate.py` checks the JSON Schema plus references, relation arity, binding kinds, order cycles, goals not already true, segment ranges and the acceptance rule.
@@ -22,6 +23,6 @@ uv run --extra schema python -m schema.annotate lerobot/svla_so101_pickplace --e
 uv run --extra schema python -m schema.validate schema/examples/*.json
 ```
 
-`annotate` downloads the dataset to `data/<name>/` (ignored) and writes `data/<name>/pairs/{tasks/<task>.json, episode_XXX/{pair.json, first,grasp,release,last.jpg}}`. The task model defaults to `gemini-3.8-flash`, the scene model to `gemini-3.5-flash-lite`. `GEMINI_API_KEY` is read from `.env`.
+`annotate` downloads the dataset to `data/<name>/` (ignored) and writes `data/<name>/pairs/{tasks/<task>.json, episode_XXX/{pair.json, first,grasp,release,last.jpg}}`. Both calls default to `gemini-3.8-flash` with thinking off (`--thinking 0`): on 10 episodes thinking-on added ~2k thinking tokens and 3x latency per call with no gain, and flash-lite guessed attributes and misstated support. `GEMINI_API_KEY` is read from `.env`.
 
 Examples: `examples/svla_pickplace.json` (real, Gemini output for episode 0), `examples/basket.json` (sim, two steps, with the H3 prompt that was sent).

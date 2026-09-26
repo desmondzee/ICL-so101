@@ -21,7 +21,7 @@ Dataset task string: {instruction!r}
 Images: frames {frames} of episode {episode}, camera {camera}; the robot is a single {robot} arm.
 - id: {task_id!r}. version: "0.2". instruction: the dataset string, verbatim.
 - robot_caption: imperative sentence naming objects by colour and type, e.g. "Put the red cup on the plate."
-- roles: every participant, plus role "robot" (kind actor).
+- roles: every participant, plus role "robot" (kind actor). name: colour + type, at most 4 words.
 - steps: one per grasp-release cycle; {n_steps} observed.
 - goals: the end state, including released objects not held_by the robot.
 - Use role names everywhere. Only facts the task requires."""
@@ -31,8 +31,8 @@ The robot is a single {robot} arm: include it as entity "robot" (kind actor).
 Later frames (images 2-3) show how the episode unfolds; use them only to identify objects the robot hides in image 1.
 - scene.id: {scene_id!r}. scene.version: "0.2". scene.view.camera_key: {camera!r}.
 - view.shot: camera placement and framing, e.g. "high front view of a white table".
-- entities: task objects, visible distractors, supporting surfaces, the robot.
-- name: colour + type, matching the role appearance, e.g. "pink lego brick". grounding: image position, e.g. "lower left".
+- entities: task objects, visible distractors, the table or surface they rest on, the robot.
+- name: colour + type, at most 4 words; an entity bound to a role uses the role's name verbatim. grounding: image position, e.g. "lower left".
 - attributes: null when not visible; do not guess.
 - initial_state: every goal relation below (true/false; null if occluded), plus supported_by facts.
 - evidence asset: {asset!r}.
@@ -42,8 +42,11 @@ Task goals: {goals}"""
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
 
-def _ask(client: genai.Client, model: str, parts: list, schema: dict, check, retries: int = 1) -> dict:
-    config = types.GenerateContentConfig(response_mime_type="application/json", response_json_schema=schema, temperature=0.2)
+def _ask(client: genai.Client, model: str, parts: list, schema: dict, check, thinking: int | None, retries: int = 1) -> dict:
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json", response_json_schema=schema, temperature=0.2,
+        thinking_config=None if thinking is None else types.ThinkingConfig(thinking_budget=thinking),
+    )
     doc = json.loads(client.models.generate_content(model=model, contents=parts, config=config).text)
     for _ in range(retries):
         errors = check(doc)
@@ -70,16 +73,16 @@ def _key_frames(ep: Episode, out: Path, camera: str) -> dict[str, int]:
     return idx
 
 
-def draft_task(client, model: str, ep: Episode, camera: str, out: Path, n_steps: int) -> dict:
+def draft_task(client, model: str, ep: Episode, camera: str, out: Path, n_steps: int, thinking: int | None = None) -> dict:
     idx = _key_frames(ep, out, camera)
     text = TASK_PROMPT.format(
         instruction=ep.task, frames=", ".join(f"{k}={v}" for k, v in idx.items()), episode=ep.index,
         camera=camera, robot=ep.robot, task_id=_slug(ep.task), n_steps=n_steps,
     )
-    return _ask(client, model, [_image(out / f"{k}.jpg") for k in idx] + [text], bundle("task"), check_task)
+    return _ask(client, model, [_image(out / f"{k}.jpg") for k in idx] + [text], bundle("task"), check_task, thinking)
 
 
-def draft_scene(client, model: str, ep: Episode, camera: str, out: Path, task: dict) -> tuple[dict, list]:
+def draft_scene(client, model: str, ep: Episode, camera: str, out: Path, task: dict, thinking: int | None = None) -> tuple[dict, list]:
     idx = _key_frames(ep, out, camera)
     schema = bundle("scene")
     defs = schema.pop("$defs")
@@ -87,13 +90,21 @@ def draft_scene(client, model: str, ep: Episode, camera: str, out: Path, task: d
         "type": "object", "additionalProperties": False, "required": ["scene", "bindings"],
         "properties": {"scene": schema, "bindings": {"$ref": "#/$defs/bindings"}}, "$defs": defs,
     }
-    roles = json.dumps([{"role": r["role"], "kind": r["kind"], "appearance": r["appearance"]} for r in task["roles"]])
+    roles = json.dumps(task["roles"])
     text = SCENE_PROMPT.format(
         camera=camera, robot=ep.robot, scene_id=f"episode_{ep.index:03d}", asset=ref(ep, camera, 0), roles=roles,
         goals=json.dumps(task["goals"]),
     )
-    doc = _ask(client, model, [_image(out / f"{k}.jpg") for k in ("first", "grasp", "last")] + [text], wrapper,
-               lambda d: check_scene(d["scene"], "$.scene"))
+    names = {r["role"]: r["name"] for r in task["roles"]}
+
+    def check(d):
+        ents = {e["id"]: e["name"] for e in d["scene"]["entities"]}
+        return check_scene(d["scene"], "$.scene") + [
+            f"$.bindings: entity {b['entity']!r} must be named {names[b['role']]!r}"
+            for b in d["bindings"] if b["role"] in names and ents.get(b["entity"], names[b["role"]]) != names[b["role"]]
+        ]
+
+    doc = _ask(client, model, [_image(out / f"{k}.jpg") for k in ("first", "grasp", "last")] + [text], wrapper, check, thinking)
     return doc["scene"], doc["bindings"]
 
 
@@ -136,8 +147,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--episodes", type=int, nargs="+", default=[0])
     p.add_argument("--steps", type=int, default=1, help="grasp-release cycles per episode")
     p.add_argument("--hand", choices=["left", "right"], default="right")
-    p.add_argument("--task-model", default="gemini-3.8-flash")
-    p.add_argument("--scene-model", default="gemini-3.5-flash-lite")
+    p.add_argument("--model", default="gemini-3.8-flash")
+    p.add_argument("--thinking", type=int, default=0, help="thinking token budget; -1 = model default (flash-lite needs -1)")
     p.add_argument("--out", type=Path, help="default <root>/pairs")
     args = p.parse_args(argv)
 
@@ -145,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     out = args.out or root / "pairs"
     revision = fetch(args.repo, root)
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    thinking = None if args.thinking < 0 else args.thinking
 
     tasks: dict[str, dict] = {}
     failed = 0
@@ -156,10 +168,10 @@ def main(argv: list[str] | None = None) -> int:
             if task_path.exists():
                 tasks[ep.task] = json.loads(task_path.read_text())
             else:
-                tasks[ep.task] = draft_task(client, args.task_model, ep, args.camera, ep_dir, args.steps)
+                tasks[ep.task] = draft_task(client, args.model, ep, args.camera, ep_dir, args.steps, thinking)
                 task_path.parent.mkdir(parents=True, exist_ok=True)
                 task_path.write_text(json.dumps(tasks[ep.task], indent=2) + "\n")
-        scene, bindings = draft_scene(client, args.scene_model, ep, args.camera, ep_dir, tasks[ep.task])
+        scene, bindings = draft_scene(client, args.model, ep, args.camera, ep_dir, tasks[ep.task], thinking)
         pair = assemble(ep, args.camera, tasks[ep.task], scene, bindings, args.hand)
         errors = check_pair(pair)
         (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")

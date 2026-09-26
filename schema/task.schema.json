@@ -40,6 +40,7 @@
         "required": [
           "role",
           "kind",
+          "name",
           "appearance"
         ],
         "properties": {
@@ -55,6 +56,10 @@
               "region",
               "actor"
             ]
+          },
+          "name": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+            "description": "Colour + type, at most 4 words; bound scene entities reuse it verbatim."
           },
           "appearance": {
             "$ref": "urn:icl-so101:common:0.2#/$defs/text"

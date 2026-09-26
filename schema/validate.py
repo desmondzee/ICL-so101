@@ -16,6 +16,7 @@ ROOT = Path(__file__).parent
 NAMES = ("common", "scene", "task", "pair")
 UNARY = {"open", "switched_on", "folded", "upright"}
 NEEDS_DESTINATION = {"pick_place", "slide", "stack", "pour"}
+PLACEHOLDERS = {"null", "none", "unknown", "n/a", ""}
 
 
 @cache
@@ -107,6 +108,9 @@ def check_scene(scene: dict, where: str = "$") -> list[str]:
         box = e["box_2d"]
         if box is not None and not (box[0] < box[2] and box[1] < box[3]):
             errors.append(f"{where}.entities[{i}].box_2d: expected ymin < ymax and xmin < xmax")
+        for key, value in e["attributes"].items():
+            if value is not None and value.strip().lower() in PLACEHOLDERS:
+                errors.append(f"{where}.entities[{i}].attributes.{key}: use null, not {value!r}")
         if e["visibility"] == "occluded" and box is not None:
             errors.append(f"{where}.entities[{i}]: occluded entity has a box")
     return errors
@@ -193,6 +197,8 @@ def check_pair(pair: dict) -> list[str]:
             errors.append(f"$.bindings: role {role!r} bound to unknown entity {entity!r}")
         elif roles[role]["kind"] != entities[entity]["kind"]:
             errors.append(f"$.bindings: role {role!r} is {roles[role]['kind']}, entity {entity!r} is {entities[entity]['kind']}")
+        elif roles[role]["name"] != entities[entity]["name"]:
+            errors.append(f"$.bindings: entity {entity!r} is named {entities[entity]['name']!r}, role {role!r} is {roles[role]['name']!r}")
     if errors:
         return errors
 
