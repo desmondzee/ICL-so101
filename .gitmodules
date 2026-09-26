@@ -1,3 +1,6 @@
 [submodule "third_party/LIBERO"]
 	path = third_party/LIBERO
 	url = https://github.com/Lifelong-Robot-Learning/LIBERO
+[submodule "third_party/Zero-WAM"]
+	path = third_party/Zero-WAM
+	url = https://github.com/robbyant-research/Zero-WAM.git

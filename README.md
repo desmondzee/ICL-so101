@@ -36,6 +36,28 @@ uv run python -m mujoco.viewer --mjcf sim/so101/scene_camera.xml
 
 Actuators are position servos (`shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper`), and `ctrl` is the target in radians. "New calib" means joint zero is the middle of each joint's range, which matches LeRobot. The gripper is a hinge in radians: the lower limit (−0.175) is closed and the upper limit (1.745) is fully open. LeRobot uses 0 for closed and 100 for open, so `pct = 100 * (q - q_min) / (q_max - q_min)`.
 
+## Zero-WAM inference checkout
+
+`third_party/Zero-WAM` is the upstream Zero-WAM repository pinned as a git submodule. After cloning this repo, run `git submodule update --init third_party/Zero-WAM`. The [inference plan](docs/zero_wam_inference_plan.md) uses its RoboTwin server and evaluation client. Keep the Modal adapter in this repo (`zero_wam/modal_app.py`) so the upstream checkout can be updated without carrying local server changes.
+
+Zero-WAM has its own `pyproject.toml`, but its [tested installation](third_party/Zero-WAM/INSTALL.md) uses Python 3.10 and PyTorch 2.9. This repo's `uv` environment uses Python 3.12. The local RoboTwin process has a separate Python 3.10 environment; the Modal inference image uses Python 3.12, PyTorch 2.9, and the matching official FlashAttention wheel. Neither runtime is added to the root `uv` dependencies.
+
+The [execution tracker](docs/zero_wam_execution_tracker.md) records Modal and RoboTwin setup, the text-conditioned rollout, and the HumanGen video checks. The Modal app is defined in `zero_wam/modal_app.py`; `ZERO_WAM_MODE=text bash zero_wam/run_robotwin.sh place_empty_cup` starts an ephemeral GPU worker and runs one local RoboTwin evaluation episode. No deployment or shared endpoint is needed. Use `ZERO_WAM_MODE=latent` or `ZERO_WAM_MODE=video` for the published HumanGen prompt. For a future prompt uploaded to the Modal Volume, set `ZERO_WAM_ICL_LATENT_PATH` or `ZERO_WAM_ICL_VIDEO_PATH` to its path inside the container.
+
+The local Modal CLI reads its token pair from the ignored `.env`: `/workspace/Robotwin/.venv/bin/python -m zero_wam.modal_cli run zero_wam/modal_app.py::smoke --mode text`. `MODAL_API_KEY` supplies the token ID if `MODAL_TOKEN_ID` is absent; `MODAL_SECRET_TOKEN` or `MODAL_TOKEN_SECRET` supplies the secret. Run `prepare_checkpoint` and `prepare_human_video` through the same `modal_cli run` wrapper to populate the persistent Modal Volume.
+
+```sh
+ROBOTWIN_PYTHON=/workspace/Robotwin/.venv/bin/python
+"$ROBOTWIN_PYTHON" -m zero_wam.modal_cli run zero_wam/modal_app.py::prepare_checkpoint
+"$ROBOTWIN_PYTHON" -m zero_wam.modal_cli run zero_wam/modal_app.py::prepare_human_video
+"$ROBOTWIN_PYTHON" -m zero_wam.modal_cli run zero_wam/modal_app.py::smoke --mode text
+ZERO_WAM_MODE=text bash zero_wam/run_robotwin.sh place_empty_cup
+ZERO_WAM_MODE=latent bash zero_wam/run_robotwin.sh place_empty_cup
+ZERO_WAM_MODE=video bash zero_wam/run_robotwin.sh place_empty_cup
+```
+
+`uv run python -m zero_wam.contact_sheet` writes a `<name>.contact.png` next to every MP4 under `outputs/zero_wam` (24 evenly spaced frames, first and last included, the empty "Imagined Video Stream" section cropped out). Pass MP4s or directories to scan elsewhere; `--frames N` and `--full` change the defaults.
+
 ## LIBERO-style task on SO101-Nexus
 
 A LIBERO scene scaled down to the SO-101, running on [SO101-Nexus](https://github.com/johnsutor/so101-nexus) (pinned `0.7.0`, MuJoCo 3, LeRobot 0.5).
