@@ -269,6 +269,37 @@ class ZeroWAM:
         return result
 
     @modal.method()
+    def so101_step(self, request: dict) -> dict:
+        """Configure one SO-101 embodiment and keep its cache on this worker."""
+        import copy
+        import numpy as np
+        import torch
+
+        if request.get("reset"):
+            mode = request["mode"]
+            channels = {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[mode]
+            cfg = self.model.job_config
+            cfg.obs_cam_keys = ["observation.images.top", "observation.images.wrist"]
+            cfg.used_action_channel_ids = channels
+            inverse = [len(channels)] * 30
+            for i, channel in enumerate(channels):
+                inverse[channel] = i
+            cfg.inverse_used_action_channel_ids = inverse
+            cfg.norm_stat = copy.deepcopy(request["stats"])
+            torch.manual_seed(int(request["seed"]))
+            np.random.seed(int(request["seed"]))
+            return self.model.infer({"reset": True, "prompt": request["prompt"], "use_icl": False, "video_guidance_scale": 5.0})
+        if request.get("compute_kv_cache") and self.model.use_icl_model:
+            # Cache the actions actually executed after simulator safety limits.
+            executed = np.asarray(request["executed_model_actions"], dtype=np.float32)
+            normalized = self.model.preprocess_action(executed)
+            normalized[:, ~self.model.action_mask.cpu()] = 0
+            if self.model.chunk_idx == 0:
+                normalized[:, :, 0] = 0
+            self.model.last_predicted_actions = normalized.to(self.model.device, self.model.dtype)
+        return self.model.infer(request)
+
+    @modal.method()
     def inspect_human_prompt(self) -> dict:
         """Compare the published latent with an encoding of its paired MP4."""
         import torch
@@ -316,35 +347,6 @@ def check_runtime() -> dict:
         "flash_attn": flash_attn.__version__,
         "robotwin_icl": VA_CONFIGS["robotwin"].use_icl_model,
     }
-
-
-@app.function(image=inference_image, volumes={"/models": volume}, timeout=300)
-def check_video_decode() -> None:
-    """Report raw-video visibility and decoder errors without loading weights."""
-    import subprocess
-
-    print(f"video exists={Path(VIDEO_PATH).is_file()}", flush=True)
-    if Path(VIDEO_PATH).is_file():
-        print(f"video bytes={Path(VIDEO_PATH).stat().st_size}", flush=True)
-    result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "stream=width,height,nb_frames",
-         "-of", "default=noprint_wrappers=1", VIDEO_PATH],
-        capture_output=True, text=True,
-    )
-    print(f"ffprobe exit={result.returncode} output={result.stdout!r} error={result.stderr!r}", flush=True)
-    try:
-        import imageio.v2 as imageio
-
-        reader = imageio.get_reader(VIDEO_PATH)
-        print(f"imageio metadata={reader.get_meta_data()}", flush=True)
-        print(f"first frame shape={reader.get_data(0).shape}", flush=True)
-        import numpy as np
-
-        frames = np.stack(list(reader), axis=0)
-        print(f"decoded all frames shape={frames.shape}", flush=True)
-        reader.close()
-    except Exception as exc:
-        print(f"imageio error={type(exc).__name__}: {exc}", flush=True)
 
 
 @app.local_entrypoint()
@@ -397,3 +399,29 @@ def rollout(
 def verify_human_prompt() -> None:
     """Compare HumanGen MP4 encoding with its published latent on the GPU."""
     print(ZeroWAM().inspect_human_prompt.remote())
+
+
+@app.local_entrypoint()
+def so101_compare(
+    seeds: str = "100,101,102",
+    max_steps: int = 400,
+    save_root: str = "outputs/zero_wam/so101",
+) -> None:
+    """Calibrate and run paired zero-shot cube-lift episodes on one GPU host."""
+    import json
+
+    from zero_wam.so101_eval import calibrate, run_episode
+
+    root = Path(save_root)
+    root.mkdir(parents=True, exist_ok=True)
+    stats, counts = calibrate()
+    (root / "calibration.json").write_text(json.dumps({"stats": stats, "counts": counts, "seed": 101}, indent=2))
+    model = ZeroWAM()
+    results = []
+    for seed_text in seeds.split(","):
+        seed = int(seed_text)
+        for mode in ("pose", "joint"):
+            result = run_episode(model, mode, seed, stats[mode], root / f"{mode}_seed{seed}", max_steps)
+            results.append(result)
+            print(result, flush=True)
+            (root / "results.json").write_text(json.dumps(results, indent=2))

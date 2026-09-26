@@ -11,5 +11,13 @@ dependencies = [
     "so101-nexus[teleop]==0.7.0",
 ]
 
+[project.optional-dependencies]
+zero-wam = [
+    "modal>=1.5,<2",
+    "scipy>=1.16,<2",
+    "pyarrow>=20,<26",
+    "imageio[ffmpeg]>=2.37,<3",
+]
+
 [dependency-groups]
 dev = []

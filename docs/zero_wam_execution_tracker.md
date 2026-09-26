@@ -33,6 +33,24 @@ Implement and validate Zero-WAM inference with the released RoboTwin post-traine
 | Latent rollout | Pass | `outputs/zero_wam/latent/run.log`; `outputs/zero_wam/latent/stseed-100000/metrics/place_empty_cup/res.json` reports `1/1`; video under `outputs/zero_wam/latent/stseed-100000/visualization/place_empty_cup/` |
 | Latent rollout, same seed rerun | Fail (0/1) | `outputs/zero_wam/latent_run2/run.log`; `res.json` reports `0/1` at seed `100000`, ran all 500 steps; contact sheet shows task-directed grasp-and-carry behavior. Same task, scene, and published latent as the passing run — outcome flipped anyway |
 | MP4 rollout | Fail (0/1) | `outputs/zero_wam/video/run.log`; `outputs/zero_wam/video/stseed-100000/metrics/place_empty_cup/res.json` reports `0/1`; seed `100000`, ran all 500 steps. Video shows the arm grasp the cup and move over the coaster — task-inferring behavior, final state did not satisfy the success check. |
+| MP4 rollout, same seed rerun | Pass | `outputs/zero_wam/video_run2/run.log`; `res.json` reports `1/1` at seed `100000`, succeeded at ~step 341. The MP4 path can complete the task, while repeated runs vary. GPU metrics: post-load 32 GiB, `reset` 43.8 s (MP4 encode + ICL cache), `infer` ~19 s/chunk, `kv` ~0.7 s, VRAM peak 38.2 GiB as the KV cache grows |
+
+## Reproduction commands
+
+Run from `/workspace/ICL-so101` with RoboTwin installed at `/workspace/Robotwin`. The ignored `.env` supplies Modal credentials; no token values belong in command history or logs.
+
+```sh
+git submodule update --init third_party/Zero-WAM
+/workspace/Robotwin/.venv/bin/python -m zero_wam.modal_cli run zero_wam/modal_app.py::prepare_checkpoint
+/workspace/Robotwin/.venv/bin/python -m zero_wam.modal_cli run zero_wam/modal_app.py::prepare_human_video
+/workspace/Robotwin/.venv/bin/python -m zero_wam.modal_cli run zero_wam/modal_app.py::smoke --mode text
+/workspace/Robotwin/.venv/bin/python -m zero_wam.modal_cli run zero_wam/modal_app.py::verify_human_prompt
+ZERO_WAM_MODE=text bash zero_wam/run_robotwin.sh place_empty_cup
+ZERO_WAM_MODE=latent bash zero_wam/run_robotwin.sh place_empty_cup
+ZERO_WAM_MODE=video bash zero_wam/run_robotwin.sh place_empty_cup
+```
+
+The recorded same-seed reruns used `SAVE_ROOT=outputs/zero_wam/latent_run2 ZERO_WAM_MODE=latent` and `SAVE_ROOT=outputs/zero_wam/video_run2 ZERO_WAM_MODE=video` before `bash zero_wam/run_robotwin.sh place_empty_cup`. Logs are in each run directory. All five `res.json` files and their MP4/contact-sheet files are under `outputs/zero_wam/<run>/stseed-100000/`.
 
 ## Setup notes
 
@@ -45,6 +63,6 @@ Implement and validate Zero-WAM inference with the released RoboTwin post-traine
 - The released latent file is 5.1 MB and contains a `(8960, 48)` bfloat16 tensor with 16 latent frames at 20×28, representing 320×448 video. The raw MP4 encoder is configured to match that geometry.
 - The local GPU is an 8 GB RTX 3070 Laptop; it is for SAPIEN rendering, while Zero-WAM runs on Modal.
 - Text conditioning is disabled in ICL modes by upstream design: `video_guidance_scale=-1` makes `_reset_icl` use the shipped `empty_text_emb.pt` for every transformer branch, so `latent`/`video` rollouts are video-only tests. The prompt string must still be non-empty (`_reset_icl` raises otherwise) but its embedding is unused; the per-step `task` field is not read after reset.
-- Rollout outcomes are stochastic, not a deterministic function of task+seed+latent: nothing seeds the Modal container's torch RNG, so each `modal run` samples fresh denoising noise. Evidence: the same-seed latent rerun flipped pass→fail with a byte-identical ICL latent. Compare modes by success rate over N episodes, not by single-rollout equality; RoboTwin's own protocol is 100 rollouts × 3 seeds.
+- Rollout outcomes varied at the same simulator seed and with the same latent or MP4. The Modal container's torch RNG is not seeded, so fresh denoising noise is one likely cause; simulator variability may also contribute. The generated instruction wording differed between episodes, though the video-only modes use an empty text embedding. Compare modes over many episodes rather than treating one pass or failure as a success-rate estimate; RoboTwin's full protocol is 100 rollouts × 3 seeds.
 - `run_robotwin.sh` now resolves a relative `SAVE_ROOT` against the caller's cwd; the eval client chdirs into `ROBOTWIN_ROOT`, so a relative path would otherwise write under `/workspace/Robotwin/outputs/`.
 - GPU self-reporting added to `modal_app.py`: a `[zw-metrics] post-load` VRAM/util line at container start, a per-call `[zw-metrics] reset|infer|kv <t>s vram_alloc=… vram_peak=…` line per `step`, and a `stats` method for on-demand snapshots (`torch.cuda` counters plus `nvidia-smi` util/mem). Prints stream into the local `run.log` via `modal run`.
