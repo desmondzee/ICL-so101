@@ -277,7 +277,7 @@ class ZeroWAM:
 
         if request.get("reset"):
             mode = request["mode"]
-            channels = {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[mode]
+            channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[mode]
             cfg = self.model.job_config
             cfg.obs_cam_keys = ["observation.images.top", "observation.images.wrist"]
             cfg.used_action_channel_ids = channels
@@ -425,3 +425,44 @@ def so101_compare(
             results.append(result)
             print(result, flush=True)
             (root / "results.json").write_text(json.dumps(results, indent=2))
+
+
+@app.local_entrypoint()
+def so101_trial(
+    variant: str = "pose",
+    seed: int = 100,
+    max_steps: int = 128,
+    save_root: str = "outputs/zero_wam/so101/trials",
+) -> None:
+    """Run one named compatibility hypothesis with a saved manifest."""
+    from zero_wam.so101_eval import run_trial
+
+    print(run_trial(ZeroWAM(), variant, seed, max_steps, save_root, "posttrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_screen(
+    variant: str,
+    seeds: str = "100,101,102",
+    max_steps: int = 128,
+    save_root: str = "outputs/zero_wam/so101/trials",
+) -> None:
+    from zero_wam.so101_eval import run_trial
+
+    worker = ZeroWAM()
+    for seed_text in seeds.split(","):
+        print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "posttrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_screen_variants(
+    variants: str,
+    seed: int = 100,
+    max_steps: int = 128,
+    save_root: str = "outputs/zero_wam/so101/trials",
+) -> None:
+    from zero_wam.so101_eval import run_trial
+
+    worker = ZeroWAM()
+    for variant in variants.split(","):
+        print(run_trial(worker, variant, seed, max_steps, save_root, "posttrain"), flush=True)

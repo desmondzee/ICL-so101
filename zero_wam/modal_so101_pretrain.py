@@ -73,7 +73,7 @@ class PretrainSO101:
         import torch
 
         if request.get("reset"):
-            channels = {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[request["mode"]]
+            channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[request["mode"]]
             config = self.model.job_config
             config.used_action_channel_ids = channels
             config.obs_cam_keys = ["observation.images.top", "observation.images.wrist"]
@@ -104,3 +104,28 @@ def so101_compare(seeds: str = "100,101,102", max_steps: int = 400, save_root: s
             results.append(result)
             (root / "results.json").write_text(json.dumps(results, indent=2))
             print(result, flush=True)
+
+
+@app.local_entrypoint()
+def so101_trial(variant: str = "joint", seed: int = 100, max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/trials"):
+    from zero_wam.so101_eval import run_trial
+
+    print(run_trial(PretrainSO101(), variant, seed, max_steps, save_root, "pretrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_screen(variant: str, seeds: str = "100,101,102", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/trials"):
+    from zero_wam.so101_eval import run_trial
+
+    worker = PretrainSO101()
+    for seed_text in seeds.split(","):
+        print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "pretrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_screen_variants(variants: str, seed: int = 100, max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/trials"):
+    from zero_wam.so101_eval import run_trial
+
+    worker = PretrainSO101()
+    for variant in variants.split(","):
+        print(run_trial(worker, variant, seed, max_steps, save_root, "pretrain"), flush=True)

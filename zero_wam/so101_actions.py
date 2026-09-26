@@ -34,17 +34,20 @@ def decode(mode: str, action, initial_joint, initial_tcp, current_joint, current
     """Decode, rate-limit and clamp a model action; return sim action and diagnostics."""
     a = np.asarray(action, dtype=float)
     grip = np.clip(a[-1], 0, 100)
-    grip_rad = joint_low[5] + grip / 100 * (joint_high[5] - joint_low[5])
-    grip_rad = np.clip(grip_rad, current_joint[5] - .12, current_joint[5] + .12)
+    grip_requested_rad = joint_low[5] + grip / 100 * (joint_high[5] - joint_low[5])
+    grip_rad = np.clip(grip_requested_rad, current_joint[5] - .12, current_joint[5] + .12)
     grip_rad = float(np.clip(grip_rad, joint_low[5], joint_high[5]))
+    diagnostics = {"gripper_range_clipped": bool(abs(grip - a[-1]) > 1e-9), "gripper_rate_clipped": bool(abs(grip_rad - grip_requested_rad) > 1e-9)}
     if mode == "joint":
         desired = np.clip(np.asarray(initial_joint)[:5] + a[:5], joint_low[:5], joint_high[:5])
         limited = np.clip(desired, np.asarray(current_joint)[:5] - .12, np.asarray(current_joint)[:5] + .12)
-        return np.r_[limited, grip_rad], {"clipped": bool(np.any(np.abs(desired - limited) > 1e-9))}
+        diagnostics.update(clipped=bool(np.any(np.abs(desired - limited) > 1e-9)), arm_range_clipped=bool(np.any(np.abs(desired - (np.asarray(initial_joint)[:5] + a[:5])) > 1e-9)))
+        return np.r_[limited, grip_rad], diagnostics
     if mode != "pose":
         raise ValueError(mode)
-    target_xyz = np.asarray(initial_tcp)[:3] + a[:3]
-    target_xyz = np.clip(target_xyz, [-.55, -.55, 0], [.55, .55, .55])
+    requested_xyz = np.asarray(initial_tcp)[:3] + a[:3]
+    target_xyz = np.clip(requested_xyz, [-.55, -.55, 0], [.55, .55, .55])
+    diagnostics["workspace_clipped"] = bool(np.any(np.abs(target_xyz - requested_xyz) > 1e-9))
     delta = target_xyz - np.asarray(current_tcp)[:3]
     distance = np.linalg.norm(delta)
     if distance > .015:
@@ -60,7 +63,8 @@ def decode(mode: str, action, initial_joint, initial_tcp, current_joint, current
     angle = np.linalg.norm(delta_rot)
     if angle > .15:
         target_rot = current_rot * Rotation.from_rotvec(delta_rot * (.15 / angle))
-    return np.r_[target_xyz, target_rot.as_rotvec(), grip_rad], {"clipped": bool(distance > .015 or angle > .15)}
+    diagnostics["clipped"] = bool(distance > .015 or angle > .15)
+    return np.r_[target_xyz, target_rot.as_rotvec(), grip_rad], diagnostics
 
 
 def active_stats(mode, samples):

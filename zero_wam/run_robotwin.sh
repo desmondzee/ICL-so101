@@ -24,9 +24,11 @@ export PYTHONPATH="${ZERO_WAM_ROOT}:${ROOT}:${ROBOTWIN_ROOT}:${PYTHONPATH:-}"
 export LD_LIBRARY_PATH="/usr/lib64:/usr/lib:${LD_LIBRARY_PATH:-}"
 
 cd "${ROOT}"
-exec "${ROBOTWIN_PYTHON}" -m zero_wam.modal_cli run zero_wam/modal_app.py::rollout \
+"${ROBOTWIN_PYTHON}" -m zero_wam.modal_cli run zero_wam/modal_app.py::rollout \
     --mode "${MODE}" \
     --task "${TASK}" \
     --test-num "${TEST_NUM}" \
     --seed "${SEED}" \
     --save-root "${SAVE_ROOT}"
+"${ROBOTWIN_PYTHON}" -m zero_wam.contact_sheet "${SAVE_ROOT}" \
+    || echo "warning: contact-sheet generation failed" >&2
