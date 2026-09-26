@@ -1,0 +1,84 @@
+✓ Initialized. View run at 
+https://modal.com/apps/nickgeo25/main/ap-f95qJHVZV2kZLfQ9Tggia5
+✓ Created objects.
+├── 🔨 Created mount /workspace/ICL-so101/zero_wam/modal_app.py
+├── 🔨 Created function prepare_checkpoint.
+├── 🔨 Created function prepare_human_video.
+├── 🔨 Created mount /workspace/ICL-so101/third_party/Zero-WAM
+├── 🔨 Created function ZeroWAM.*.
+└── 🔨 Created function check_runtime.
+/workspace/Robotwin/.venv/lib/python3.10/site-packages/sapien/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/workspace/Robotwin/.venv/lib/python3.10/site-packages/sapien/_vulkan_tricks.py:37: UserWarning: Failed to find Vulkan ICD file. This is probably due to an incorrect or partial installation of the NVIDIA driver. SAPIEN will attempt to provide an ICD file anyway but it may not work.
+  warn(
+[32mRender Well[0m
+============= Config =============
+
+[95mMessy Table:[0m False
+[95mRandom Background:[0m False
+[95mRandom Light:[0m False
+[95mRandom Table Height:[0m 0
+[95mRandom Head Camera Distance:[0m 0
+[94mHead Camera Config:[0m D435, True
+[94mWrist Camera Config:[0m D435, True
+[94mEmbodiment Config:[0m aloha-agilex
+
+==================================
+missing pytorch3d
+[34mTask Name: place_empty_cup[0m
+[34mPolicy Name: ACT[0m
+[ICL] task=place_empty_cup episode=0 video=/workspace/ICL-so101/third_party/Zero-WAM/data/HumanGen/human_data/robotwin/run_robotwin_20260728_013720_robotwin_n1000/samples/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/generated_video_kling-v3.mp4 latent=/workspace/ICL-so101/data/HumanGen/human_latents/robotwin/run_robotwin_20260728_013720_robotwin_n1000/samples/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/generated_video_kling-v3.pth
+
+==========
+== CUDA ==
+==========
+
+CUDA Version 12.6.3
+
+Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+This container image and its contents are governed by the NVIDIA Deep Learning Container License.
+By pulling and using the container, you accept the terms and conditions of this license:
+https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
+
+A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
+
+The config attributes {'clip_output': False} were passed to AutoencoderKLWan, but are not expected and will be ignored. Please verify your config.json configuration file.
+
+[1ALoading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+[1ALoading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.52it/s]
+[1ALoading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.10it/s]
+[1ALoading checkpoint shards: 100%|██████████| 3/3 [00:02<00:00,  1.58it/s]
+[1ALoading checkpoint shards: 100%|██████████| 3/3 [00:02<00:00,  1.46it/s]
+
+[1ALoading checkpoint shards:   0%|          | 0/15 [00:00<?, ?it/s]
+[1ALoading checkpoint shards:   7%|▋         | 1/15 [00:00<00:05,  2.50it/s]
+[1ALoading checkpoint shards:  13%|█▎        | 2/15 [00:00<00:05,  2.42it/s]
+[1ALoading checkpoint shards:  20%|██        | 3/15 [00:01<00:04,  2.47it/s]
+[1ALoading checkpoint shards:  27%|██▋       | 4/15 [00:01<00:04,  2.46it/s]
+[1ALoading checkpoint shards:  33%|███▎      | 5/15 [00:02<00:04,  2.44it/s]
+[1ALoading checkpoint shards:  40%|████      | 6/15 [00:02<00:03,  2.51it/s]
+[1ALoading checkpoint shards:  47%|████▋     | 7/15 [00:02<00:03,  2.43it/s]
+[1ALoading checkpoint shards:  53%|█████▎    | 8/15 [00:03<00:02,  2.51it/s]
+[1ALoading checkpoint shards:  60%|██████    | 9/15 [00:03<00:02,  2.45it/s]
+[1ALoading checkpoint shards:  67%|██████▋   | 10/15 [00:04<00:02,  2.46it/s]
+[1ALoading checkpoint shards:  73%|███████▎  | 11/15 [00:04<00:01,  2.46it/s]
+[1ALoading checkpoint shards:  80%|████████  | 12/15 [00:04<00:01,  2.40it/s]
+[1ALoading checkpoint shards:  87%|████████▋ | 13/15 [00:05<00:00,  2.39it/s]
+[1ALoading checkpoint shards:  93%|█████████▎| 14/15 [00:05<00:00,  2.45it/s]
+[1ALoading checkpoint shards: 100%|██████████| 15/15 [00:05<00:00,  2.97it/s]
+[1ALoading checkpoint shards: 100%|██████████| 15/15 [00:05<00:00,  2.55it/s]
+/usr/local/lib/python3.12/site-packages/torch/__init__.py:1551: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+  return _C._get_float32_matmul_precision()
+step: [92m1 / 500[0mstep: [92m2 / 500[0mstep: [92m3 / 500[0mstep: [92m4 / 500[0mstep: [92m5 / 500[0mstep: [92m6 / 500[0mstep: [92m7 / 500[0mstep: [92m8 / 500[0mstep: [92m9 / 500[0mstep: [92m10 / 500[0mstep: [92m11 / 500[0mstep: [92m12 / 500[0mstep: [92m13 / 500[0mstep: [92m14 / 500[0mstep: [92m15 / 500[0mstep: [92m16 / 500[0mstep: [92m17 / 500[0mstep: [92m18 / 500[0mstep: [92m19 / 500[0mstep: [92m20 / 500[0mstep: [92m21 / 500[0mstep: [92m22 / 500[0mstep: [92m23 / 500[0mstep: [92m24 / 500[0mstep: [92m25 / 500[0mstep: [92m26 / 500[0mstep: [92m27 / 500[0mstep: [92m28 / 500[0mstep: [92m29 / 500[0mstep: [92m30 / 500[0mstep: [92m31 / 500[0mstep: [92m32 / 500[0mstep: [92m33 / 500[0mstep: [92m34 / 500[0mstep: [92m35 / 500[0mstep: [92m36 / 500[0mstep: [92m37 / 500[0mstep: [92m38 / 500[0mstep: [92m39 / 500[0mstep: [92m40 / 500[0mstep: [92m41 / 500[0mstep: [92m42 / 500[0mstep: [92m43 / 500[0mstep: [92m44 / 500[0mstep: [92m45 / 500[0mstep: [92m46 / 500[0mstep: [92m47 / 500[0mstep: [92m48 / 500[0mstep: [92m49 / 500[0mstep: [92m50 / 500[0mstep: [92m51 / 500[0mstep: [92m52 / 500[0mstep: [92m53 / 500[0mstep: [92m54 / 500[0mstep: [92m55 / 500[0mstep: [92m56 / 500[0mstep: [92m57 / 500[0mstep: [92m58 / 500[0mstep: [92m59 / 500[0mstep: [92m60 / 500[0mstep: [92m61 / 500[0mstep: [92m62 / 500[0mstep: [92m63 / 500[0mstep: [92m64 / 500[0mstep: [92m65 / 500[0mstep: [92m66 / 500[0mstep: [92m67 / 500[0mstep: [92m68 / 500[0mstep: [92m69 / 500[0mstep: [92m70 / 500[0mstep: [92m71 / 500[0mstep: [92m72 / 500[0mstep: [92m73 / 500[0mstep: [92m74 / 500[0mstep: [92m75 / 500[0mstep: [92m76 / 500[0mstep: [92m77 / 500[0mstep: [92m78 / 500[0mstep: [92m79 / 500[0mstep: [92m80 / 500[0mstep: [92m81 / 500[0mstep: [92m82 / 500[0mstep: [92m83 / 500[0mstep: [92m84 / 500[0mstep: [92m85 / 500[0mstep: [92m86 / 500[0mstep: [92m87 / 500[0mstep: [92m88 / 500[0mstep: [92m89 / 500[0mstep: [92m90 / 500[0mstep: [92m91 / 500[0mstep: [92m92 / 500[0mstep: [92m93 / 500[0mstep: [92m94 / 500[0mstep: [92m95 / 500[0mstep: [92m96 / 500[0mstep: [92m97 / 500[0mstep: [92m98 / 500[0mstep: [92m99 / 500[0mstep: [92m100 / 500[0mstep: [92m101 / 500[0mstep: [92m102 / 500[0mstep: [92m103 / 500[0mstep: [92m104 / 500[0mstep: [92m105 / 500[0mstep: [92m106 / 500[0mstep: [92m107 / 500[0mstep: [92m108 / 500[0mstep: [92m109 / 500[0mstep: [92m110 / 500[0mstep: [92m111 / 500[0mstep: [92m112 / 500[0mstep: [92m113 / 500[0mstep: [92m114 / 500[0mstep: [92m115 / 500[0mstep: [92m116 / 500[0mstep: [92m117 / 500[0mstep: [92m118 / 500[0mstep: [92m119 / 500[0mstep: [92m120 / 500[0mstep: [92m121 / 500[0mstep: [92m122 / 500[0mstep: [92m123 / 500[0mstep: [92m124 / 500[0mstep: [92m125 / 500[0mstep: [92m126 / 500[0mstep: [92m127 / 500[0mstep: [92m128 / 500[0mstep: [92m129 / 500[0mstep: [92m130 / 500[0mstep: [92m131 / 500[0mstep: [92m132 / 500[0mSaving video: Real 37 frames, Imagined 0 frames...
+Combined video saved to: /workspace/ICL-so101/outputs/zero_wam/text/stseed-100000/visualization/place_empty_cup/0_Lift_the_smooth_blue_drinking_cup_and_stick_it_onto_the_flat_round_wooden_coaster._True.mp4
+[92mSuccess![0m
+[93mplace_empty_cup[0m | [94mACT[0m | [92mdemo_clean[0m | [91m0[0m
+Success rate: [96m1/1[0m => [95m100.0%[0m, current seed: [90m100000[0m
+
+Data has been saved to eval_result/place_empty_cup/ACT/demo_clean/0/2026-09-25 19:08:33/_result.txt
+Stopping app - local entrypoint completed.
+[rank0]:[W925 19:14:25.944037346 ProcessGroupNCCL.cpp:1524] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+Runner terminated.
+✓ App completed. View run at 
+https://modal.com/apps/nickgeo25/main/ap-f95qJHVZV2kZLfQ9Tggia5
