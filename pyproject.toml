@@ -22,6 +22,7 @@ schema = [
     "google-genai>=2.25.0",
     "jsonschema>=4.26.0",
     "pyarrow>=23.0.1",
+    "scipy>=1.18.1",
 ]
 
 [dependency-groups]

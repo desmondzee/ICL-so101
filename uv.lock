@@ -881,6 +881,7 @@ schema = [
     { name = "google-genai" },
     { name = "jsonschema" },
     { name = "pyarrow" },
+    { name = "scipy" },
 ]
 zero-wam = [
     { name = "imageio", extra = ["ffmpeg"] },
@@ -902,6 +903,7 @@ requires-dist = [
     { name = "pyarrow", marker = "extra == 'zero-wam'", specifier = ">=20,<26" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
     { name = "reactor-sdk", specifier = ">=1.6.0" },
+    { name = "scipy", marker = "extra == 'schema'", specifier = ">=1.18.1" },
     { name = "scipy", marker = "extra == 'zero-wam'", specifier = ">=1.16,<2" },
     { name = "so101-nexus", extras = ["teleop"], specifier = "==0.7.0" },
 ]
