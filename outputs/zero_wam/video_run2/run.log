@@ -1,0 +1,112 @@
+✓ Initialized. View run at 
+https://modal.com/apps/nickgeo25/main/ap-iWD7xQTNFJ4DLRpTpd07sT
+✓ Created objects.
+├── 🔨 Created mount /workspace/ICL-so101/zero_wam/modal_app.py
+├── 🔨 Created mount /workspace/ICL-so101/third_party/Zero-WAM
+├── 🔨 Created function prepare_checkpoint.
+├── 🔨 Created function prepare_human_video.
+├── 🔨 Created function ZeroWAM.*.
+├── 🔨 Created function check_runtime.
+└── 🔨 Created function check_video_decode.
+/workspace/Robotwin/.venv/lib/python3.10/site-packages/sapien/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/workspace/Robotwin/.venv/lib/python3.10/site-packages/sapien/_vulkan_tricks.py:37: UserWarning: Failed to find Vulkan ICD file. This is probably due to an incorrect or partial installation of the NVIDIA driver. SAPIEN will attempt to provide an ICD file anyway but it may not work.
+  warn(
+[32mRender Well[0m
+============= Config =============
+
+[95mMessy Table:[0m False
+[95mRandom Background:[0m False
+[95mRandom Light:[0m False
+[95mRandom Table Height:[0m 0
+[95mRandom Head Camera Distance:[0m 0
+[94mHead Camera Config:[0m D435, True
+[94mWrist Camera Config:[0m D435, True
+[94mEmbodiment Config:[0m aloha-agilex
+
+==================================
+missing pytorch3d
+[34mTask Name: place_empty_cup[0m
+[34mPolicy Name: ACT[0m
+[ICL] task=place_empty_cup episode=0 video=/workspace/ICL-so101/third_party/Zero-WAM/data/HumanGen/human_data/robotwin/run_robotwin_20260728_013720_robotwin_n1000/samples/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/generated_video_kling-v3.mp4 latent=/workspace/ICL-so101/data/HumanGen/human_latents/robotwin/run_robotwin_20260728_013720_robotwin_n1000/samples/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/generated_video_kling-v3.pth
+
+==========
+== CUDA ==
+==========
+
+CUDA Version 12.6.3
+
+Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+This container image and its contents are governed by the NVIDIA Deep Learning Container License.
+By pulling and using the container, you accept the terms and conditions of this license:
+https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
+
+A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
+
+The config attributes {'clip_output': False} were passed to AutoencoderKLWan, but are not expected and will be ignored. Please verify your config.json configuration file.
+
+[1ALoading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+[1ALoading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.21it/s]
+[1ALoading checkpoint shards:  67%|██████▋   | 2/3 [00:02<00:01,  1.15s/it]
+[1ALoading checkpoint shards: 100%|██████████| 3/3 [00:02<00:00,  1.25it/s]
+[1ALoading checkpoint shards: 100%|██████████| 3/3 [00:02<00:00,  1.16it/s]
+
+[1ALoading checkpoint shards:   0%|          | 0/15 [00:00<?, ?it/s]
+[1ALoading checkpoint shards:   7%|▋         | 1/15 [00:00<00:07,  1.95it/s]
+[1ALoading checkpoint shards:  13%|█▎        | 2/15 [00:01<00:06,  1.87it/s]
+[1ALoading checkpoint shards:  20%|██        | 3/15 [00:01<00:06,  1.90it/s]
+[1ALoading checkpoint shards:  27%|██▋       | 4/15 [00:02<00:05,  1.89it/s]
+[1ALoading checkpoint shards:  33%|███▎      | 5/15 [00:02<00:05,  1.88it/s]
+[1ALoading checkpoint shards:  40%|████      | 6/15 [00:03<00:04,  1.92it/s]
+[1ALoading checkpoint shards:  47%|████▋     | 7/15 [00:03<00:04,  1.85it/s]
+[1ALoading checkpoint shards:  53%|█████▎    | 8/15 [00:04<00:03,  1.90it/s]
+[1ALoading checkpoint shards:  60%|██████    | 9/15 [00:04<00:03,  1.89it/s]
+[1ALoading checkpoint shards:  67%|██████▋   | 10/15 [00:05<00:02,  1.91it/s]
+[1ALoading checkpoint shards:  73%|███████▎  | 11/15 [00:05<00:02,  1.91it/s]
+[1ALoading checkpoint shards:  80%|████████  | 12/15 [00:06<00:01,  1.90it/s]
+[1ALoading checkpoint shards:  87%|████████▋ | 13/15 [00:06<00:01,  1.87it/s]
+[1ALoading checkpoint shards:  93%|█████████▎| 14/15 [00:07<00:00,  1.90it/s]
+[1ALoading checkpoint shards: 100%|██████████| 15/15 [00:07<00:00,  2.30it/s]
+[1ALoading checkpoint shards: 100%|██████████| 15/15 [00:07<00:00,  1.97it/s]
+[zw-metrics] post-load {'vram_alloc_gib': 32.01, 'vram_reserved_gib': 32.64, 'vram_peak_gib': 32.57, 'gpu_util_pct': 7, 'gpu_mem_gib': 33.57, 'gpu_total_gib': 80.0}
+/usr/local/lib/python3.12/site-packages/torch/__init__.py:1551: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+  return _C._get_float32_matmul_precision()
+[zw-metrics] reset 43.83s vram_alloc=32.82GiB vram_peak=34.20GiB
+[zw-metrics] infer 44.33s vram_alloc=33.19GiB vram_peak=34.26GiB
+step: [92m1 / 500[0mstep: [92m2 / 500[0mstep: [92m3 / 500[0mstep: [92m4 / 500[0mstep: [92m5 / 500[0mstep: [92m6 / 500[0mstep: [92m7 / 500[0mstep: [92m8 / 500[0mstep: [92m9 / 500[0mstep: [92m10 / 500[0mstep: [92m11 / 500[0mstep: [92m12 / 500[0mstep: [92m13 / 500[0mstep: [92m14 / 500[0mstep: [92m15 / 500[0mstep: [92m16 / 500[0m[zw-metrics] kv 0.71s vram_alloc=33.34GiB vram_peak=34.37GiB
+step: [92m17 / 500[0m[zw-metrics] infer 26.49s vram_alloc=33.60GiB vram_peak=34.68GiB
+step: [92m18 / 500[0mstep: [92m19 / 500[0mstep: [92m20 / 500[0mstep: [92m21 / 500[0mstep: [92m22 / 500[0mstep: [92m23 / 500[0mstep: [92m24 / 500[0mstep: [92m25 / 500[0mstep: [92m26 / 500[0mstep: [92m27 / 500[0mstep: [92m28 / 500[0mstep: [92m29 / 500[0mstep: [92m30 / 500[0mstep: [92m31 / 500[0mstep: [92m32 / 500[0mstep: [92m33 / 500[0mstep: [92m34 / 500[0mstep: [92m35 / 500[0mstep: [92m36 / 500[0mstep: [92m37 / 500[0mstep: [92m38 / 500[0mstep: [92m39 / 500[0mstep: [92m40 / 500[0mstep: [92m41 / 500[0mstep: [92m42 / 500[0mstep: [92m43 / 500[0mstep: [92m44 / 500[0mstep: [92m45 / 500[0mstep: [92m46 / 500[0mstep: [92m47 / 500[0mstep: [92m48 / 500[0m[zw-metrics] kv 0.74s vram_alloc=33.65GiB vram_peak=35.15GiB
+step: [92m49 / 500[0m[zw-metrics] infer 18.93s vram_alloc=33.91GiB vram_peak=35.15GiB
+step: [92m50 / 500[0mstep: [92m51 / 500[0mstep: [92m52 / 500[0mstep: [92m53 / 500[0mstep: [92m54 / 500[0mstep: [92m55 / 500[0mstep: [92m56 / 500[0mstep: [92m57 / 500[0mstep: [92m58 / 500[0mstep: [92m59 / 500[0mstep: [92m60 / 500[0mstep: [92m61 / 500[0mstep: [92m62 / 500[0mstep: [92m63 / 500[0mstep: [92m64 / 500[0mstep: [92m65 / 500[0mstep: [92m66 / 500[0mstep: [92m67 / 500[0mstep: [92m68 / 500[0mstep: [92m69 / 500[0mstep: [92m70 / 500[0mstep: [92m71 / 500[0mstep: [92m72 / 500[0mstep: [92m73 / 500[0mstep: [92m74 / 500[0mstep: [92m75 / 500[0mstep: [92m76 / 500[0mstep: [92m77 / 500[0mstep: [92m78 / 500[0mstep: [92m79 / 500[0mstep: [92m80 / 500[0m[zw-metrics] kv 0.73s vram_alloc=33.96GiB vram_peak=35.46GiB
+step: [92m81 / 500[0m[zw-metrics] infer 19.02s vram_alloc=34.22GiB vram_peak=35.46GiB
+step: [92m82 / 500[0mstep: [92m83 / 500[0mstep: [92m84 / 500[0mstep: [92m85 / 500[0mstep: [92m86 / 500[0mstep: [92m87 / 500[0mstep: [92m88 / 500[0mstep: [92m89 / 500[0mstep: [92m90 / 500[0mstep: [92m91 / 500[0mstep: [92m92 / 500[0mstep: [92m93 / 500[0mstep: [92m94 / 500[0mstep: [92m95 / 500[0mstep: [92m96 / 500[0mstep: [92m97 / 500[0mstep: [92m98 / 500[0mstep: [92m99 / 500[0mstep: [92m100 / 500[0mstep: [92m101 / 500[0mstep: [92m102 / 500[0mstep: [92m103 / 500[0mstep: [92m104 / 500[0mstep: [92m105 / 500[0mstep: [92m106 / 500[0mstep: [92m107 / 500[0mstep: [92m108 / 500[0mstep: [92m109 / 500[0mstep: [92m110 / 500[0mstep: [92m111 / 500[0mstep: [92m112 / 500[0m[zw-metrics] kv 0.72s vram_alloc=34.26GiB vram_peak=35.77GiB
+step: [92m113 / 500[0m[zw-metrics] infer 19.14s vram_alloc=34.53GiB vram_peak=35.77GiB
+step: [92m114 / 500[0mstep: [92m115 / 500[0mstep: [92m116 / 500[0mstep: [92m117 / 500[0mstep: [92m118 / 500[0mstep: [92m119 / 500[0mstep: [92m120 / 500[0mstep: [92m121 / 500[0mstep: [92m122 / 500[0mstep: [92m123 / 500[0mstep: [92m124 / 500[0mstep: [92m125 / 500[0mstep: [92m126 / 500[0mstep: [92m127 / 500[0mstep: [92m128 / 500[0mstep: [92m129 / 500[0mstep: [92m130 / 500[0mstep: [92m131 / 500[0mstep: [92m132 / 500[0mstep: [92m133 / 500[0mstep: [92m134 / 500[0mstep: [92m135 / 500[0mstep: [92m136 / 500[0mstep: [92m137 / 500[0mstep: [92m138 / 500[0mstep: [92m139 / 500[0mstep: [92m140 / 500[0mstep: [92m141 / 500[0mstep: [92m142 / 500[0mstep: [92m143 / 500[0mstep: [92m144 / 500[0m[zw-metrics] kv 0.69s vram_alloc=34.57GiB vram_peak=36.07GiB
+step: [92m145 / 500[0m[zw-metrics] infer 19.07s vram_alloc=34.84GiB vram_peak=36.07GiB
+step: [92m146 / 500[0mstep: [92m147 / 500[0mstep: [92m148 / 500[0mstep: [92m149 / 500[0mstep: [92m150 / 500[0mstep: [92m151 / 500[0mstep: [92m152 / 500[0mstep: [92m153 / 500[0mstep: [92m154 / 500[0mstep: [92m155 / 500[0mstep: [92m156 / 500[0mstep: [92m157 / 500[0mstep: [92m158 / 500[0mstep: [92m159 / 500[0mstep: [92m160 / 500[0mstep: [92m161 / 500[0mstep: [92m162 / 500[0mstep: [92m163 / 500[0mstep: [92m164 / 500[0mstep: [92m165 / 500[0mstep: [92m166 / 500[0mstep: [92m167 / 500[0mstep: [92m168 / 500[0mstep: [92m169 / 500[0mstep: [92m170 / 500[0mstep: [92m171 / 500[0mstep: [92m172 / 500[0mstep: [92m173 / 500[0mstep: [92m174 / 500[0mstep: [92m175 / 500[0mstep: [92m176 / 500[0m[zw-metrics] kv 0.70s vram_alloc=34.88GiB vram_peak=36.38GiB
+step: [92m177 / 500[0m[zw-metrics] infer 19.04s vram_alloc=35.14GiB vram_peak=36.38GiB
+step: [92m178 / 500[0mstep: [92m179 / 500[0mstep: [92m180 / 500[0mstep: [92m181 / 500[0mstep: [92m182 / 500[0mstep: [92m183 / 500[0mstep: [92m184 / 500[0mstep: [92m185 / 500[0mstep: [92m186 / 500[0mstep: [92m187 / 500[0mstep: [92m188 / 500[0mstep: [92m189 / 500[0mstep: [92m190 / 500[0mstep: [92m191 / 500[0mstep: [92m192 / 500[0mstep: [92m193 / 500[0mstep: [92m194 / 500[0mstep: [92m195 / 500[0mstep: [92m196 / 500[0mstep: [92m197 / 500[0mstep: [92m198 / 500[0mstep: [92m199 / 500[0mstep: [92m200 / 500[0mstep: [92m201 / 500[0mstep: [92m202 / 500[0mstep: [92m203 / 500[0mstep: [92m204 / 500[0mstep: [92m205 / 500[0mstep: [92m206 / 500[0mstep: [92m207 / 500[0mstep: [92m208 / 500[0m[zw-metrics] kv 0.69s vram_alloc=35.19GiB vram_peak=36.69GiB
+[zw-metrics] infer 18.99s vram_alloc=35.45GiB vram_peak=36.69GiB
+step: [92m209 / 500[0mstep: [92m210 / 500[0mstep: [92m211 / 500[0mstep: [92m212 / 500[0mstep: [92m213 / 500[0mstep: [92m214 / 500[0mstep: [92m215 / 500[0mstep: [92m216 / 500[0mstep: [92m217 / 500[0mstep: [92m218 / 500[0mstep: [92m219 / 500[0mstep: [92m220 / 500[0mstep: [92m221 / 500[0mstep: [92m222 / 500[0mstep: [92m223 / 500[0mstep: [92m224 / 500[0mstep: [92m225 / 500[0mstep: [92m226 / 500[0mstep: [92m227 / 500[0mstep: [92m228 / 500[0mstep: [92m229 / 500[0mstep: [92m230 / 500[0mstep: [92m231 / 500[0mstep: [92m232 / 500[0mstep: [92m233 / 500[0mstep: [92m234 / 500[0mstep: [92m235 / 500[0mstep: [92m236 / 500[0mstep: [92m237 / 500[0mstep: [92m238 / 500[0mstep: [92m239 / 500[0mstep: [92m240 / 500[0m[zw-metrics] kv 0.71s vram_alloc=35.49GiB vram_peak=37.00GiB
+[zw-metrics] infer 18.91s vram_alloc=35.76GiB vram_peak=37.00GiB
+step: [92m241 / 500[0mstep: [92m242 / 500[0mstep: [92m243 / 500[0mstep: [92m244 / 500[0mstep: [92m245 / 500[0mstep: [92m246 / 500[0mstep: [92m247 / 500[0mstep: [92m248 / 500[0mstep: [92m249 / 500[0mstep: [92m250 / 500[0mstep: [92m251 / 500[0mstep: [92m252 / 500[0mstep: [92m253 / 500[0mstep: [92m254 / 500[0mstep: [92m255 / 500[0mstep: [92m256 / 500[0mstep: [92m257 / 500[0mstep: [92m258 / 500[0mstep: [92m259 / 500[0mstep: [92m260 / 500[0mstep: [92m261 / 500[0mstep: [92m262 / 500[0mstep: [92m263 / 500[0mstep: [92m264 / 500[0mstep: [92m265 / 500[0mstep: [92m266 / 500[0mstep: [92m267 / 500[0mstep: [92m268 / 500[0mstep: [92m269 / 500[0mstep: [92m270 / 500[0mstep: [92m271 / 500[0mstep: [92m272 / 500[0m[zw-metrics] kv 0.70s vram_alloc=35.80GiB vram_peak=37.30GiB
+[zw-metrics] infer 18.87s vram_alloc=36.06GiB vram_peak=37.30GiB
+step: [92m273 / 500[0mstep: [92m274 / 500[0mstep: [92m275 / 500[0mstep: [92m276 / 500[0mstep: [92m277 / 500[0mstep: [92m278 / 500[0mstep: [92m279 / 500[0mstep: [92m280 / 500[0mstep: [92m281 / 500[0mstep: [92m282 / 500[0mstep: [92m283 / 500[0mstep: [92m284 / 500[0mstep: [92m285 / 500[0mstep: [92m286 / 500[0mstep: [92m287 / 500[0mstep: [92m288 / 500[0mstep: [92m289 / 500[0mstep: [92m290 / 500[0mstep: [92m291 / 500[0mstep: [92m292 / 500[0mstep: [92m293 / 500[0mstep: [92m294 / 500[0mstep: [92m295 / 500[0mstep: [92m296 / 500[0mstep: [92m297 / 500[0mstep: [92m298 / 500[0mstep: [92m299 / 500[0mstep: [92m300 / 500[0mstep: [92m301 / 500[0mstep: [92m302 / 500[0mstep: [92m303 / 500[0mstep: [92m304 / 500[0m[zw-metrics] kv 0.70s vram_alloc=36.11GiB vram_peak=37.61GiB
+step: [92m305 / 500[0m[zw-metrics] infer 18.71s vram_alloc=36.37GiB vram_peak=37.61GiB
+step: [92m306 / 500[0mstep: [92m307 / 500[0mstep: [92m308 / 500[0mstep: [92m309 / 500[0mstep: [92m310 / 500[0mstep: [92m311 / 500[0mstep: [92m312 / 500[0mstep: [92m313 / 500[0mstep: [92m314 / 500[0mstep: [92m315 / 500[0mstep: [92m316 / 500[0mstep: [92m317 / 500[0mstep: [92m318 / 500[0mstep: [92m319 / 500[0mstep: [92m320 / 500[0mstep: [92m321 / 500[0mstep: [92m322 / 500[0mstep: [92m323 / 500[0mstep: [92m324 / 500[0mstep: [92m325 / 500[0mstep: [92m326 / 500[0mstep: [92m327 / 500[0mstep: [92m328 / 500[0mstep: [92m329 / 500[0mstep: [92m330 / 500[0mstep: [92m331 / 500[0mstep: [92m332 / 500[0mstep: [92m333 / 500[0mstep: [92m334 / 500[0mstep: [92m335 / 500[0mstep: [92m336 / 500[0m[zw-metrics] kv 0.69s vram_alloc=36.42GiB vram_peak=37.92GiB
+step: [92m337 / 500[0m[zw-metrics] infer 18.65s vram_alloc=36.68GiB vram_peak=37.92GiB
+step: [92m338 / 500[0mstep: [92m339 / 500[0mstep: [92m340 / 500[0mstep: [92m341 / 500[0mSaving video: Real 93 frames, Imagined 0 frames...
+[zw-metrics] kv 0.70s vram_alloc=36.72GiB vram_peak=38.23GiB
+Combined video saved to: /workspace/ICL-so101/outputs/zero_wam/video_run2/stseed-100000/visualization/place_empty_cup/0_Move_the_smooth_blue_cup_for_liquids_onto_the_grainy_texture_coaster_with_the_arm_True.mp4
+[92mSuccess![0m
+[93mplace_empty_cup[0m | [94mACT[0m | [92mdemo_clean[0m | [91m0[0m
+Success rate: [96m1/1[0m => [95m100.0%[0m, current seed: [90m100000[0m
+
+Data has been saved to eval_result/place_empty_cup/ACT/demo_clean/0/2026-09-26 00:42:36/_result.txt
+Stopping app - local entrypoint completed.
+[rank0]:[W926 00:51:14.159335963 ProcessGroupNCCL.cpp:1524] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[modal-client] 2026-09-26T00:51:22+0000 Timed out waiting for final app logs.
+[WARNING] [modal-client] Timed out waiting for final app logs.
+✓ App completed. View run at 
+https://modal.com/apps/nickgeo25/main/ap-iWD7xQTNFJ4DLRpTpd07sT
