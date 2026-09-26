@@ -97,3 +97,7 @@ Notes:
 ## H3 video generation
 
 [`humangen`](humangen/README.md) turns task directories into generated `video.mp4` files through one Reactor H3 session. Each task names a still in `frames/`. `uv run python -m humangen example/tasks`.
+
+## Pair schema
+
+[`schema`](schema/README.md) defines the scene, task and pair records a VLM fills for each source episode before human video generation. `uv run --extra schema python -m schema.annotate lerobot/svla_so101_pickplace --episodes 0` drafts and validates pairs.

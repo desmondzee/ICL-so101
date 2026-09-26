@@ -18,6 +18,11 @@ zero-wam = [
     "pyarrow>=20,<26",
     "imageio[ffmpeg]>=2.37,<3",
 ]
+schema = [
+    "google-genai>=2.25.0",
+    "jsonschema>=4.26.0",
+    "pyarrow>=23.0.1",
+]
 
 [dependency-groups]
 dev = []

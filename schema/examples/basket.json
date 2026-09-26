@@ -1,0 +1,384 @@
+{
+  "version": "0.2",
+  "id": "basket_episode_000",
+  "source": {
+    "dataset": "data/examples/so101_libero_basket/episode_000",
+    "revision": "9e252582740a22deff32c6605588092bc19d9452",
+    "domain": "simulation",
+    "robot": "so101_follower",
+    "episode_index": 0,
+    "fps": 50.0,
+    "frames": {
+      "start": 0,
+      "end": 642
+    },
+    "camera_key": "observation.images.overhead",
+    "task": "put both the alphabet soup and the cream cheese box in the basket",
+    "action_field": "action",
+    "outcome": "success",
+    "evidence": [
+      {
+        "asset": "data/examples/so101_libero_basket/episode_000/episode.json",
+        "detail": "Seed 0, 642 frames at 50 fps; successful grasp, lift and in_basket checks for both objects."
+      }
+    ]
+  },
+  "scene": {
+    "version": "0.2",
+    "id": "basket_episode_000",
+    "view": {
+      "camera_key": "observation.images.overhead",
+      "shot": "angled overhead view of a wooden table, robot on the right"
+    },
+    "entities": [
+      {
+        "id": "table",
+        "name": "wooden table",
+        "kind": "surface",
+        "attributes": {
+          "color": "brown",
+          "material": "wood",
+          "shape": "flat"
+        },
+        "grounding": "lower half",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "basket",
+        "name": "white-lined wicker basket",
+        "kind": "container",
+        "attributes": {
+          "color": "brown",
+          "material": "wicker",
+          "shape": "open rectangular"
+        },
+        "grounding": "left",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "soup",
+        "name": "alphabet soup can",
+        "kind": "object",
+        "attributes": {
+          "color": null,
+          "material": "metal",
+          "shape": "cylinder"
+        },
+        "grounding": "upper right",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "cheese",
+        "name": "blue cream cheese box",
+        "kind": "object",
+        "attributes": {
+          "color": "blue",
+          "material": "cardboard",
+          "shape": "box"
+        },
+        "grounding": "upper center, left of the soup can",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "tomato",
+        "name": "tomato sauce can",
+        "kind": "object",
+        "attributes": {
+          "color": "red",
+          "material": "metal",
+          "shape": "cylinder"
+        },
+        "grounding": "center, between the basket and the ketchup bottle",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "ketchup",
+        "name": "ketchup bottle",
+        "kind": "object",
+        "attributes": {
+          "color": "red",
+          "material": "plastic",
+          "shape": "bottle"
+        },
+        "grounding": "right, below the soup can",
+        "box_2d": null,
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "robot",
+        "name": "SO-101 arm",
+        "kind": "actor",
+        "attributes": {
+          "color": null,
+          "material": null,
+          "shape": null
+        },
+        "grounding": "hidden in the replay still",
+        "box_2d": null,
+        "visibility": "occluded",
+        "identity_status": "known"
+      }
+    ],
+    "initial_state": [
+      {
+        "relation": "supported_by",
+        "subject": "basket",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "soup",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "cheese",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "tomato",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "ketchup",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "inside",
+        "subject": "soup",
+        "object": "basket",
+        "value": false
+      },
+      {
+        "relation": "inside",
+        "subject": "cheese",
+        "object": "basket",
+        "value": false
+      },
+      {
+        "relation": "held_by",
+        "subject": "soup",
+        "object": "robot",
+        "value": false
+      },
+      {
+        "relation": "held_by",
+        "subject": "cheese",
+        "object": "robot",
+        "value": false
+      }
+    ],
+    "evidence": [
+      {
+        "asset": "data/examples/so101_libero_basket/episode_000/frames/first.png",
+        "detail": "Initial seed-0 replay with robot hidden, not an extracted source-video frame."
+      },
+      {
+        "asset": "data/examples/so101_libero_basket/episode_000/frames/last.png",
+        "detail": "Completed seed-0 replay: the upper-right can and blue box are in the basket; the middle can and bottle remain outside."
+      },
+      {
+        "asset": "data/examples/so101_libero_basket/episode_000/episode.json",
+        "detail": "Task and successful object-specific logs identify the moved can as alphabet_soup and the moved box as cream_cheese."
+      },
+      {
+        "asset": "sim/libero_basket_env.py",
+        "detail": "Scene object identities and SO-101 environment definition."
+      }
+    ]
+  },
+  "task": {
+    "version": "0.2",
+    "id": "two_objects_into_basket",
+    "instruction": "put both the alphabet soup and the cream cheese box in the basket",
+    "robot_caption": "Put the alphabet soup can and the blue cream cheese box in the basket.",
+    "roles": [
+      {
+        "role": "item_a",
+        "kind": "object",
+        "appearance": "alphabet soup can"
+      },
+      {
+        "role": "item_b",
+        "kind": "object",
+        "appearance": "blue cream cheese box"
+      },
+      {
+        "role": "destination",
+        "kind": "container",
+        "appearance": "wicker basket"
+      },
+      {
+        "role": "robot",
+        "kind": "actor",
+        "appearance": "SO-101 arm"
+      }
+    ],
+    "steps": [
+      {
+        "id": "place_a",
+        "action": "pick_place",
+        "object": "item_a",
+        "destination": "destination",
+        "after": [
+          {
+            "relation": "inside",
+            "subject": "item_a",
+            "object": "destination",
+            "value": true
+          },
+          {
+            "relation": "held_by",
+            "subject": "item_a",
+            "object": "robot",
+            "value": false
+          }
+        ]
+      },
+      {
+        "id": "place_b",
+        "action": "pick_place",
+        "object": "item_b",
+        "destination": "destination",
+        "after": [
+          {
+            "relation": "inside",
+            "subject": "item_b",
+            "object": "destination",
+            "value": true
+          },
+          {
+            "relation": "held_by",
+            "subject": "item_b",
+            "object": "robot",
+            "value": false
+          }
+        ]
+      }
+    ],
+    "required_order": [],
+    "goals": [
+      {
+        "relation": "inside",
+        "subject": "item_a",
+        "object": "destination",
+        "value": true
+      },
+      {
+        "relation": "inside",
+        "subject": "item_b",
+        "object": "destination",
+        "value": true
+      },
+      {
+        "relation": "held_by",
+        "subject": "item_a",
+        "object": "robot",
+        "value": false
+      },
+      {
+        "relation": "held_by",
+        "subject": "item_b",
+        "object": "robot",
+        "value": false
+      }
+    ],
+    "invariants": []
+  },
+  "bindings": [
+    {
+      "role": "item_a",
+      "entity": "soup"
+    },
+    {
+      "role": "item_b",
+      "entity": "cheese"
+    },
+    {
+      "role": "destination",
+      "entity": "basket"
+    },
+    {
+      "role": "robot",
+      "entity": "robot"
+    }
+  ],
+  "segments": [
+    {
+      "step": "place_a",
+      "start": 0,
+      "end": 350,
+      "grasp": 85,
+      "release": 274,
+      "source": "gripper"
+    },
+    {
+      "step": "place_b",
+      "start": 350,
+      "end": 642,
+      "grasp": 426,
+      "release": 564,
+      "source": "gripper"
+    }
+  ],
+  "generation": {
+    "alignment": {
+      "preserve_layout": true,
+      "preserve_camera": true,
+      "variations": []
+    },
+    "active_hand": "right",
+    "idle_hand": "rests flat on the table at the lower right",
+    "entry_edge": "right",
+    "appearance": null,
+    "duration_s": 10,
+    "seed": 0,
+    "edit_model": "gemini chat",
+    "video_model": "reactor/h3-reference-to-video-turbo-realtime",
+    "edit_prompt": null,
+    "video_prompt": "subject_definitions:\nThe person in Picture 1, preserving both forearms and hands reaching in from the lower right of the frame.\nThe white-lined wicker basket on the left of the table in Picture 1, staying where it is.\nThe alphabet soup can at the back right and the blue cream cheese box to the left of the soup can at the back in Picture 1.\nThe tomato sauce can in the middle of the table and the ketchup bottle on the right stay where they are.\n\nsummary:\nIn 10 seconds, the right hand puts the alphabet soup can into the wicker basket, then puts the blue cream cheese box into the basket. The camera stays locked on the angled shot in Picture 1.\n\ndetailed_description:\nAngled high view of the oval wooden table in Picture 1. One continuous shot, no cuts, no zoom, no reframing. No extra hands, no duplicate objects. Only the right hand moves. The left hand stays flat on the table. The tomato sauce can and the ketchup bottle do not move. When both items are in the basket, the right hand returns to the table and everything holds still until the clip ends.\n\n[Shot 1, 00:00.000-00:02.500] The right hand reaches to the alphabet soup can, grasps it, and lifts it off the table.\n[Shot 1, 00:02.500-00:05.000] The right hand carries the can to the wicker basket and lowers it inside, standing upright.\n[Shot 1, 00:05.000-00:07.500] The right hand reaches to the blue cream cheese box, grasps it, and lifts it off the table.\n[Shot 1, 00:07.500-00:10.000] The right hand carries the box to the basket, sets it inside next to the can, then rests on the table.\n\noverall_soundscape:\nA soft thud as the can settles in the basket, then a lighter tap as the box lands. No dialogue. No music."
+  },
+  "human": null,
+  "checks": {
+    "reference_preservation": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "first_frame_visible": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "task_consistency": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "semantic": {
+      "score": null,
+      "goals": [],
+      "evidence": []
+    },
+    "physics": {
+      "score": null,
+      "evidence": []
+    }
+  },
+  "accepted": null
+}

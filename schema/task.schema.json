@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:icl-so101:task:0.2",
+  "title": "Task",
+  "description": "One dataset task; uses role names, bound per episode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "id",
+    "instruction",
+    "robot_caption",
+    "roles",
+    "steps",
+    "required_order",
+    "goals",
+    "invariants"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.2"
+    },
+    "id": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+    },
+    "instruction": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+      "description": "Dataset task string, verbatim."
+    },
+    "robot_caption": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+      "description": "One imperative sentence naming objects by appearance."
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "kind",
+          "appearance"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "object",
+              "container",
+              "surface",
+              "fixture",
+              "region",
+              "actor"
+            ]
+          },
+          "appearance": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Observed order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "action",
+          "object",
+          "destination",
+          "after"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "action": {
+            "enum": [
+              "pick_place",
+              "lift",
+              "slide",
+              "stack",
+              "open",
+              "close",
+              "press",
+              "pour",
+              "fold"
+            ],
+            "description": "pick_place, slide, stack, pour need a destination; others null."
+          },
+          "object": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "urn:icl-so101:common:0.2#/$defs/requirement"
+            },
+            "description": "True once the step is done."
+          }
+        }
+      }
+    },
+    "required_order": {
+      "type": "array",
+      "description": "Order required for success; empty = any.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "earlier",
+          "later"
+        ],
+        "properties": {
+          "earlier": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "later": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          }
+        }
+      }
+    },
+    "goals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:icl-so101:common:0.2#/$defs/requirement"
+      },
+      "description": "All true at the end."
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:icl-so101:common:0.2#/$defs/requirement"
+      },
+      "description": "True throughout."
+    }
+  }
+}

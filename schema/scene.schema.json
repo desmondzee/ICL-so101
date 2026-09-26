@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:icl-so101:scene:0.2",
+  "title": "Scene",
+  "description": "First frame of one episode, one camera.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "id",
+    "view",
+    "entities",
+    "initial_state",
+    "evidence"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.2"
+    },
+    "id": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "camera_key",
+        "shot"
+      ],
+      "properties": {
+        "camera_key": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "shot": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+          "description": "e.g. 'high front view of a white table'."
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Task objects, distractors, surfaces, robot.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "attributes",
+          "grounding",
+          "box_2d",
+          "visibility",
+          "identity_status"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "name": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+            "description": "Short noun phrase, reused verbatim in prompts."
+          },
+          "kind": {
+            "enum": [
+              "object",
+              "container",
+              "surface",
+              "fixture",
+              "region",
+              "actor"
+            ],
+            "description": "fixture = fixed or articulated part (drawer, switch)."
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "color",
+              "material",
+              "shape"
+            ],
+            "properties": {
+              "color": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "material": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "shape": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "grounding": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+            "description": "Image position, e.g. 'bottom center'."
+          },
+          "box_2d": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "minItems": 4,
+                "maxItems": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "[ymin, xmin, ymax, xmax], 0-1000."
+          },
+          "visibility": {
+            "enum": [
+              "visible",
+              "partly_occluded",
+              "occluded"
+            ]
+          },
+          "identity_status": {
+            "enum": [
+              "known",
+              "ambiguous",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "initial_state": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:icl-so101:common:0.2#/$defs/condition"
+      },
+      "description": "Omitted = unknown."
+    },
+    "evidence": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/evidence"
+    }
+  }
+}

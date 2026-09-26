@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:icl-so101:pair:0.2",
+  "title": "Human-robot pair",
+  "description": "One episode, one camera.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "id",
+    "source",
+    "scene",
+    "task",
+    "bindings",
+    "segments",
+    "generation",
+    "human",
+    "checks",
+    "accepted"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.2"
+    },
+    "id": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "revision",
+        "domain",
+        "robot",
+        "episode_index",
+        "fps",
+        "frames",
+        "camera_key",
+        "task",
+        "action_field",
+        "outcome",
+        "evidence"
+      ],
+      "properties": {
+        "dataset": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text",
+          "description": "HF repo ID or repo path."
+        },
+        "revision": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "domain": {
+          "enum": [
+            "real",
+            "simulation"
+          ]
+        },
+        "robot": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "episode_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "frames": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "description": "Episode-local [start, end)."
+        },
+        "camera_key": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "task": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "action_field": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "failure",
+            "unknown"
+          ]
+        },
+        "evidence": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/evidence"
+        }
+      }
+    },
+    "scene": {
+      "$ref": "urn:icl-so101:scene:0.2"
+    },
+    "task": {
+      "$ref": "urn:icl-so101:task:0.2"
+    },
+    "bindings": {
+      "$ref": "urn:icl-so101:common:0.2#/$defs/bindings"
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One per step, execution order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step",
+          "start",
+          "end",
+          "grasp",
+          "release",
+          "source"
+        ],
+        "properties": {
+          "step": {
+            "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+          },
+          "start": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "grasp": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "release": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "source": {
+            "enum": [
+              "gripper",
+              "vlm",
+              "manual"
+            ]
+          }
+        }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alignment",
+        "active_hand",
+        "idle_hand",
+        "entry_edge",
+        "appearance",
+        "duration_s",
+        "seed",
+        "edit_model",
+        "video_model",
+        "edit_prompt",
+        "video_prompt"
+      ],
+      "properties": {
+        "alignment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "preserve_layout",
+            "preserve_camera",
+            "variations"
+          ],
+          "properties": {
+            "preserve_layout": {
+              "type": "boolean"
+            },
+            "preserve_camera": {
+              "type": "boolean"
+            },
+            "variations": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "object_instance",
+                  "background",
+                  "table_surface",
+                  "lighting"
+                ]
+              },
+              "description": "Empty = only the actor changes."
+            }
+          }
+        },
+        "active_hand": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "idle_hand": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+        },
+        "entry_edge": {
+          "enum": [
+            "far",
+            "near",
+            "left",
+            "right"
+          ],
+          "description": "far = image top."
+        },
+        "appearance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 15.084
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "edit_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "video_model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "edit_prompt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "As sent."
+        },
+        "video_prompt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "As sent."
+        }
+      }
+    },
+    "human": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference_image",
+            "scene",
+            "entity_map",
+            "video",
+            "task_name",
+            "dense_caption"
+          ],
+          "properties": {
+            "reference_image": {
+              "$ref": "urn:icl-so101:common:0.2#/$defs/text"
+            },
+            "scene": {
+              "$ref": "urn:icl-so101:scene:0.2"
+            },
+            "entity_map": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "source",
+                  "human"
+                ],
+                "properties": {
+                  "source": {
+                    "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+                  },
+                  "human": {
+                    "$ref": "urn:icl-so101:common:0.2#/$defs/id"
+                  }
+                }
+              },
+              "description": "One-to-one, all source entities; robot -> active hand."
+            },
+            "video": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "task_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dense_caption": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Null until the reference image exists."
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_preservation",
+        "first_frame_visible",
+        "task_consistency",
+        "semantic",
+        "physics"
+      ],
+      "properties": {
+        "reference_preservation": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/check"
+        },
+        "first_frame_visible": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/check"
+        },
+        "task_consistency": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/check"
+        },
+        "semantic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "score",
+            "goals",
+            "evidence"
+          ],
+          "properties": {
+            "score": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "goals": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "pass",
+                  "fail",
+                  "unknown"
+                ]
+              },
+              "description": "Per goal, goal order."
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "urn:icl-so101:common:0.2#/$defs/evidence_item"
+              }
+            }
+          }
+        },
+        "physics": {
+          "$ref": "urn:icl-so101:common:0.2#/$defs/scored_check"
+        }
+      },
+      "description": "pass/fail need evidence."
+    },
+    "accepted": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "semantic 5, physics >= 3, other checks pass (HumanGen filter)."
+    }
+  }
+}

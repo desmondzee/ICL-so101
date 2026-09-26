@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:icl-so101:common:0.2",
+  "title": "Shared definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset",
+        "detail"
+      ],
+      "properties": {
+        "asset": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path, URL, or '<repo>@<rev>:<camera>#episode=<i>&frame=<j>'."
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_item"
+      }
+    },
+    "relation": {
+      "enum": [
+        "supported_by",
+        "inside",
+        "held_by",
+        "touching",
+        "at",
+        "left_of",
+        "right_of",
+        "in_front_of",
+        "behind",
+        "open",
+        "switched_on",
+        "folded",
+        "upright"
+      ],
+      "description": "Unary (object null): open, switched_on, folded, upright. Spatial relations are in image frame; in_front_of = nearer the camera. inside = contained, not 2D overlap."
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation",
+        "subject",
+        "object",
+        "value"
+      ],
+      "properties": {
+        "relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "subject": {
+          "$ref": "#/$defs/id"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "null = unknown."
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation",
+        "subject",
+        "object",
+        "value"
+      ],
+      "properties": {
+        "relation": {
+          "$ref": "#/$defs/relation"
+        },
+        "subject": {
+          "$ref": "#/$defs/id"
+        },
+        "object": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": "boolean"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "unknown"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_item"
+          }
+        }
+      }
+    },
+    "scored_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "score",
+        "evidence"
+      ],
+      "properties": {
+        "score": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "1-5; null = not reviewed."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_item"
+          }
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "entity"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/$defs/id"
+          },
+          "entity": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    }
+  }
+}

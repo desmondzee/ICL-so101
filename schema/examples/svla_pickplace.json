@@ -1,0 +1,277 @@
+{
+  "version": "0.2",
+  "id": "lerobot_svla_so101_pickplace_ep000_up",
+  "source": {
+    "dataset": "lerobot/svla_so101_pickplace",
+    "revision": "f641879e22172be7e8161d5e6c1503c2d2feb657",
+    "domain": "real",
+    "robot": "so100_follower",
+    "episode_index": 0,
+    "fps": 30.0,
+    "frames": {
+      "start": 0,
+      "end": 303
+    },
+    "camera_key": "observation.images.up",
+    "task": "pink lego brick into the transparent box",
+    "action_field": "action",
+    "outcome": "unknown",
+    "evidence": [
+      {
+        "asset": "lerobot/svla_so101_pickplace@f641879:observation.images.up#episode=0&frame=0",
+        "detail": "Task string 'pink lego brick into the transparent box'; 303 frames at 30 fps."
+      }
+    ]
+  },
+  "scene": {
+    "version": "0.2",
+    "id": "episode_000",
+    "view": {
+      "camera_key": "observation.images.up",
+      "shot": "high front-angle view of a robot workspace on a white table"
+    },
+    "entities": [
+      {
+        "id": "robot",
+        "name": "black robotic arm",
+        "kind": "actor",
+        "attributes": {
+          "color": "black",
+          "material": null,
+          "shape": null
+        },
+        "grounding": "center-right",
+        "box_2d": [
+          154,
+          384,
+          684,
+          573
+        ],
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "pink_lego_brick",
+        "name": "pink lego brick",
+        "kind": "object",
+        "attributes": {
+          "color": "pink",
+          "material": "plastic",
+          "shape": "cuboid"
+        },
+        "grounding": "lower-left foreground",
+        "box_2d": [
+          797,
+          325,
+          878,
+          369
+        ],
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "transparent_box",
+        "name": "transparent plastic box",
+        "kind": "container",
+        "attributes": {
+          "color": "transparent",
+          "material": "plastic",
+          "shape": "rectangular box"
+        },
+        "grounding": "upper-left, taped to table",
+        "box_2d": [
+          323,
+          117,
+          509,
+          378
+        ],
+        "visibility": "visible",
+        "identity_status": "known"
+      },
+      {
+        "id": "table",
+        "name": "white table surface",
+        "kind": "surface",
+        "attributes": {
+          "color": "white",
+          "material": null,
+          "shape": "flat"
+        },
+        "grounding": "workspace surface",
+        "box_2d": [
+          333,
+          0,
+          997,
+          998
+        ],
+        "visibility": "visible",
+        "identity_status": "known"
+      }
+    ],
+    "initial_state": [
+      {
+        "relation": "inside",
+        "subject": "pink_lego_brick",
+        "object": "transparent_box",
+        "value": false
+      },
+      {
+        "relation": "held_by",
+        "subject": "pink_lego_brick",
+        "object": "robot",
+        "value": false
+      },
+      {
+        "relation": "supported_by",
+        "subject": "pink_lego_brick",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "transparent_box",
+        "object": "table",
+        "value": true
+      },
+      {
+        "relation": "supported_by",
+        "subject": "robot",
+        "object": "table",
+        "value": true
+      }
+    ],
+    "evidence": [
+      {
+        "asset": "lerobot/svla_so101_pickplace@f641879:observation.images.up#episode=0&frame=0",
+        "detail": "first frame of episode 0"
+      }
+    ]
+  },
+  "task": {
+    "version": "0.2",
+    "id": "pink_lego_brick_into_the_transparent_box",
+    "instruction": "pink lego brick into the transparent box",
+    "robot_caption": "Put the pink lego brick into the transparent box.",
+    "roles": [
+      {
+        "role": "robot",
+        "kind": "actor",
+        "appearance": "black articulated robotic arm with a two-finger gripper"
+      },
+      {
+        "role": "pink_lego_brick",
+        "kind": "object",
+        "appearance": "small pink rectangular lego brick"
+      },
+      {
+        "role": "transparent_box",
+        "kind": "container",
+        "appearance": "clear rectangular plastic container secured with orange tape"
+      }
+    ],
+    "steps": [
+      {
+        "id": "place_pink_lego_brick_in_box",
+        "action": "pick_place",
+        "object": "pink_lego_brick",
+        "destination": "transparent_box",
+        "after": [
+          {
+            "relation": "inside",
+            "subject": "pink_lego_brick",
+            "object": "transparent_box",
+            "value": true
+          },
+          {
+            "relation": "held_by",
+            "subject": "pink_lego_brick",
+            "object": "robot",
+            "value": false
+          }
+        ]
+      }
+    ],
+    "required_order": [],
+    "goals": [
+      {
+        "relation": "inside",
+        "subject": "pink_lego_brick",
+        "object": "transparent_box",
+        "value": true
+      },
+      {
+        "relation": "held_by",
+        "subject": "pink_lego_brick",
+        "object": "robot",
+        "value": false
+      }
+    ],
+    "invariants": []
+  },
+  "bindings": [
+    {
+      "role": "robot",
+      "entity": "robot"
+    },
+    {
+      "role": "pink_lego_brick",
+      "entity": "pink_lego_brick"
+    },
+    {
+      "role": "transparent_box",
+      "entity": "transparent_box"
+    }
+  ],
+  "segments": [
+    {
+      "step": "place_pink_lego_brick_in_box",
+      "start": 0,
+      "end": 303,
+      "grasp": 166,
+      "release": 219,
+      "source": "gripper"
+    }
+  ],
+  "generation": {
+    "alignment": {
+      "preserve_layout": true,
+      "preserve_camera": true,
+      "variations": []
+    },
+    "active_hand": "right",
+    "idle_hand": "rests flat on the table near the far edge",
+    "entry_edge": "far",
+    "appearance": null,
+    "duration_s": 10.1,
+    "seed": null,
+    "edit_model": null,
+    "video_model": null,
+    "edit_prompt": null,
+    "video_prompt": null
+  },
+  "human": null,
+  "checks": {
+    "reference_preservation": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "first_frame_visible": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "task_consistency": {
+      "status": "unknown",
+      "evidence": []
+    },
+    "semantic": {
+      "score": null,
+      "goals": [],
+      "evidence": []
+    },
+    "physics": {
+      "score": null,
+      "evidence": []
+    }
+  },
+  "accepted": null
+}
