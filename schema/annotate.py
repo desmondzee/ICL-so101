@@ -1,4 +1,4 @@
-"""Draft pair records for LeRobot episodes: task and scene from a VLM (Gemini or OpenRouter), segments from the gripper."""
+"""Draft pair records for LeRobot episodes: task, scene and step segments from a VLM (Gemini or OpenRouter), using gripper events."""
 
 from __future__ import annotations
 
@@ -15,23 +15,25 @@ import httpx
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from PIL import Image, ImageDraw
 
-from schema.source import Episode, fetch, frame, holds, load_episode, ref, segments
+from schema.source import Episode, cycles, fetch, frame, holds, load_episode, local_source, ref, segments, uniform
 from schema.validate import bundle, check_pair, check_scene, check_task
 
 TASK_PROMPT = """Write the task schema for this robot dataset task.
 Dataset task string: {instruction!r}
-Images: frames {frames} of episode {episode}, camera {camera}; the robot is a single {robot} arm.
+Image: {n} frames of episode {episode} in time order, each tile labelled with its frame number; camera {camera}; the robot is a single {robot} arm.
+Gripper events (hints, may be incomplete): {events}
 - id: {task_id!r}. version: "0.2". instruction: the dataset string, verbatim.
 - robot_caption: imperative sentence naming objects by colour and type, e.g. "Put the red cup on the plate."
 - roles: every participant, plus role "robot" (kind actor). name: colour + type, at most 4 words.
-- steps: one per grasp-release cycle; {n_steps} observed.
+- steps: one per object manipulation, in the order seen (each object moved is one step; opening a drawer is one step). A tool use is one step covering picking up, using and putting down the tool (e.g. one wipe step); do not add separate lift steps.
 - goals: the end state, including released objects not held_by the robot.
 - Use role names everywhere. Only facts the task requires."""
 
 SCENE_PROMPT = """Annotate the scene at the first frame of a robot episode (image 1, camera {camera}).
 The robot is a single {robot} arm: include it as entity "robot" (kind actor).
-Later frames (images 2-3) show how the episode unfolds; use them only to identify objects the robot hides in image 1.
+Images 2-3 (middle and last frame) show how the episode unfolds; use them only to identify objects the robot hides in image 1.
 - scene.id: {scene_id!r}. scene.version: "0.2". scene.view.camera_key: {camera!r}.
 - view.shot: camera placement and framing, e.g. "high front view of a white table".
 - entities: task objects, visible distractors, the table or surface they rest on, the robot.
@@ -41,6 +43,13 @@ Later frames (images 2-3) show how the episode unfolds; use them only to identif
 - evidence asset: {asset!r}.
 - bindings: each task role to one entity. Task roles: {roles}
 Task goals: {goals}"""
+
+SEGMENT_PROMPT = """Find where each task step happens in this robot episode.
+Image: {n} frames in time order, each tile labelled with its frame number; the episode has {length} frames at {fps:g} fps.
+Gripper hints (may be incomplete or include extra events): closes at frames {closes}; reopens at frames {opens}.
+Steps, in order: {steps}
+For each step give start (frame where the arm starts moving toward the step's object) and end (frame where the step's result holds and the arm has let go or moved away). A tool step (e.g. wipe) runs from reaching for the tool until it is put down.
+Steps are in the given order and do not overlap; frames between steps may belong to neither."""
 
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
@@ -154,12 +163,34 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:48]
 
 
-def _key_frames(ep: Episode, out: Path, camera: str) -> dict[str, int]:
-    runs = holds(ep)
-    idx = {"first": 0, "grasp": runs[0][0], "release": runs[-1][1], "last": ep.length - 1}
-    for name, i in idx.items():
-        frame(ep, camera, i, out / f"{name}.jpg")
-    return idx
+GRASP_ACTIONS = {"pick_place", "lift", "stack", "pour", "fold", "wipe"}
+TASK_FRAMES, SEGMENT_FRAMES, TILE = 12, 16, (320, 240)
+
+
+def _scene_frames(ep: Episode, out: Path, camera: str) -> list[Path]:
+    return [frame(ep, camera, i, out / f"{n}.jpg") for n, i in (("first", 0), ("middle", ep.length // 2), ("last", ep.length - 1))]
+
+
+def _strip(ep: Episode, out: Path, camera: str, n: int, name: str) -> tuple[Path, list[int]]:
+    """One grid image of n evenly spaced frames, each labelled with its frame number."""
+    idx = uniform(ep, n)
+    cols = 4
+    grid = Image.new("RGB", (cols * TILE[0], -(-n // cols) * TILE[1]), "black")
+    draw = ImageDraw.Draw(grid)
+    for k, i in enumerate(idx):
+        tile = Image.open(frame(ep, camera, i, out / "frames" / f"{i:06d}.jpg")).convert("RGB").resize(TILE)
+        x, y = (k % cols) * TILE[0], (k // cols) * TILE[1]
+        grid.paste(tile, (x, y))
+        draw.rectangle([x, y, x + 92, y + 18], fill="black")
+        draw.text((x + 4, y + 3), f"frame {i}", fill="white")
+    path = out / f"{name}.jpg"
+    grid.save(path, quality=85)
+    return path, idx
+
+
+def _events(ep: Episode) -> tuple[list[int], list[int]]:
+    runs = sorted(set(holds(ep)) | set(cycles(ep)))
+    return sorted({a for a, _ in runs}), sorted({b for _, b in runs})
 
 
 def _iou(a, b) -> float:
@@ -188,13 +219,14 @@ def _task_signature(t: dict) -> tuple:
     return kinds, tuple(s["action"] for s in t["steps"]), goals
 
 
-def draft_task(llm, ep: Episode, camera: str, out: Path, n_steps: int, votes: int = 1) -> dict:
-    idx = _key_frames(ep, out, camera)
+def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1) -> dict:
+    strip, _ = _strip(ep, out, camera, TASK_FRAMES, "task_strip")
+    closes, opens = _events(ep)
     text = TASK_PROMPT.format(
-        instruction=ep.task, frames=", ".join(f"{k}={v}" for k, v in idx.items()), episode=ep.index,
-        camera=camera, robot=ep.robot, task_id=_slug(ep.task), n_steps=n_steps,
+        instruction=ep.task, n=TASK_FRAMES, episode=ep.index, camera=camera, robot=ep.robot, task_id=_slug(ep.task),
+        events=f"gripper closes at frames {closes}, reopens at frames {opens}",
     )
-    drafts = [_ask(llm, [out / f"{k}.jpg" for k in idx] + [text], bundle("task"), check_task) for _ in range(votes)]
+    drafts = [_ask(llm, [strip, text], bundle("task"), check_task) for _ in range(votes)]
     drafts = [d for d in drafts if not check_task(d)] or drafts
     sigs = [_task_signature(d) for d in drafts]
     return drafts[max(range(len(drafts)), key=lambda i: sigs.count(sigs[i]))]
@@ -204,7 +236,7 @@ AGREE_IOU = 0.5
 
 
 def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int = 1) -> tuple[dict, list]:
-    idx = _key_frames(ep, out, camera)
+    images = _scene_frames(ep, out, camera)
     schema = bundle("scene")
     defs = schema.pop("$defs")
     wrapper = {
@@ -220,13 +252,19 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
 
     def check(d):
         ents = {e["id"]: e["name"] for e in d["scene"]["entities"]}
-        return check_scene(d["scene"], "$.scene") + [
+        bound = {b["role"]: b["entity"] for b in d["bindings"]}
+        start = {(c["relation"], c["subject"], c["object"]): c["value"] for c in d["scene"]["initial_state"]}
+        goals = [(g["relation"], bound.get(g["subject"]), g["object"] and bound.get(g["object"]), g["value"]) for g in task["goals"]]
+        done = all(start.get(g[:3]) == g[3] for g in goals)
+        return check_scene(d["scene"], "$.scene") + (
+            ["$.scene.initial_state: every task goal is already true, but image 1 is before the task; describe image 1 only"] if done else []
+        ) + [
             f"$.bindings: entity {b['entity']!r} must be named {names[b['role']]!r}"
             for b in d["bindings"] if b["role"] in names and ents.get(b["entity"], names[b["role"]]) != names[b["role"]]
         ]
 
     def one():
-        doc = _ask(llm, [out / f"{k}.jpg" for k in ("first", "grasp", "last")] + [text], wrapper, check)
+        doc = _ask(llm, images + [text], wrapper, check)
         return doc["scene"], doc["bindings"]
 
     drafts = [one() for _ in range(min(votes, 2))]
@@ -236,7 +274,49 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
     return drafts[0]
 
 
-def assemble(ep: Episode, camera: str, task: dict, scene: dict, bindings: list, hand: str) -> dict:
+def _in(runs: list[tuple[int, int]], start: int, end: int) -> tuple[int | None, int | None]:
+    inside = [r for r in runs if start <= r[0] < end]
+    return (inside[0][0], min(inside[-1][1], end - 1)) if inside else (None, None)
+
+
+def segment_steps(llm, ep: Episode, camera: str, out: Path, task: dict) -> list[dict]:
+    """Gripper holds when every step is a grasp and the counts match; otherwise the VLM places steps on a frame strip."""
+    steps = [s["id"] for s in task["steps"]]
+    if all(s["action"] in GRASP_ACTIONS for s in task["steps"]) and len(holds(ep)) == len(steps):
+        return segments(ep, steps)
+    strip, _ = _strip(ep, out, camera, SEGMENT_FRAMES, "segment_strip")
+    closes, opens = _events(ep)
+    listed = "; ".join(f"{s['id']}: {s['action']} {s['object']}" + (f" -> {s['destination']}" if s["destination"] else "") for s in task["steps"])
+    schema = {
+        "type": "object", "additionalProperties": False, "required": ["segments"],
+        "properties": {"segments": {"type": "array", "minItems": len(steps), "maxItems": len(steps), "items": {
+            "type": "object", "additionalProperties": False, "required": ["step", "start", "end"],
+            "properties": {"step": {"enum": steps}, "start": {"type": "integer", "minimum": 0, "maximum": ep.length - 1},
+                           "end": {"type": "integer", "minimum": 1, "maximum": ep.length}},
+        }}},
+    }
+
+    def check(d):
+        segs = d["segments"]
+        errors = [] if [x["step"] for x in segs] == steps else [f"segments must list steps in order {steps}"]
+        errors += [f"{x['step']}: start {x['start']} must be below end {x['end']}" for x in segs if x["start"] >= x["end"]]
+        errors += [f"{b['step']} starts before {a['step']} ends" for a, b in zip(segs, segs[1:]) if b["start"] < a["end"]]
+        errors += [f"{x['step']}: outside [0, {ep.length}]" for x in segs if x["start"] < 0 or x["end"] > ep.length]
+        return errors
+
+    text = SEGMENT_PROMPT.format(n=SEGMENT_FRAMES, length=ep.length, fps=ep.fps, closes=closes, opens=opens, steps=listed)
+    doc = _ask(llm, [strip, text], schema, check)
+    if check(doc):
+        raise ValueError(f"episode {ep.index}: segmentation failed: {check(doc)}")
+    runs = sorted(set(holds(ep)) | set(cycles(ep)))
+    out_segs = []
+    for x in doc["segments"]:
+        grasp, release = _in(runs, x["start"], x["end"])
+        out_segs.append({"step": x["step"], "start": x["start"], "end": x["end"], "grasp": grasp, "release": release, "source": "vlm"})
+    return out_segs
+
+
+def assemble(ep: Episode, camera: str, task: dict, scene: dict, bindings: list, hand: str, segs: list[dict]) -> dict:
     return {
         "version": "0.2",
         "id": f"{_slug(ep.repo)}_ep{ep.index:03d}_{_slug(camera.split('.')[-1])}",
@@ -249,7 +329,7 @@ def assemble(ep: Episode, camera: str, task: dict, scene: dict, bindings: list, 
         "scene": scene,
         "task": task,
         "bindings": bindings,
-        "segments": segments(ep, [s["id"] for s in task["steps"]]),
+        "segments": segs,
         "generation": {
             "alignment": {"preserve_layout": True, "preserve_camera": True, "variations": []},
             "active_hand": hand, "idle_hand": "rests flat on the table near the far edge", "entry_edge": "far",
@@ -269,11 +349,10 @@ def assemble(ep: Episode, camera: str, task: dict, scene: dict, bindings: list, 
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("repo")
-    p.add_argument("--root", type=Path, help="default data/<repo name>")
-    p.add_argument("--camera", default="observation.images.up")
+    p.add_argument("dataset", help="Hugging Face repo id, or a local curated dataset directory")
+    p.add_argument("--root", type=Path, help="local copy of a Hub dataset; default data/<repo name>")
+    p.add_argument("--camera", help="default observation.images.front if present, else observation.images.up")
     p.add_argument("--episodes", type=int, nargs="+", default=[0])
-    p.add_argument("--steps", type=int, default=1, help="grasp-release cycles per episode")
     p.add_argument("--hand", choices=["left", "right"], default="right")
     p.add_argument("--model", default="stealth/space-bunny-alpha", help="gemini-* via Gemini API, anything else via OpenRouter (free models only)")
     p.add_argument("--fallback", default="gemini-3.8-flash", help="answers a call only when --model fails; 'none' disables")
@@ -282,26 +361,33 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, help="default <root>/pairs")
     args = p.parse_args(argv)
 
-    root = args.root or Path("data") / args.repo.split("/")[-1]
+    if (Path(args.dataset) / "meta/curation.json").exists():
+        root = Path(args.dataset)
+        repo, revision = local_source(root)
+    else:
+        repo, root = args.dataset, args.root or Path("data") / args.dataset.split("/")[-1]
+        revision = fetch(repo, root)
+    info = json.loads((root / "meta/info.json").read_text())
+    camera = args.camera or ("observation.images.front" if "observation.images.front" in info["features"] else "observation.images.up")
     out = args.out or root / "pairs"
-    revision = fetch(args.repo, root)
     llm = model(args.model, None if args.thinking < 0 else args.thinking, None if args.fallback == "none" else args.fallback)
 
     tasks: dict[str, dict] = {}
     failed = 0
     for i in args.episodes:
-        ep = load_episode(root, args.repo, revision, i)
+        ep = load_episode(root, repo, revision, i)
         ep_dir = out / f"episode_{i:03d}"
         task_path = out / "tasks" / f"{_slug(ep.task)}.json"
         if ep.task not in tasks:
             if task_path.exists():
                 tasks[ep.task] = json.loads(task_path.read_text())
             else:
-                tasks[ep.task] = draft_task(llm, ep, args.camera, ep_dir, args.steps, args.votes + 1)
+                tasks[ep.task] = draft_task(llm, ep, camera, ep_dir, args.votes + 1)
                 task_path.parent.mkdir(parents=True, exist_ok=True)
                 task_path.write_text(json.dumps(tasks[ep.task], indent=2) + "\n")
-        scene, bindings = draft_scene(llm, ep, args.camera, ep_dir, tasks[ep.task], args.votes)
-        pair = assemble(ep, args.camera, tasks[ep.task], scene, bindings, args.hand)
+        scene, bindings = draft_scene(llm, ep, camera, ep_dir, tasks[ep.task], args.votes)
+        segs = segment_steps(llm, ep, camera, ep_dir, tasks[ep.task])
+        pair = assemble(ep, camera, tasks[ep.task], scene, bindings, args.hand, segs)
         errors = check_pair(pair)
         (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")
         failed += bool(errors)

@@ -14,8 +14,8 @@ from referencing import Registry, Resource
 
 ROOT = Path(__file__).parent
 NAMES = ("common", "scene", "task", "pair")
-UNARY = {"open", "switched_on", "folded", "upright"}
-NEEDS_DESTINATION = {"pick_place", "slide", "stack", "pour"}
+UNARY = {"open", "switched_on", "folded", "upright", "clean"}
+NEEDS_DESTINATION = {"pick_place", "slide", "stack", "pour", "wipe"}
 PLACEHOLDERS = {"null", "none", "unknown", "n/a", ""}
 
 

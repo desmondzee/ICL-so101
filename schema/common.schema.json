@@ -51,9 +51,10 @@
         "open",
         "switched_on",
         "folded",
-        "upright"
+        "upright",
+        "clean"
       ],
-      "description": "Unary (object null): open, switched_on, folded, upright. Spatial relations are in image frame; in_front_of = nearer the camera. inside = contained, not 2D overlap."
+      "description": "Unary (object null): open, switched_on, folded, upright, clean (surface or region wiped clean). Spatial relations are in image frame; in_front_of = nearer the camera. inside = contained, not 2D overlap."
     },
     "condition": {
       "type": "object",

@@ -95,9 +95,10 @@
               "close",
               "press",
               "pour",
-              "fold"
+              "fold",
+              "wipe"
             ],
-            "description": "pick_place, slide, stack, pour need a destination; others null."
+            "description": "pick_place, slide, stack, pour, wipe need a destination; others null. wipe: object is the tool, destination the surface."
           },
           "object": {
             "$ref": "urn:icl-so101:common:0.2#/$defs/id"
