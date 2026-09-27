@@ -73,10 +73,12 @@ class PretrainSO101:
         import torch
 
         if request.get("reset"):
+            if request.get("icl_video_bytes"):
+                raise ValueError("Released pretrain demo config has no ICL video model")
             channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[request["mode"]]
             config = self.model.job_config
             config.used_action_channel_ids = channels
-            config.obs_cam_keys = ["observation.images.top", "observation.images.wrist"]
+            config.obs_cam_keys = request.get("camera_keys") or ["observation.images.top", "observation.images.wrist"]
             inverse = [len(channels)] * 30
             for index, channel in enumerate(channels):
                 inverse[channel] = index
@@ -129,3 +131,13 @@ def so101_screen_variants(variants: str, seed: int = 100, max_steps: int = 128, 
     worker = PretrainSO101()
     for variant in variants.split(","):
         print(run_trial(worker, variant, seed, max_steps, save_root, "pretrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask"):
+    from zero_wam.so101_eval import run_trial
+
+    worker = PretrainSO101()
+    for seed_text in seeds.split(","):
+        for variant in variants.split(","):
+            print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "pretrain", task), flush=True)

@@ -276,10 +276,12 @@ class ZeroWAM:
         import torch
 
         if request.get("reset"):
+            import hashlib
+
             mode = request["mode"]
             channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[mode]
             cfg = self.model.job_config
-            cfg.obs_cam_keys = ["observation.images.top", "observation.images.wrist"]
+            cfg.obs_cam_keys = request.get("camera_keys") or ["observation.images.top", "observation.images.wrist"]
             cfg.used_action_channel_ids = channels
             inverse = [len(channels)] * 30
             for i, channel in enumerate(channels):
@@ -288,7 +290,14 @@ class ZeroWAM:
             cfg.norm_stat = copy.deepcopy(request["stats"])
             torch.manual_seed(int(request["seed"]))
             np.random.seed(int(request["seed"]))
-            return self.model.infer({"reset": True, "prompt": request["prompt"], "use_icl": False, "video_guidance_scale": 5.0})
+            video_bytes = request.get("icl_video_bytes")
+            reset = {"reset": True, "prompt": request["prompt"], "use_icl": bool(video_bytes), "video_guidance_scale": 5.0}
+            if video_bytes:
+                path = Path("/tmp") / f"so101_icl_{hashlib.sha256(video_bytes).hexdigest()}.mp4"
+                if not path.exists():
+                    path.write_bytes(video_bytes)
+                reset["icl_video_path"] = str(path)
+            return self.model.infer(reset)
         if request.get("compute_kv_cache") and self.model.use_icl_model:
             # Cache the actions actually executed after simulator safety limits.
             executed = np.asarray(request["executed_model_actions"], dtype=np.float32)
@@ -466,3 +475,13 @@ def so101_screen_variants(
     worker = ZeroWAM()
     for variant in variants.split(","):
         print(run_trial(worker, variant, seed, max_steps, save_root, "posttrain"), flush=True)
+
+
+@app.local_entrypoint()
+def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask", icl_video: str = ""):
+    from zero_wam.so101_eval import run_trial
+
+    worker = ZeroWAM()
+    for seed_text in seeds.split(","):
+        for variant in variants.split(","):
+            print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "posttrain", task, icl_video or None), flush=True)
