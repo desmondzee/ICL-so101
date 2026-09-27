@@ -117,8 +117,27 @@ class OpenRouter:
         raise RuntimeError("OpenRouter: retries exhausted")
 
 
-def model(name: str, thinking: int | None):
-    return Gemini(name, thinking) if name.startswith("gemini") else OpenRouter(name, thinking)
+class Fallback:
+    """Primary model per call; the backup answers only when the primary fails or returns invalid JSON."""
+
+    def __init__(self, primary, backup):
+        self.primary, self.backup = primary, backup
+        self.used = {primary.model: 0, backup.model: 0}
+
+    def __call__(self, parts: list[Path | str], schema: dict) -> str:
+        try:
+            text = self.primary(parts, schema)
+            json.loads(text)
+            self.used[self.primary.model] += 1
+            return text
+        except (RuntimeError, httpx.HTTPError, json.JSONDecodeError):
+            self.used[self.backup.model] += 1
+            return self.backup(parts, schema)
+
+
+def model(name: str, thinking: int | None, fallback: str | None = None):
+    llm = Gemini(name, thinking) if name.startswith("gemini") else OpenRouter(name, thinking)
+    return Fallback(llm, model(fallback, 0)) if fallback else llm
 
 
 def _ask(llm, parts: list[Path | str], schema: dict, check, retries: int = 1) -> dict:
@@ -257,6 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--steps", type=int, default=1, help="grasp-release cycles per episode")
     p.add_argument("--hand", choices=["left", "right"], default="right")
     p.add_argument("--model", default="stealth/space-bunny-alpha", help="gemini-* via Gemini API, anything else via OpenRouter (free models only)")
+    p.add_argument("--fallback", default="gemini-3.8-flash", help="answers a call only when --model fails; 'none' disables")
     p.add_argument("--votes", type=int, default=2, help="scene drafts to cross-check boxes (3rd on disagreement); the task gets votes+1")
     p.add_argument("--thinking", type=int, default=0, help="thinking/reasoning token budget; 0 = off, -1 = model default (flash-lite needs -1)")
     p.add_argument("--out", type=Path, help="default <root>/pairs")
@@ -265,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root or Path("data") / args.repo.split("/")[-1]
     out = args.out or root / "pairs"
     revision = fetch(args.repo, root)
-    llm = model(args.model, None if args.thinking < 0 else args.thinking)
+    llm = model(args.model, None if args.thinking < 0 else args.thinking, None if args.fallback == "none" else args.fallback)
 
     tasks: dict[str, dict] = {}
     failed = 0
@@ -288,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{'FAIL' if errors else 'ok  '} {ep_dir / 'pair.json'}")
         for e in errors:
             print(f"     {e}")
+    if isinstance(llm, Fallback):
+        print(f"calls answered: {llm.used}")
     return 1 if failed else 0
 
 
