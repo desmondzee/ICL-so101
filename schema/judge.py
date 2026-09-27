@@ -1,7 +1,7 @@
 """Judge sheets for drafted pairs, and the accepted manifest once judge verdicts are in.
 
 sheets: one image per pair (first frame with entity boxes, 12 labelled frames with step bars) for an LLM judge.
-accept: keep pairs that validate, whose outcome is success, and whose judge verdict is pass or minor_issues.
+accept: per episode, keep the version (current or re-drafted) that validates, has outcome success and a pass/minor judge verdict.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=["sheets", "accept"])
     p.add_argument("root", type=Path, help="directory of <dataset>/episode_*/pair.json")
-    p.add_argument("--verdicts", type=Path, help="accept: JSON list of judge records with 'pair' and 'overall'")
+    p.add_argument("--verdicts", type=Path, nargs="+", help="accept: JSON lists of judge records with 'pair' and 'overall', oldest first; per episode the usable, best-rated, newest version wins")
     args = p.parse_args(argv)
     out = args.root / "_judge"
     out.mkdir(exist_ok=True)
@@ -82,19 +82,22 @@ def main(argv: list[str] | None = None) -> int:
         (out / "index.json").write_text(json.dumps(index) + "\n")
         print(f"{len(made)} new sheets, {len(index)} total")
         return 0
-    verdicts = {str(Path(v["pair"]).resolve()): v for v in json.loads(args.verdicts.read_text())}
-    accepted, reasons = [], {}
-    for q in pairs(args.root):
-        pair = json.loads(q.read_text())
-        v = verdicts.get(str(q.resolve()))
-        why = ("invalid" if check_pair(pair) else f"outcome {pair['source']['outcome']}" if pair["source"]["outcome"] != "success"
-               else "not judged" if v is None else f"judge {v['overall']}" if v["overall"] == "fail" else None)
-        if why:
-            reasons[why] = reasons.get(why, 0) + 1
-        else:
-            accepted.append(str(q.relative_to(args.root)))
+    rank = {"pass": 2, "minor_issues": 1, "fail": 0}
+    best: dict[tuple[str, str], tuple] = {}
+    for order, path in enumerate(args.verdicts):
+        for v in json.loads(path.read_text()):
+            q = Path(v["pair"])
+            if not q.exists():
+                continue
+            pair = json.loads(q.read_text())
+            usable = not check_pair(pair) and pair["source"]["outcome"] == "success" and v["overall"] != "fail"
+            key = (q.parts[-3], q.parts[-2])
+            score = (usable, rank[v["overall"]], order)
+            if key not in best or score > best[key][0]:
+                best[key] = (score, str(q), v["overall"])
+    accepted = [{"dataset": k[0], "episode": k[1], "pair": b[1], "judge": b[2]} for k, b in sorted(best.items()) if b[0][0]]
     (args.root / "accepted.json").write_text(json.dumps(accepted, indent=1) + "\n")
-    print(f"accepted {len(accepted)} of {len(pairs(args.root))}; rejected {reasons}")
+    print(f"accepted {len(accepted)} of {len(best)} judged episodes ({len(pairs(args.root))} current pairs)")
     return 0
 
 
