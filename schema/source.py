@@ -135,7 +135,7 @@ def frame(ep: Episode, camera: str, index: int, out: Path) -> Path:
     video, start = ep.videos[camera]
     out.parent.mkdir(parents=True, exist_ok=True)
     for back in range(3):
-        t = start + max(0, min(index, ep.length - 1) - back) / ep.fps
+        t = max(0.0, start + (max(0, min(index, ep.length - 1) - back) - 0.25) / ep.fps)
         r = subprocess.run(
             ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", f"{t:.4f}", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(out)],
             stdin=subprocess.DEVNULL, capture_output=True,

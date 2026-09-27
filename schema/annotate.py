@@ -33,10 +33,10 @@ Gripper events (hints, may be incomplete): {events}
 
 SCENE_PROMPT = """Annotate the scene at the first frame of a robot episode (image 1, camera {camera}).
 The robot is a single {robot} arm: include it as entity "robot" (kind actor).
-Images 2-3 (middle and last frame) show how the episode unfolds; use them only to identify objects the robot hides in image 1.
+Images 2-3 (middle and last frame) and image 4 (frames across the episode) show how it unfolds; use them to tell which objects the task moves and to identify objects the robot hides in image 1, never for image 1's state.
 - scene.id: {scene_id!r}. scene.version: "0.2". scene.view.camera_key: {camera!r}.
 - view.shot: camera placement and framing, e.g. "high front view of a white table".
-- entities: task objects, visible distractors, the table or surface they rest on, the robot.
+- entities: task objects, visible distractors, the table or surface they rest on, the robot. Each separately movable object is its own entity (two slippers are two entities).
 - name: colour + type, at most 4 words; an entity bound to a role uses the role's name and kind verbatim. grounding: image position, e.g. "lower left".
 - attributes: null when not visible; do not guess.
 - initial_state: every goal relation below (true/false; null if occluded), plus supported_by facts.
@@ -50,6 +50,11 @@ Gripper hints (may be incomplete or include extra events): closes at frames {clo
 Steps, in order: {steps}
 For each step give start (frame where the arm starts moving toward the step's object) and end (frame where the step's result holds and the arm has let go or moved away). A tool step (e.g. wipe) runs from reaching for the tool until it is put down.
 Steps are in the given order and do not overlap; frames between steps may belong to neither."""
+
+OUTCOME_PROMPT = """Did this robot episode achieve its task? Image 1: first frame. Image 2: last frame. Camera {camera}.
+Task: {caption}
+For each goal below, in order, say whether it holds in the LAST frame: true, false, or null if it cannot be seen.
+Goals (role -> entity name): {goals}"""
 
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
@@ -236,7 +241,7 @@ AGREE_IOU = 0.5
 
 
 def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int = 1) -> tuple[dict, list]:
-    images = _scene_frames(ep, out, camera)
+    images = _scene_frames(ep, out, camera) + [_strip(ep, out, camera, TASK_FRAMES, "task_strip")[0]]
     schema = bundle("scene")
     defs = schema.pop("$defs")
     wrapper = {
@@ -277,6 +282,27 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
         drafts.append(one())
         return max(drafts, key=lambda d: sum(_agreement(d, o) for o in drafts if o is not d))
     return drafts[0]
+
+
+def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: dict, bindings: list) -> tuple[str, list]:
+    """success if every goal holds in the last frame, failure if any is false, else unknown."""
+    names = {e["id"]: e["name"] for e in scene["entities"]}
+    bound = {b["role"]: names.get(b["entity"], b["entity"]) for b in bindings}
+    goals = "; ".join(
+        f"{i + 1}. {g['relation']}({bound.get(g['subject'], g['subject'])}" + (f", {bound.get(g['object'], g['object'])}" if g["object"] else "") + f") = {str(g['value']).lower()}"
+        for i, g in enumerate(task["goals"])
+    )
+    schema = {"type": "object", "additionalProperties": False, "required": ["goals", "note"], "properties": {
+        "goals": {"type": "array", "minItems": len(task["goals"]), "maxItems": len(task["goals"]), "items": {"type": ["boolean", "null"]}},
+        "note": {"type": "string"},
+    }}
+    check = lambda d: [] if len(d["goals"]) == len(task["goals"]) else [f"need {len(task['goals'])} goal verdicts"]
+    text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals)
+    doc = _ask(llm, [out / "first.jpg", out / "last.jpg", text], schema, check)
+    holds = [v == g["value"] if v is not None else None for v, g in zip(doc["goals"], task["goals"])]
+    outcome = "failure" if False in holds else "success" if all(h is True for h in holds) else "unknown"
+    evidence = [{"asset": ref(ep, camera, ep.length - 1), "detail": f"VLM goal check on the last frame: {doc['goals']}; {doc['note']}"[:500]}]
+    return outcome, evidence
 
 
 def _in(runs: list[tuple[int, int]], start: int, end: int) -> tuple[int | None, int | None]:
@@ -393,10 +419,13 @@ def main(argv: list[str] | None = None) -> int:
         scene, bindings = draft_scene(llm, ep, camera, ep_dir, tasks[ep.task], args.votes)
         segs = segment_steps(llm, ep, camera, ep_dir, tasks[ep.task])
         pair = assemble(ep, camera, tasks[ep.task], scene, bindings, args.hand, segs)
+        outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, tasks[ep.task], scene, bindings)
+        pair["source"]["outcome"] = outcome
+        pair["source"]["evidence"] += evidence
         errors = check_pair(pair)
         (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")
         failed += bool(errors)
-        print(f"{'FAIL' if errors else 'ok  '} {ep_dir / 'pair.json'}")
+        print(f"{'FAIL' if errors else 'ok  '} {ep_dir / 'pair.json'} outcome={outcome}")
         for e in errors:
             print(f"     {e}")
     if isinstance(llm, Fallback):
