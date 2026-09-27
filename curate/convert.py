@@ -34,10 +34,14 @@ ENCODE = ["-c:v", "libsvtav1", "-preset", "10", "-crf", "30", "-g", "2", "-svtav
 ENCODE_TIMEOUT_S = 300
 
 
-def _encode(src: Path, dst: Path) -> None:
+def _encode(src: Path, dst: Path, frames: int | None = None) -> None:
+    """Re-encode to 640x480; with `frames`, trim or repeat the last frame so the video has exactly that many."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     vf = f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease,pad={WIDTH}:{HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1"
-    cmd = ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(src), "-vf", vf, *ENCODE, str(dst)]
+    count = ["-frames:v", str(frames)] if frames else []
+    if frames:
+        vf += ",tpad=stop_mode=clone:stop=5"
+    cmd = ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(src), "-vf", vf, *count, *ENCODE, str(dst)]
     for attempt in range(2):
         try:
             subprocess.run(cmd, check=True, stdin=subprocess.DEVNULL, capture_output=True, timeout=ENCODE_TIMEOUT_S)
@@ -63,13 +67,14 @@ def _copy_v21(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None
     shutil.copytree(src / "data", work / "data")
     _reindex_v21(work)
     other = dict(zip(keep, reversed(keep))) if len(keep) == 2 else {}
+    lengths = {json.loads(l)["episode_index"]: json.loads(l)["length"] for l in (src / "meta/episodes.jsonl").read_text().splitlines() if l.strip()}
     jobs = []
     for chunk in (src / "videos").glob("chunk-*"):
         for key in keep:
             for mp4 in sorted((chunk / key).glob("*.mp4")):
                 ep = int(mp4.stem.split("_")[-1])
                 source = chunk / other[key] / mp4.name if ep in swapped and key in other else mp4
-                jobs.append((source, work / "videos" / chunk.name / key / mp4.name))
+                jobs.append((source, work / "videos" / chunk.name / key / mp4.name, lengths.get(ep)))
     with ThreadPoolExecutor(8) as ex:
         list(ex.map(lambda j: _encode(*j), jobs))
     info = json.loads((work / "meta/info.json").read_text())

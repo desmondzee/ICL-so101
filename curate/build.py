@@ -99,6 +99,12 @@ def main(argv: list[str] | None = None) -> int:
     shutil.rmtree(merged, ignore_errors=True)
     aggregate_datasets([f"local/{r.name}" for r in roots], "local/so101_curated_front", roots=roots, aggr_root=merged)
     shutil.rmtree(staging)
+    sources = [json.loads((args.out / r.name / "meta/curation.json").read_text()) | {"name": r.name} for r in roots]
+    (merged / "meta/curation.json").write_text(json.dumps({
+        "family": "merged", "units": "deg", "dropped_episodes": {}, "swapped_camera_episodes": [],
+        "sources": [{k: s[k] for k in ("name", "family", "source", "source_tasks")} for s in sources],
+        "note": "Front camera only; wrist views are in the per-source datasets.",
+    }, indent=2) + "\n")
     print(f"merged {len(roots)} datasets into {merged}")
     return 0
 
