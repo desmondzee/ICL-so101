@@ -37,7 +37,7 @@ Images 2-3 (middle and last frame) show how the episode unfolds; use them only t
 - scene.id: {scene_id!r}. scene.version: "0.2". scene.view.camera_key: {camera!r}.
 - view.shot: camera placement and framing, e.g. "high front view of a white table".
 - entities: task objects, visible distractors, the table or surface they rest on, the robot.
-- name: colour + type, at most 4 words; an entity bound to a role uses the role's name verbatim. grounding: image position, e.g. "lower left".
+- name: colour + type, at most 4 words; an entity bound to a role uses the role's name and kind verbatim. grounding: image position, e.g. "lower left".
 - attributes: null when not visible; do not guess.
 - initial_state: every goal relation below (true/false; null if occluded), plus supported_by facts.
 - evidence asset: {asset!r}.
@@ -149,7 +149,7 @@ def model(name: str, thinking: int | None, fallback: str | None = None):
     return Fallback(llm, model(fallback, 0)) if fallback else llm
 
 
-def _ask(llm, parts: list[Path | str], schema: dict, check, retries: int = 1) -> dict:
+def _ask(llm, parts: list[Path | str], schema: dict, check, retries: int = 2) -> dict:
     doc = json.loads(llm(parts, schema))
     for _ in range(retries):
         errors = check(doc)
@@ -256,9 +256,14 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
         start = {(c["relation"], c["subject"], c["object"]): c["value"] for c in d["scene"]["initial_state"]}
         goals = [(g["relation"], bound.get(g["subject"]), g["object"] and bound.get(g["object"]), g["value"]) for g in task["goals"]]
         done = all(start.get(g[:3]) == g[3] for g in goals)
+        kinds = {e["id"]: e["kind"] for e in d["scene"]["entities"]}
+        role_kind = {r["role"]: r["kind"] for r in task["roles"]}
         return check_scene(d["scene"], "$.scene") + (
             ["$.scene.initial_state: every task goal is already true, but image 1 is before the task; describe image 1 only"] if done else []
         ) + [
+            f"$.bindings: entity {b['entity']!r} must have kind {role_kind[b['role']]!r} like its role"
+            for b in d["bindings"] if b["role"] in role_kind and kinds.get(b["entity"], role_kind[b["role"]]) != role_kind[b["role"]]
+        ] + [
             f"$.bindings: entity {b['entity']!r} must be named {names[b['role']]!r}"
             for b in d["bindings"] if b["role"] in names and ents.get(b["entity"], names[b["role"]]) != names[b["role"]]
         ]

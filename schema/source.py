@@ -133,13 +133,16 @@ def segments(ep: Episode, steps: list[str]) -> list[dict]:
 
 def frame(ep: Episode, camera: str, index: int, out: Path) -> Path:
     video, start = ep.videos[camera]
-    t = start + min(index, ep.length - 1) / ep.fps
     out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", f"{t:.4f}", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(out)],
-        check=True, stdin=subprocess.DEVNULL,
-    )
-    return out
+    for back in range(3):
+        t = start + max(0, min(index, ep.length - 1) - back) / ep.fps
+        r = subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", f"{t:.4f}", "-i", str(video), "-frames:v", "1", "-q:v", "2", str(out)],
+            stdin=subprocess.DEVNULL, capture_output=True,
+        )
+        if r.returncode == 0 and out.exists():
+            return out
+    raise RuntimeError(f"episode {ep.index}: cannot read frame {index} of {video}")
 
 
 def ref(ep: Episode, camera: str, index: int) -> str:
