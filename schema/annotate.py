@@ -1,14 +1,17 @@
-"""Draft pair records for LeRobot episodes: task and scene from Gemini, segments from the gripper."""
+"""Draft pair records for LeRobot episodes: task and scene from a VLM (Gemini or OpenRouter), segments from the gripper."""
 
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -42,23 +45,90 @@ Task goals: {goals}"""
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
 
-def _ask(client: genai.Client, model: str, parts: list, schema: dict, check, thinking: int | None, retries: int = 1) -> dict:
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json", response_json_schema=schema, temperature=0.2,
-        thinking_config=None if thinking is None else types.ThinkingConfig(thinking_budget=thinking),
-    )
-    doc = json.loads(client.models.generate_content(model=model, contents=parts, config=config).text)
+class Gemini:
+    def __init__(self, model: str, thinking: int | None):
+        self.model, self.thinking = model, thinking
+        self.client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+    def __call__(self, parts: list[Path | str], schema: dict) -> str:
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json", response_json_schema=schema, temperature=0.2,
+            thinking_config=None if self.thinking is None else types.ThinkingConfig(thinking_budget=self.thinking),
+        )
+        contents = [types.Part.from_bytes(data=p.read_bytes(), mime_type="image/jpeg") if isinstance(p, Path) else p for p in parts]
+        return self.client.models.generate_content(model=self.model, contents=contents, config=config).text
+
+
+def _nonzero(v) -> bool:
+    if isinstance(v, dict):
+        return any(_nonzero(x) for x in v.values())
+    if isinstance(v, list):
+        return any(_nonzero(x) for x in v)
+    try:
+        return float(v or 0) != 0
+    except ValueError:
+        return True
+
+
+class OpenRouter:
+    """Free models only: refuses any model with a non-zero price and caps each request at zero cost."""
+
+    URL = "https://openrouter.ai/api/v1/chat/completions"
+    FREE = {"max_price": {"prompt": 0, "completion": 0, "image": 0, "request": 0}}
+
+    def __init__(self, model: str, thinking: int | None):
+        listing = {m["id"]: m for m in httpx.get("https://openrouter.ai/api/v1/models", timeout=60).json()["data"]}
+        if model not in listing:
+            raise ValueError(f"unknown OpenRouter model {model!r}")
+        paid = {k: v for k, v in listing[model]["pricing"].items() if _nonzero(v)}
+        if paid:
+            raise ValueError(f"{model} is not free on OpenRouter: {paid}")
+        self.model = model
+        self.reasoning = None if thinking is None else ({"effort": "low"} if thinking == 0 else {"max_tokens": thinking})
+        self.headers = {"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"}
+
+    def __call__(self, parts: list[Path | str], schema: dict) -> str:
+        content = [
+            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(p.read_bytes()).decode()}}
+            if isinstance(p, Path) else {"type": "text", "text": p}
+            for p in parts
+        ] + [{"type": "text", "text": "Reply with only a JSON object that validates against this JSON Schema:\n" + json.dumps(schema)}]
+        body = {
+            "model": self.model, "temperature": 0.2, "messages": [{"role": "user", "content": content}],
+            "response_format": {"type": "json_object"},
+            "provider": self.FREE,
+        }
+        if self.reasoning is not None:
+            body["reasoning"] = self.reasoning
+        for attempt in range(5):
+            r = httpx.post(self.URL, headers=self.headers, json=body, timeout=300)
+            if r.status_code in (429, 500, 502, 503) and attempt < 4:
+                time.sleep(5 * 2**attempt)
+                continue
+            r.raise_for_status()
+            reply = r.json()
+            if "choices" not in reply or not (reply["choices"][0]["message"].get("content") or "").strip():
+                if attempt < 4:
+                    time.sleep(5 * 2**attempt)
+                    continue
+                raise RuntimeError(f"OpenRouter error: {reply.get('error', reply)}")
+            text = reply["choices"][0]["message"]["content"]
+            return re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+        raise RuntimeError("OpenRouter: retries exhausted")
+
+
+def model(name: str, thinking: int | None):
+    return Gemini(name, thinking) if name.startswith("gemini") else OpenRouter(name, thinking)
+
+
+def _ask(llm, parts: list[Path | str], schema: dict, check, retries: int = 1) -> dict:
+    doc = json.loads(llm(parts, schema))
     for _ in range(retries):
         errors = check(doc)
         if not errors:
             break
-        fix = FIX_PROMPT.format(errors="\n".join(errors), doc=json.dumps(doc))
-        doc = json.loads(client.models.generate_content(model=model, contents=parts + [fix], config=config).text)
+        doc = json.loads(llm(parts + [FIX_PROMPT.format(errors="\n".join(errors), doc=json.dumps(doc))], schema))
     return doc
-
-
-def _image(path: Path) -> types.Part:
-    return types.Part.from_bytes(data=path.read_bytes(), mime_type="image/jpeg")
 
 
 def _slug(text: str) -> str:
@@ -73,16 +143,48 @@ def _key_frames(ep: Episode, out: Path, camera: str) -> dict[str, int]:
     return idx
 
 
-def draft_task(client, model: str, ep: Episode, camera: str, out: Path, n_steps: int, thinking: int | None = None) -> dict:
+def _iou(a, b) -> float:
+    if a is None or b is None:
+        return float(a is b)
+    ih = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iw = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ih * iw
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _agreement(x: tuple[dict, list], y: tuple[dict, list]) -> float:
+    """Lowest box IoU over task roles between two scene drafts."""
+    def boxes(d):
+        ents = {e["id"]: e["box_2d"] for e in d[0]["entities"]}
+        return {b["role"]: ents.get(b["entity"]) for b in d[1]}
+    bx, by = boxes(x), boxes(y)
+    return min((_iou(bx[r], by.get(r)) for r in bx), default=0.0)
+
+
+def _task_signature(t: dict) -> tuple:
+    kinds = tuple(sorted(r["kind"] for r in t["roles"]))
+    role_kind = {r["role"]: r["kind"] for r in t["roles"]}
+    goals = tuple(sorted((g["relation"], role_kind.get(g["subject"]), role_kind.get(g["object"]), g["value"]) for g in t["goals"]))
+    return kinds, tuple(s["action"] for s in t["steps"]), goals
+
+
+def draft_task(llm, ep: Episode, camera: str, out: Path, n_steps: int, votes: int = 1) -> dict:
     idx = _key_frames(ep, out, camera)
     text = TASK_PROMPT.format(
         instruction=ep.task, frames=", ".join(f"{k}={v}" for k, v in idx.items()), episode=ep.index,
         camera=camera, robot=ep.robot, task_id=_slug(ep.task), n_steps=n_steps,
     )
-    return _ask(client, model, [_image(out / f"{k}.jpg") for k in idx] + [text], bundle("task"), check_task, thinking)
+    drafts = [_ask(llm, [out / f"{k}.jpg" for k in idx] + [text], bundle("task"), check_task) for _ in range(votes)]
+    drafts = [d for d in drafts if not check_task(d)] or drafts
+    sigs = [_task_signature(d) for d in drafts]
+    return drafts[max(range(len(drafts)), key=lambda i: sigs.count(sigs[i]))]
 
 
-def draft_scene(client, model: str, ep: Episode, camera: str, out: Path, task: dict, thinking: int | None = None) -> tuple[dict, list]:
+AGREE_IOU = 0.5
+
+
+def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int = 1) -> tuple[dict, list]:
     idx = _key_frames(ep, out, camera)
     schema = bundle("scene")
     defs = schema.pop("$defs")
@@ -104,8 +206,15 @@ def draft_scene(client, model: str, ep: Episode, camera: str, out: Path, task: d
             for b in d["bindings"] if b["role"] in names and ents.get(b["entity"], names[b["role"]]) != names[b["role"]]
         ]
 
-    doc = _ask(client, model, [_image(out / f"{k}.jpg") for k in ("first", "grasp", "last")] + [text], wrapper, check, thinking)
-    return doc["scene"], doc["bindings"]
+    def one():
+        doc = _ask(llm, [out / f"{k}.jpg" for k in ("first", "grasp", "last")] + [text], wrapper, check)
+        return doc["scene"], doc["bindings"]
+
+    drafts = [one() for _ in range(min(votes, 2))]
+    if votes > 1 and _agreement(drafts[0], drafts[1]) < AGREE_IOU:
+        drafts.append(one())
+        return max(drafts, key=lambda d: sum(_agreement(d, o) for o in drafts if o is not d))
+    return drafts[0]
 
 
 def assemble(ep: Episode, camera: str, task: dict, scene: dict, bindings: list, hand: str) -> dict:
@@ -147,16 +256,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--episodes", type=int, nargs="+", default=[0])
     p.add_argument("--steps", type=int, default=1, help="grasp-release cycles per episode")
     p.add_argument("--hand", choices=["left", "right"], default="right")
-    p.add_argument("--model", default="gemini-3.8-flash")
-    p.add_argument("--thinking", type=int, default=0, help="thinking token budget; -1 = model default (flash-lite needs -1)")
+    p.add_argument("--model", default="stealth/space-bunny-alpha", help="gemini-* via Gemini API, anything else via OpenRouter (free models only)")
+    p.add_argument("--votes", type=int, default=2, help="scene drafts to cross-check boxes (3rd on disagreement); the task gets votes+1")
+    p.add_argument("--thinking", type=int, default=0, help="thinking/reasoning token budget; 0 = off, -1 = model default (flash-lite needs -1)")
     p.add_argument("--out", type=Path, help="default <root>/pairs")
     args = p.parse_args(argv)
 
     root = args.root or Path("data") / args.repo.split("/")[-1]
     out = args.out or root / "pairs"
     revision = fetch(args.repo, root)
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    thinking = None if args.thinking < 0 else args.thinking
+    llm = model(args.model, None if args.thinking < 0 else args.thinking)
 
     tasks: dict[str, dict] = {}
     failed = 0
@@ -168,10 +277,10 @@ def main(argv: list[str] | None = None) -> int:
             if task_path.exists():
                 tasks[ep.task] = json.loads(task_path.read_text())
             else:
-                tasks[ep.task] = draft_task(client, args.model, ep, args.camera, ep_dir, args.steps, thinking)
+                tasks[ep.task] = draft_task(llm, ep, args.camera, ep_dir, args.steps, args.votes + 1)
                 task_path.parent.mkdir(parents=True, exist_ok=True)
                 task_path.write_text(json.dumps(tasks[ep.task], indent=2) + "\n")
-        scene, bindings = draft_scene(client, args.model, ep, args.camera, ep_dir, tasks[ep.task], thinking)
+        scene, bindings = draft_scene(llm, ep, args.camera, ep_dir, tasks[ep.task], args.votes)
         pair = assemble(ep, args.camera, tasks[ep.task], scene, bindings, args.hand)
         errors = check_pair(pair)
         (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")

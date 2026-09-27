@@ -4,6 +4,7 @@ Curated format (LeRobot v3.0):
 - action, observation.state: [6] LeRobot degrees (zero at mid-range, rest pose on the lift/elbow stops), gripper 0-100.
 - action.ee, observation.state.ee: [7] gripper-site x, y, z (m, robot base frame), rotation vector, gripper 0-100; FK of the above.
 - observation.images.front: the third-person camera; observation.images.wrist when the source has one. Other cameras are dropped.
+  640x480 AV1, 30 fps, letterboxed when the source is not 4:3; per-episode camera swaps in the source are undone.
 - meta/curation.json: source, revision, units, offsets, camera map, dropped episodes.
 """
 
@@ -12,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -26,14 +29,29 @@ EE_NAMES = ["x", "y", "z", "rx", "ry", "rz", "gripper"]
 MIN_EPISODE_S = 2.0
 MIN_MOTION_DEG = 5.0
 MAX_JUMP_DEG = 30.0
+WIDTH, HEIGHT = 640, 480
+ENCODE = ["-c:v", "libsvtav1", "-preset", "10", "-crf", "30", "-g", "2", "-pix_fmt", "yuv420p", "-an"]
 
 
-def _copy_v21(src: Path, work: Path, keep: list[str]) -> None:
+def _encode(src: Path, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    vf = f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease,pad={WIDTH}:{HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(src), "-vf", vf, *ENCODE, str(dst)], check=True)
+
+
+def _copy_v21(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None:
     shutil.copytree(src / "meta", work / "meta")
     shutil.copytree(src / "data", work / "data")
+    other = dict(zip(keep, reversed(keep))) if len(keep) == 2 else {}
+    jobs = []
     for chunk in (src / "videos").glob("chunk-*"):
         for key in keep:
-            shutil.copytree(chunk / key, work / "videos" / chunk.name / key)
+            for mp4 in sorted((chunk / key).glob("*.mp4")):
+                ep = int(mp4.stem.split("_")[-1])
+                source = chunk / other[key] / mp4.name if ep in swapped and key in other else mp4
+                jobs.append((source, work / "videos" / chunk.name / key / mp4.name))
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(lambda j: _encode(*j), jobs))
     info = json.loads((work / "meta/info.json").read_text())
     info["features"] = {k: f for k, f in info["features"].items() if f["dtype"] != "video" or k in keep}
     (work / "meta/info.json").write_text(json.dumps(info, indent=4))
@@ -44,14 +62,19 @@ def _copy_v21(src: Path, work: Path, keep: list[str]) -> None:
     stats.write_text("".join(json.dumps(r) + "\n" for r in rows))
 
 
-def _to_v30(src: Path, work: Path, keep: list[str]) -> None:
+def _to_v30(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None:
     info = json.loads((src / "meta/info.json").read_text())
     if info["codebase_version"].startswith("v3"):
-        shutil.copytree(src, work, ignore=shutil.ignore_patterns(".cache"))
+        if swapped:
+            raise NotImplementedError("camera swaps in a v3.0 source")
+        shutil.copytree(src, work, ignore=shutil.ignore_patterns(".cache", "videos"))
+        jobs = [(mp4, work / mp4.relative_to(src)) for key in keep for mp4 in sorted((src / "videos" / key).rglob("*.mp4"))]
+        with ThreadPoolExecutor(8) as ex:
+            list(ex.map(lambda j: _encode(*j), jobs))
         return
     from lerobot.scripts.convert_dataset_v21_to_v30 import convert_dataset
 
-    _copy_v21(src, work, keep)
+    _copy_v21(src, work, keep, swapped)
     convert_dataset(repo_id=f"local/{work.name}", root=work, push_to_hub=False)
     shutil.rmtree(work.parent / f"{work.name}_old")
 
@@ -64,7 +87,10 @@ def _rename_cameras(root: Path, cams: dict[str, str]) -> None:
             del info["features"][key]
             shutil.rmtree(root / "videos" / key, ignore_errors=True)
     for old, new in cams.items():
-        info["features"][new] = info["features"].pop(old)
+        feat = info["features"].pop(old)
+        feat["shape"] = [HEIGHT, WIDTH, 3]
+        feat["info"] = (feat.get("info") or {}) | {"video.height": HEIGHT, "video.width": WIDTH, "video.codec": "av1", "video.pix_fmt": "yuv420p", "video.fps": info["fps"]}
+        info["features"][new] = feat
         if old != new:
             (root / "videos" / old).rename(root / "videos" / new)
     (root / "meta/info.json").write_text(json.dumps(info, indent=4))
@@ -112,7 +138,7 @@ def _bad_episodes(root: Path, fps: float) -> dict[int, str]:
     return bad
 
 
-def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dict) -> Path:
+def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dict, swapped: set[int] = frozenset(), drop: dict[int, str] | None = None) -> Path:
     from lerobot.datasets.dataset_tools import delete_episodes, modify_features, recompute_stats
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
@@ -132,7 +158,7 @@ def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dic
     work = out.parent / f"_work_{out.name}"
     for p in (work, work.parent / f"{work.name}_v30", work.parent / f"{work.name}_old"):
         shutil.rmtree(p, ignore_errors=True)
-    _to_v30(src, work, list(cams))
+    _to_v30(src, work, list(cams), set(swapped))
     _rename_cameras(work, cams)
     _joints(work, unit, offset, kin)
 
@@ -150,7 +176,7 @@ def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dic
     shutil.rmtree(work)
     ds = recompute_stats(ds)
 
-    bad = _bad_episodes(staged, ds.fps)
+    bad = _bad_episodes(staged, ds.fps) | {int(k): v for k, v in (drop or {}).items()}
     shutil.rmtree(out, ignore_errors=True)
     if bad:
         delete_episodes(ds, list(bad), output_dir=out, repo_id=f"local/{out.name}")
@@ -161,7 +187,8 @@ def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dic
         "units": unit,
         "rest_offset_deg": np.round(offset[:5], 2).tolist(),
         "cameras": {"observation.images.front": front, "observation.images.wrist": wrist},
-        "dropped_episodes": {str(k): v for k, v in bad.items()},
+        "dropped_episodes": {str(k): v for k, v in sorted(bad.items())},
+        "swapped_camera_episodes": sorted(swapped),
         "format": __doc__.split("Curated format (LeRobot v3.0):")[1].strip(),
     }
     (out / "meta/curation.json").write_text(json.dumps(curation, indent=2) + "\n")

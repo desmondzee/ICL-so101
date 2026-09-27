@@ -1,0 +1,469 @@
+[
+ {
+  "name": "lerobot__svla_so101_pickplace",
+  "root": "data/svla_so101_pickplace",
+  "source": {
+   "repo": "lerobot/svla_so101_pickplace"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 50,
+  "front": "up",
+  "wrist": null,
+  "tasks": [
+   "pink lego brick into the transparent box"
+  ]
+ },
+ {
+  "name": "Rorschach4153__so101_30_fold",
+  "root": "data/community_v3/Rorschach4153/so101_30_fold",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "Rorschach4153/so101_30_fold",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "fold",
+  "units": "old_deg",
+  "episodes": 50,
+  "front": "side",
+  "wrist": "wrist",
+  "tasks": [
+   "Fold the blanket."
+  ]
+ },
+ {
+  "name": "aiden-li__so101-grabtissue",
+  "root": "data/hub/aiden-li/so101-grabtissue",
+  "source": {
+   "repo": "aiden-li/so101-grabtissue",
+   "revision": "6dfa28f14dbcd0f4e615ab8535b272dffa1811e4"
+  },
+  "family": "grasp_only",
+  "units": "norm",
+  "episodes": 144,
+  "front": "front",
+  "wrist": "ego",
+  "tasks": [
+   "Grab a piece of tissue."
+  ]
+ },
+ {
+  "name": "LeRobot-worldwide-hackathon__27-AI_Learners-Shape_Pick_and_Place",
+  "root": "data/community_v3/LeRobot-worldwide-hackathon/27-AI_Learners-Shape_Pick_and_Place",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "LeRobot-worldwide-hackathon/27-AI_Learners-Shape_Pick_and_Place",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "insert",
+  "units": "norm",
+  "episodes": 75,
+  "front": "side",
+  "wrist": "wrist",
+  "tasks": [
+   "Pick the object with centre yellow pin and put in the respective shape"
+  ]
+ },
+ {
+  "name": "Cornito__so101_tea2",
+  "root": "data/hub/Cornito/so101_tea2",
+  "source": {
+   "repo": "Cornito/so101_tea2",
+   "revision": "3da2ed9f4d512bf7b5e06821a7a9c70d9c416c99"
+  },
+  "family": "other",
+  "units": "old_deg",
+  "episodes": 101,
+  "front": "phone",
+  "wrist": "wrist",
+  "tasks": [
+   "Make tea"
+  ]
+ },
+ {
+  "name": "EverNorif__so101-table-cleanup",
+  "root": "data/community_v3/EverNorif/so101-table-cleanup",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "EverNorif/so101-table-cleanup",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 82,
+  "front": "front",
+  "wrist": "wrist",
+  "tasks": [
+   "Grab pens and place into pen holder."
+  ]
+ },
+ {
+  "name": "pbvr__so101_test002",
+  "root": "data/community_v3/pbvr/so101_test002",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "pbvr/so101_test002",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "old_deg",
+  "episodes": 201,
+  "front": "side",
+  "wrist": "handeye",
+  "tasks": [
+   "Grab a orange square and put it in the brown box."
+  ]
+ },
+ {
+  "name": "chirag1701__can",
+  "root": "data/community_v3/chirag1701/can",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "chirag1701/can",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 50,
+  "front": "up",
+  "wrist": "wrist",
+  "tasks": [
+   "pick the can and put it in the brown box"
+  ]
+ },
+ {
+  "name": "chirag1701__sandwich",
+  "root": "data/community_v3/chirag1701/sandwich",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "chirag1701/sandwich",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 51,
+  "front": "up",
+  "wrist": "wrist",
+  "tasks": [
+   "pick the sandwich and put it in the gray box"
+  ]
+ },
+ {
+  "name": "psg777__combinedtape",
+  "root": "data/community_v3/psg777/combinedtape",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "psg777/combinedtape",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 134,
+  "front": "birdseyeview",
+  "wrist": "gripper",
+  "tasks": [
+   "Pick the black tape roll and drop it in the blue box",
+   "Pick the red roll and drop it in the blue box",
+   "Pick the red roll from the blue box and place it infront of the so101 arm"
+  ]
+ },
+ {
+  "name": "sattgle__clean-test",
+  "root": "data/community_v3/sattgle/clean-test",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "sattgle/clean-test",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_surface",
+  "units": "norm",
+  "episodes": 50,
+  "front": "rear",
+  "wrist": null,
+  "tasks": [
+   "Pick up the grey slippers and put them on the top shelf."
+  ]
+ },
+ {
+  "name": "ricky0526__so101_pick_toy_to_plate_v3",
+  "root": "data/community_v3/ricky0526/so101_pick_toy_to_plate_v3",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "ricky0526/so101_pick_toy_to_plate_v3",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_surface",
+  "units": "norm",
+  "episodes": 80,
+  "front": "side",
+  "wrist": null,
+  "tasks": [
+   "Pick up the toy and place it on the plate"
+  ]
+ },
+ {
+  "name": "LeRobot-worldwide-hackathon__91-AM-PM-pouring-liquid",
+  "root": "data/community_v3/LeRobot-worldwide-hackathon/91-AM-PM-pouring-liquid",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "LeRobot-worldwide-hackathon/91-AM-PM-pouring-liquid",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pour",
+  "units": "norm",
+  "episodes": 60,
+  "front": "top",
+  "wrist": "gripper",
+  "tasks": [
+   "Pick up a kettle and pour liquid into a cup."
+  ]
+ },
+ {
+  "name": "ReubenLim__so101_tape_in_square",
+  "root": "data/hub/ReubenLim/so101_tape_in_square",
+  "source": {
+   "repo": "ReubenLim/so101_tape_in_square",
+   "revision": "44444e34637363c81246c1cb93ca915a5dfc9fb8"
+  },
+  "family": "push_slide",
+  "units": "old_deg",
+  "episodes": 62,
+  "front": "birdEye",
+  "wrist": null,
+  "tasks": [
+   "Push a circle block to the blue square in the center."
+  ]
+ },
+ {
+  "name": "k1000dai__standup_petbottle",
+  "root": "data/community_v3/k1000dai/standup_petbottle",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "k1000dai/standup_petbottle",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "reorient_upright",
+  "units": "norm",
+  "episodes": 38,
+  "front": "top",
+  "wrist": null,
+  "tasks": [
+   "Pick up the plastic bottle and stand it up on the white place"
+  ]
+ },
+ {
+  "name": "sattgle__clean2-test",
+  "root": "data/community_v3/sattgle/clean2-test",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "sattgle/clean2-test",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "sort_multi_object",
+  "units": "norm",
+  "episodes": 30,
+  "front": "rear",
+  "wrist": null,
+  "tasks": [
+   "Put the grey slippers on the bottom shelf and the white ones on the top shelf."
+  ]
+ },
+ {
+  "name": "b3rnd__record-50-episodes",
+  "root": "data/community_v3/b3rnd/record-50-episodes",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "b3rnd/record-50-episodes",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "stack",
+  "units": "norm",
+  "episodes": 50,
+  "front": "front",
+  "wrist": null,
+  "tasks": [
+   "Grab the black cube and stack on the red cube"
+  ]
+ },
+ {
+  "name": "Tear4Pixelation__lego2",
+  "root": "data/community_v3/Tear4Pixelation/lego2",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "Tear4Pixelation/lego2",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "stack",
+  "units": "norm",
+  "episodes": 20,
+  "front": "up",
+  "wrist": "front",
+  "tasks": [
+   "Grab the loose lego brick and stack it on top of the fixed one."
+  ]
+ },
+ {
+  "name": "tenkau__so101_color_block",
+  "root": "data/community_v3/tenkau/so101_color_block",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "tenkau/so101_color_block",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "stack",
+  "units": "old_deg",
+  "episodes": 35,
+  "front": "laptop",
+  "wrist": null,
+  "tasks": [
+   "Stack the three blocks in an ordered color."
+  ]
+ },
+ {
+  "name": "aiden-li__so101-open-lower-drawer",
+  "root": "data/hub/aiden-li/so101-open-lower-drawer",
+  "source": {
+   "repo": "aiden-li/so101-open-lower-drawer",
+   "revision": "17747521cdd65aa8ed246d1d4351f6f1b8d17dd1"
+  },
+  "family": "open_close",
+  "units": "norm",
+  "episodes": 144,
+  "front": "top",
+  "wrist": "ego",
+  "tasks": [
+   "Open the lower drawer"
+  ]
+ },
+ {
+  "name": "aiden-li__so101-close-lower-drawer",
+  "root": "data/hub/aiden-li/so101-close-lower-drawer",
+  "source": {
+   "repo": "aiden-li/so101-close-lower-drawer",
+   "revision": "9b40db794e69eb90573f2e833ad2a37bdc457a3f"
+  },
+  "family": "open_close",
+  "units": "norm",
+  "episodes": 59,
+  "front": "top",
+  "wrist": "ego",
+  "tasks": [
+   "Close the lower drawer"
+  ]
+ },
+ {
+  "name": "aiden-li__so101-open-upper-drawer",
+  "root": "data/hub/aiden-li/so101-open-upper-drawer",
+  "source": {
+   "repo": "aiden-li/so101-open-upper-drawer",
+   "revision": "57096b2650a0d8738cae25f192697b549c78b4f0"
+  },
+  "family": "open_close",
+  "units": "norm",
+  "episodes": 154,
+  "front": "top",
+  "wrist": "ego",
+  "tasks": [
+   "Open the upper drawer"
+  ]
+ },
+ {
+  "name": "aiden-li__so101-close-upper-drawer",
+  "root": "data/hub/aiden-li/so101-close-upper-drawer",
+  "source": {
+   "repo": "aiden-li/so101-close-upper-drawer",
+   "revision": "1e26613e218060ea87bd0a0639ca01d23fe3d818"
+  },
+  "family": "open_close",
+  "units": "norm",
+  "episodes": 150,
+  "front": "top",
+  "wrist": "ego",
+  "tasks": [
+   "Close the upper drawer"
+  ]
+ },
+ {
+  "name": "stsqitx__clean",
+  "root": "data/community_v3/stsqitx/clean",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "stsqitx/clean",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "wipe",
+  "units": "norm",
+  "episodes": 20,
+  "front": "top",
+  "wrist": "wrist",
+  "tasks": [
+   "Grab the sponge and clean the table."
+  ]
+ },
+ {
+  "name": "fbeltrao__so101_unplug_cable_4",
+  "root": "data/hub/fbeltrao/so101_unplug_cable_4",
+  "source": {
+   "repo": "fbeltrao/so101_unplug_cable_4",
+   "revision": "927aa6f40d3f9d85eb355ea74edb6e4d54bede60"
+  },
+  "family": "other",
+  "units": "old_deg",
+  "episodes": 53,
+  "front": "side",
+  "wrist": "wrist",
+  "tasks": [
+   "Unplug the cable."
+  ]
+ },
+ {
+  "name": "pbvr__so101_test005",
+  "root": "data/hub/pbvr/so101_test005",
+  "source": {
+   "repo": "pbvr/so101_test005",
+   "revision": "90abb8f1de1df364f920dd12ce500722446fec6f"
+  },
+  "family": "sort_multi_object",
+  "units": "old_deg",
+  "episodes": 100,
+  "front": "topdown",
+  "wrist": "handeye",
+  "tasks": [
+   "Grab the blue, yellow, and green squares one by one and put them into the brown box."
+  ]
+ },
+ {
+  "name": "tenkau__SO101-Stack3Blocks",
+  "root": "data/community_v3/tenkau/SO101-Stack3Blocks",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "tenkau/SO101-Stack3Blocks",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "stack",
+  "units": "old_deg",
+  "episodes": 50,
+  "front": "laptop",
+  "wrist": "phone",
+  "tasks": [
+   "Stack 3 Blocks on the chosen place."
+  ]
+ },
+ {
+  "name": "un1c0rnio__so101_sock_stowing_3pair2",
+  "root": "data/community_v3/un1c0rnio/so101_sock_stowing_3pair2",
+  "source": {
+   "repo": "HuggingFaceVLA/community_dataset_v3",
+   "path": "un1c0rnio/so101_sock_stowing_3pair2",
+   "revision": "89a1ecc770b1e99112d845e13076db1b481eb13a"
+  },
+  "family": "pick_place_container",
+  "units": "norm",
+  "episodes": 36,
+  "front": "top",
+  "wrist": "endeffector",
+  "tasks": [
+   "Put the sock in the container"
+  ]
+ }
+]
