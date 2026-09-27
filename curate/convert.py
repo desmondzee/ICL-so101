@@ -65,6 +65,10 @@ def _reindex_v21(work: Path) -> None:
 def _copy_v21(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None:
     shutil.copytree(src / "meta", work / "meta")
     shutil.copytree(src / "data", work / "data")
+    listed = {json.loads(l)["episode_index"] for l in (src / "meta/episodes.jsonl").read_text().splitlines() if l.strip()}
+    for f in (work / "data").rglob("episode_*.parquet"):
+        if int(f.stem.split("_")[-1]) not in listed:
+            f.unlink()
     _reindex_v21(work)
     other = dict(zip(keep, reversed(keep))) if len(keep) == 2 else {}
     lengths = {json.loads(l)["episode_index"]: json.loads(l)["length"] for l in (src / "meta/episodes.jsonl").read_text().splitlines() if l.strip()}

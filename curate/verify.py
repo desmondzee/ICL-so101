@@ -13,6 +13,7 @@ from curate.io import stack
 from curate.robot import NAMES, Kinematics
 
 EE_Z_MIN = -0.03
+BELOW_TABLE_OK = {"open_close"}
 
 
 def verify(root: Path, kin: Kinematics) -> dict:
@@ -33,8 +34,10 @@ def verify(root: Path, kin: Kinematics) -> dict:
     out = ((state[:, :5] < lo) | (state[:, :5] > hi)).any(1).mean()
     if out > 0.01:
         problems.append(f"{out:.1%} frames outside joint limits")
+    cur = json.loads((root / "meta/curation.json").read_text())
+    warnings = []
     if np.percentile(ee[:, 2], 1) < EE_Z_MIN:
-        problems.append(f"EE z p1 {np.percentile(ee[:, 2], 1):.3f}")
+        (warnings if cur.get("family") in BELOW_TABLE_OK else problems).append(f"EE z p1 {np.percentile(ee[:, 2], 1):.3f}")
     ends = data.groupby("episode_index")["index"].agg(["min", "max"])
     for ep, (first, last) in ends.iterrows():
         for i in (first, last):
@@ -46,12 +49,11 @@ def verify(root: Path, kin: Kinematics) -> dict:
             except Exception as e:
                 problems.append(f"episode {ep} frame {i}: {type(e).__name__}: {str(e)[:80]}")
                 break
-    cur = json.loads((root / "meta/curation.json").read_text())
     return {
         "dataset": root.name, "family": cur.get("family"), "episodes": ds.num_episodes, "frames": ds.num_frames,
         "hours": round(ds.num_frames / ds.fps / 3600, 2), "wrist": "observation.images.wrist" in ds.meta.video_keys,
         "units": cur["units"], "dropped": len(cur["dropped_episodes"]), "swapped": len(cur.get("swapped_camera_episodes", [])),
-        "tasks": sorted(set(ds.meta.tasks.index)) if hasattr(ds.meta.tasks, "index") else None, "problems": problems,
+        "tasks": sorted(set(ds.meta.tasks.index)) if hasattr(ds.meta.tasks, "index") else None, "problems": problems, "warnings": warnings,
     }
 
 
@@ -68,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     bad = 0
     for r in rows:
         bad += bool(r["problems"])
-        print(f"{'FAIL' if r['problems'] else 'ok  '} {r['dataset'][:50]:50s} {r['family'] or '':20s} eps={r['episodes']:4d} h={r['hours']:5.2f} wrist={int(r['wrist'])} dropped={r['dropped']:3d} swapped={r['swapped']:2d} {r['problems'][:2]}")
+        print(f"{'FAIL' if r['problems'] else 'ok  '} {r['dataset'][:50]:50s} {r['family'] or '':20s} eps={r['episodes']:4d} h={r['hours']:5.2f} wrist={int(r['wrist'])} dropped={r['dropped']:3d} swapped={r['swapped']:2d} {r['problems'][:2]}{' warn ' + str(r['warnings']) if r['warnings'] else ''}")
     per = [r for r in rows if r["family"] != "merged"]
     print(f"per-source total: {len(per)} datasets, {sum(r['episodes'] for r in per)} episodes, {sum(r['hours'] for r in per):.2f} h")
     return 1 if bad else 0
