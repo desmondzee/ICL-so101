@@ -51,10 +51,14 @@ Steps, in order: {steps}
 For each step give start (frame where the arm starts moving toward the step's object) and end (frame where the step's result holds and the arm has let go or moved away). A tool step (e.g. wipe) runs from reaching for the tool until it is put down.
 Steps are in the given order and do not overlap; frames between steps may belong to neither."""
 
-OUTCOME_PROMPT = """Did this robot episode achieve its task? Image 1: first frame. Image 2: last frame. Camera {camera}.
+OUTCOME_PROMPT = """Did this robot episode achieve its task? Image 1: first frame. Image 2: the last seconds of the episode, labelled frames in time order, ending with the last frame. Camera {camera}.
 Task: {caption}
-For each statement below, in order, say whether it is true in the LAST frame: true, false, or null if it cannot be seen.
+For each statement below, in order, say whether it is true at the END of the episode: true, false, or null if it cannot be judged.
+An object dropped into a container may be hidden by its rim; use the sequence to judge where it went.
 Statements: {goals}"""
+
+ASSIGN_PROMPT = """Each row of the image is one grasp window of a robot episode: the frames where the gripper closes on an object, carries it, and releases it (labelled with frame numbers).
+For each window, in order, name which object the gripper is holding. Objects: {objects}"""
 
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
@@ -193,6 +197,41 @@ def _strip(ep: Episode, out: Path, camera: str, n: int, name: str) -> tuple[Path
     return path, idx
 
 
+def _grid(ep: Episode, out: Path, camera: str, rows: list[list[int]], name: str) -> Path:
+    """Rows of labelled frames in one image."""
+    cols = max(len(r) for r in rows)
+    grid = Image.new("RGB", (cols * TILE[0], len(rows) * TILE[1]), "black")
+    draw = ImageDraw.Draw(grid)
+    for y, row in enumerate(rows):
+        for x, i in enumerate(row):
+            grid.paste(Image.open(frame(ep, camera, i, out / "frames" / f"{i:06d}.jpg")).convert("RGB").resize(TILE), (x * TILE[0], y * TILE[1]))
+            label = f"frame {i}" if len(rows) == 1 or cols > 3 else f"window {y + 1}: frame {i}"
+            draw.rectangle([x * TILE[0], y * TILE[1], x * TILE[0] + 7 * len(label) + 8, y * TILE[1] + 18], fill="black")
+            draw.text((x * TILE[0] + 4, y * TILE[1] + 3), label, fill="white")
+    path = out / f"{name}.jpg"
+    grid.save(path, quality=85)
+    return path
+
+
+def _assign_order(llm, ep: Episode, camera: str, out: Path, task: dict, runs: list[tuple[int, int]]) -> None:
+    """Reorder task steps so each gripper hold window gets the object actually carried in it."""
+    objects = [s["object"] for s in task["steps"]]
+    if len(set(objects)) != len(objects):
+        return
+    names = {r["role"]: r["name"] for r in task["roles"]}
+    rows = [[g, (g + r) // 2, max(g, r - 1)] for g, r in runs]
+    schema = {"type": "object", "additionalProperties": False, "required": ["windows"], "properties": {
+        "windows": {"type": "array", "minItems": len(runs), "maxItems": len(runs), "items": {"enum": objects}}}}
+    check = lambda d: [] if sorted(d["windows"]) == sorted(objects) else [f"each object must appear exactly once: {objects}"]
+    text = ASSIGN_PROMPT.format(objects="; ".join(f"{o} ({names.get(o, o)})" for o in objects))
+    doc = _ask(llm, [_grid(ep, out, camera, rows, "assign_windows"), text], schema, check)
+    if not check(doc):
+        by_object = {s["object"]: s for s in task["steps"]}
+        task["steps"] = [by_object[o] for o in doc["windows"]]
+        pos = {s["id"]: i for i, s in enumerate(task["steps"])}
+        task["required_order"] = [o for o in task["required_order"] if pos.get(o["earlier"], -1) < pos.get(o["later"], len(pos))]
+
+
 def _events(ep: Episode) -> tuple[list[int], list[int]]:
     runs = sorted(set(holds(ep)) | set(cycles(ep)))
     return sorted({a for a, _ in runs}), sorted({b for _, b in runs})
@@ -317,7 +356,8 @@ def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: 
     }}
     check = lambda d: [] if len(d["goals"]) == len(task["goals"]) else [f"need {len(task['goals'])} goal verdicts"]
     text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals)
-    doc = _ask(llm, [out / "first.jpg", out / "last.jpg", text], schema, check)
+    tail = [max(0, ep.length - 1 - round(s * ep.fps)) for s in (3, 2, 1, 0)]
+    doc = _ask(llm, [out / "first.jpg", _grid(ep, out, camera, [tail[:2], tail[2:]], "outcome_tail"), text], schema, check)
     holds = [None if v is None else v == g["value"] for v, g in zip(doc["goals"], task["goals"])]
     outcome = "failure" if False in holds else "success" if all(h is True for h in holds) else "unknown"
     evidence = [{"asset": ref(ep, camera, ep.length - 1), "detail": f"VLM goal check on the last frame: {doc['goals']}; {doc['note']}"[:500]}]
@@ -332,8 +372,11 @@ def _in(runs: list[tuple[int, int]], start: int, end: int) -> tuple[int | None, 
 def segment_steps(llm, ep: Episode, camera: str, out: Path, task: dict) -> list[dict]:
     """Gripper holds when every step is a grasp and the counts match; otherwise the VLM places steps on a frame strip."""
     steps = [s["id"] for s in task["steps"]]
-    if all(s["action"] in GRASP_ACTIONS for s in task["steps"]) and len(holds(ep)) == len(steps):
-        return segments(ep, steps)
+    runs = holds(ep)
+    if all(s["action"] in GRASP_ACTIONS for s in task["steps"]) and len(runs) == len(steps):
+        if len(steps) > 1:
+            _assign_order(llm, ep, camera, out, task, runs)
+        return segments(ep, [s["id"] for s in task["steps"]])
     strip, _ = _strip(ep, out, camera, SEGMENT_FRAMES, "segment_strip")
     closes, opens = _events(ep)
     listed = "; ".join(f"{s['id']}: {s['action']} {s['object']}" + (f" -> {s['destination']}" if s["destination"] else "") for s in task["steps"])
