@@ -1,7 +1,7 @@
 export const meta = {
   name: 'so101-schema-judge',
-  description: 'Judge drafted SO-101 scene/task/segment/outcome records against their frames, one Opus low-effort agent per pair',
-  phases: [{ title: 'Judge', detail: 'one Opus (low effort) judge per drafted pair' }],
+  description: 'Judge drafted SO-101 scene/task/segment/outcome records against their frames, one Opus low-effort agent per 5 pairs',
+  phases: [{ title: 'Judge', detail: 'one Opus (low effort) judge per 5 drafted pairs' }],
 }
 
 const PART = { type: 'object', properties: { verdict: { enum: ['correct', 'partial', 'wrong'] }, issues: { type: 'array', items: { type: 'string' } } }, required: ['verdict', 'issues'] }
@@ -33,11 +33,18 @@ overall: pass if every part is correct; minor_issues if only partial verdicts th
 Be strict and concrete; do not invent problems.`
 
 const T = args.root
-const items = args.items.map(b => { const [name, ep] = b.split('__ep'); return { sheet: `${T}/_judge/${b}.jpg`, pair: `${T}/${name}/episode_${ep}/pair.json` } })
-const results = await parallel(items.map(it => () => agent(
-  `${RUBRIC}\n\nJudge sheet: ${it.sheet}\nPair JSON: ${it.pair}\nSet "pair" to the pair JSON path.`,
-  { label: `judge:${it.sheet.split('/').pop()}`, phase: 'Judge', schema: SCHEMA, model: 'opus', effort: 'low' },
+const items = Object.entries(args.datasets).flatMap(([name, eps]) => eps.map(e => { const ep = String(e).padStart(3, '0'); return { sheet: `${T}/_judge/${name}__ep${ep}.jpg`, pair: `${T}/${name}/episode_${ep}/pair.json` } }))
+const BATCH = args.batch || 5
+const groups = []
+for (let i = 0; i < items.length; i += BATCH) groups.push(items.slice(i, i + BATCH))
+const MANY = { type: 'object', properties: { verdicts: { type: 'array', items: SCHEMA } }, required: ['verdicts'] }
+const batches = await parallel(groups.map((g, k) => () => agent(
+  `${RUBRIC}\n\nJudge each of these ${g.length} pairs independently and return one verdict per pair, in this order, with "pair" set to its pair JSON path:\n` +
+    g.map((it, j) => `${j + 1}. Judge sheet: ${it.sheet}\n   Pair JSON: ${it.pair}`).join('\n'),
+  { label: `judge:${k}`, phase: 'Judge', schema: MANY, model: 'opus', effort: 'low' },
 )))
+const results = batches.filter(Boolean).flatMap(b => b.verdicts)
+log(`${batches.filter(Boolean).length}/${groups.length} batches returned`)
 const ok = results.filter(Boolean)
 log(`${ok.length} judged: ${ok.filter(r => r.overall === 'pass').length} pass, ${ok.filter(r => r.overall === 'minor_issues').length} minor, ${ok.filter(r => r.overall === 'fail').length} fail`)
 return ok
