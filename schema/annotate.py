@@ -17,7 +17,7 @@ from google import genai
 from google.genai import types
 from PIL import Image, ImageDraw
 
-from schema.source import Episode, cycles, fetch, frame, holds, load_episode, local_source, ref, segments, uniform
+from schema.source import Episode, cycles, episodes, fetch, frame, holds, load_episode, local_source, ref, segments, uniform
 from schema.validate import bundle, check_pair, check_scene, check_task
 
 TASK_PROMPT = """Write the task schema for this robot dataset task.
@@ -273,7 +273,7 @@ def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1, hint: d
     closes, opens = _events(ep)
     text = TASK_PROMPT.format(
         instruction=ep.task, n=TASK_FRAMES, episode=ep.index, camera=camera, robot=ep.robot, task_id=_slug(ep.task),
-        events=f"gripper closes at frames {closes}, reopens at frames {opens}",
+        events=f"gripper closes at frames {closes}, reopens at frames {opens}; the gripper clearly held an object {len(holds(ep))} times, usually one step per hold",
         hint=TASK_HINT.format(task=json.dumps({k: hint[k] for k in ("roles", "steps", "goals")})) if hint else "",
     )
     drafts = [_ask(llm, [strip, text], bundle("task"), check_task) for _ in range(votes)]
@@ -445,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("dataset", help="Hugging Face repo id, or a local curated dataset directory")
     p.add_argument("--root", type=Path, help="local copy of a Hub dataset; default data/<repo name>")
     p.add_argument("--camera", help="default observation.images.front if present, else observation.images.up")
-    p.add_argument("--episodes", type=int, nargs="+", default=[0])
+    p.add_argument("--episodes", type=int, nargs="+", help="default: every episode")
     p.add_argument("--hand", choices=["left", "right"], default="right")
     p.add_argument("--model", default="stealth/space-bunny-alpha", help="gemini-* via Gemini API, anything else via OpenRouter (free models only)")
     p.add_argument("--fallback", default="gemini-3.8-flash", help="answers a call only when --model fails; 'none' disables")
@@ -467,32 +467,43 @@ def main(argv: list[str] | None = None) -> int:
 
     tasks: dict[str, dict] = {}
     failed = 0
-    for i in args.episodes:
-        ep = load_episode(root, repo, revision, i)
+    for i in args.episodes or sorted(int(e) for e in episodes(root).episode_index):
         ep_dir = out / f"episode_{i:03d}"
-        hint_path = out / "tasks" / f"{_slug(ep.task)}.json"
-        if ep.task not in tasks and hint_path.exists():
-            tasks[ep.task] = json.loads(hint_path.read_text())
-        task = draft_task(llm, ep, camera, ep_dir, args.votes + 1, hint=tasks.get(ep.task))
-        if ep.task not in tasks:
-            tasks[ep.task] = task
-            hint_path.parent.mkdir(parents=True, exist_ok=True)
-            hint_path.write_text(json.dumps(task, indent=2) + "\n")
-        scene, bindings = draft_scene(llm, ep, camera, ep_dir, task, args.votes)
-        segs = segment_steps(llm, ep, camera, ep_dir, task)
-        pair = assemble(ep, camera, task, scene, bindings, args.hand, segs)
-        outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, task, scene, bindings)
-        pair["source"]["outcome"] = outcome
-        pair["source"]["evidence"] += evidence
-        errors = check_pair(pair)
-        (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")
-        failed += bool(errors)
-        print(f"{'FAIL' if errors else 'ok  '} {ep_dir / 'pair.json'} outcome={outcome}")
-        for e in errors:
-            print(f"     {e}")
+        if (ep_dir / "pair.json").exists():
+            print(f"skip {ep_dir / 'pair.json'}")
+            continue
+        try:
+            failed += annotate_episode(llm, root, repo, revision, i, ep_dir, out, camera, tasks, args)
+        except Exception as e:
+            failed += 1
+            print(f"ERROR {ep_dir}: {type(e).__name__}: {e}", flush=True)
     if isinstance(llm, Fallback):
         print(f"calls answered: {llm.used}")
     return 1 if failed else 0
+
+
+def annotate_episode(llm, root: Path, repo: str, revision: str, i: int, ep_dir: Path, out: Path, camera: str, tasks: dict, args) -> int:
+    ep = load_episode(root, repo, revision, i)
+    hint_path = out / "tasks" / f"{_slug(ep.task)}.json"
+    if ep.task not in tasks and hint_path.exists():
+        tasks[ep.task] = json.loads(hint_path.read_text())
+    task = draft_task(llm, ep, camera, ep_dir, args.votes + 1, hint=tasks.get(ep.task))
+    if ep.task not in tasks:
+        tasks[ep.task] = task
+        hint_path.parent.mkdir(parents=True, exist_ok=True)
+        hint_path.write_text(json.dumps(task, indent=2) + "\n")
+    scene, bindings = draft_scene(llm, ep, camera, ep_dir, task, args.votes)
+    segs = segment_steps(llm, ep, camera, ep_dir, task)
+    pair = assemble(ep, camera, task, scene, bindings, args.hand, segs)
+    outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, task, scene, bindings)
+    pair["source"]["outcome"] = outcome
+    pair["source"]["evidence"] += evidence
+    errors = check_pair(pair)
+    (ep_dir / "pair.json").write_text(json.dumps(pair, indent=2) + "\n")
+    print(f"{'FAIL' if errors else 'ok  '} {ep_dir / 'pair.json'} outcome={outcome}", flush=True)
+    for e in errors:
+        print(f"     {e}")
+    return int(bool(errors))
 
 
 if __name__ == "__main__":
