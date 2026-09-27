@@ -288,7 +288,7 @@ def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1, hint: d
 AGREE_IOU = 0.5
 
 
-def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int = 1) -> tuple[dict, list]:
+def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int = 1, notes: str | None = None) -> tuple[dict, list]:
     images = _scene_frames(ep, out, camera) + [_strip(ep, out, camera, TASK_FRAMES, "task_strip")[0]]
     schema = bundle("scene")
     defs = schema.pop("$defs")
@@ -300,7 +300,7 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
     text = SCENE_PROMPT.format(
         camera=camera, robot=ep.robot, scene_id=f"episode_{ep.index:03d}", asset=ref(ep, camera, 0), roles=roles,
         goals=json.dumps(task["goals"]),
-    )
+    ) + (NOTES_HINT.format(notes=notes) if notes else "")
     names = {r["role"]: r["name"] for r in task["roles"]}
 
     def check(d):
@@ -345,7 +345,58 @@ def _sentence(relation: str, subject: str, obj: str | None) -> str:
     return PHRASES[relation].format(s=subject, o=obj)
 
 
-def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: dict, bindings: list) -> tuple[str, list]:
+BIND_PROMPT = """Image 1 is the first frame of a robot episode with candidate objects boxed and numbered. Image 2 shows, for each task step in order, the frame where the gripper holds that step's object (labelled window 1, 2, ...).
+For each step, give the number of the box in image 1 that is the object the gripper picks up in that step. Steps: {steps}"""
+
+
+def _numbered(out: Path, scene: dict, ids: list[str]) -> Path:
+    img = Image.open(out / "first.jpg").convert("RGB")
+    w, h = img.size
+    d = ImageDraw.Draw(img)
+    ents = {e["id"]: e for e in scene["entities"]}
+    for k, i in enumerate(ids):
+        y0, x0, y1, x1 = [v * s / 1000 for v, s in zip(ents[i]["box_2d"], (h, w, h, w))]
+        d.rectangle([x0, y0, x1, y1], outline="yellow", width=3)
+        d.rectangle([x0, y0, x0 + 22, y0 + 18], fill="yellow")
+        d.text((x0 + 6, y0 + 3), str(k + 1), fill="black")
+    path = out / "bind_boxes.jpg"
+    img.save(path, quality=90)
+    return path
+
+
+def bind_by_grasp(llm, ep: Episode, camera: str, out: Path, task: dict, scene: dict, bindings: list, segs: list[dict]) -> list:
+    """Rebind step objects to the boxed entities actually picked up, when several same-kind objects could be confused."""
+    step_objects = [s["object"] for s in task["steps"]]
+    role_kind = {r["role"]: r["kind"] for r in task["roles"]}
+    grasps = {s["step"]: s["grasp"] for s in segs}
+    steps = [s for s in task["steps"] if grasps.get(s["id"]) is not None]
+    cands = [e["id"] for e in scene["entities"] if e["kind"] == "object" and e["box_2d"]]
+    if not steps or len(cands) < 2 or len(set(step_objects)) != len(step_objects) or any(role_kind.get(o) != "object" for o in step_objects):
+        return bindings
+    grid = _grid(ep, out, camera, [[grasps[s["id"]]] for s in steps], "bind_windows")
+    schema = {"type": "object", "additionalProperties": False, "required": ["boxes"], "properties": {
+        "boxes": {"type": "array", "minItems": len(steps), "maxItems": len(steps), "items": {"type": "integer", "minimum": 1, "maximum": len(cands)}}}}
+    check = lambda d: [] if len(set(d["boxes"])) == len(d["boxes"]) else ["each step picks a different box"]
+    text = BIND_PROMPT.format(steps="; ".join(f"{k + 1}. {s['action']} {s['object']}" for k, s in enumerate(steps)))
+    doc = _ask(llm, [_numbered(out, scene, cands), grid, text], schema, check)
+    if check(doc):
+        return bindings
+    bound = {b["role"]: b["entity"] for b in bindings}
+    names = {e["id"]: e for e in scene["entities"]}
+    for s, k in zip(steps, doc["boxes"]):
+        new, old = cands[k - 1], bound.get(s["object"])
+        if new == old:
+            continue
+        other = next((r for r, e in bound.items() if e == new), None)
+        bound[s["object"]] = new
+        if other is not None and old is not None:
+            bound[other] = old
+        if old is not None:
+            names[new]["name"], names[old]["name"] = names[old]["name"], names[new]["name"]
+    return [{"role": r, "entity": e} for r, e in bound.items()]
+
+
+def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: dict, bindings: list, notes: str | None = None) -> tuple[str, list]:
     """success if every goal holds in the last frame, failure if any is false, else unknown."""
     names = {e["id"]: e["name"] for e in scene["entities"]}
     bound = {b["role"]: names.get(b["entity"], b["entity"]) for b in bindings}
@@ -358,7 +409,7 @@ def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: 
         "note": {"type": "string"},
     }}
     check = lambda d: [] if len(d["goals"]) == len(task["goals"]) else [f"need {len(task['goals'])} goal verdicts"]
-    text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals)
+    text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals) + (NOTES_HINT.format(notes=notes) if notes else "")
     tail = [max(0, ep.length - 1 - round(s * ep.fps)) for s in (3, 2, 1, 0)]
     doc = _ask(llm, [out / "first.jpg", _grid(ep, out, camera, [tail[:2], tail[2:]], "outcome_tail"), text], schema, check)
     holds = [None if v is None else v == g["value"] for v, g in zip(doc["goals"], task["goals"])]
@@ -496,10 +547,12 @@ def annotate_episode(llm, root: Path, repo: str, revision: str, i: int, ep_dir: 
         tasks[ep.task] = task
         hint_path.parent.mkdir(parents=True, exist_ok=True)
         hint_path.write_text(json.dumps(task, indent=2) + "\n")
-    scene, bindings = draft_scene(llm, ep, camera, ep_dir, task, args.votes)
+    notes = notes_path.read_text().strip() if notes_path.exists() else None
+    scene, bindings = draft_scene(llm, ep, camera, ep_dir, task, args.votes, notes)
     segs = segment_steps(llm, ep, camera, ep_dir, task)
+    bindings = bind_by_grasp(llm, ep, camera, ep_dir, task, scene, bindings, segs)
     pair = assemble(ep, camera, task, scene, bindings, args.hand, segs)
-    outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, task, scene, bindings)
+    outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, task, scene, bindings, notes)
     pair["source"]["outcome"] = outcome
     pair["source"]["evidence"] += evidence
     errors = check_pair(pair)
