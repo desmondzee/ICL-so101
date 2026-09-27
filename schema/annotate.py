@@ -53,8 +53,8 @@ Steps are in the given order and do not overlap; frames between steps may belong
 
 OUTCOME_PROMPT = """Did this robot episode achieve its task? Image 1: first frame. Image 2: last frame. Camera {camera}.
 Task: {caption}
-For each goal below, in order, say whether it holds in the LAST frame: true, false, or null if it cannot be seen.
-Goals (role -> entity name): {goals}"""
+For each statement below, in order, say whether it is true in the LAST frame: true, false, or null if it cannot be seen.
+Statements: {goals}"""
 
 FIX_PROMPT = "The JSON failed validation. Return a corrected version.\nErrors:\n{errors}\nJSON:\n{doc}"
 
@@ -290,12 +290,25 @@ def draft_scene(llm, ep: Episode, camera: str, out: Path, task: dict, votes: int
     return drafts[0]
 
 
+PHRASES = {
+    "supported_by": "the {s} rests on the {o}", "inside": "the {s} is inside the {o}", "held_by": "the {s} is held by the {o}",
+    "touching": "the {s} touches the {o}", "at": "the {s} is at the {o}", "left_of": "the {s} is left of the {o}",
+    "right_of": "the {s} is right of the {o}", "in_front_of": "the {s} is in front of the {o}", "behind": "the {s} is behind the {o}",
+    "open": "the {s} is open", "switched_on": "the {s} is switched on", "folded": "the {s} is folded", "upright": "the {s} is upright",
+    "clean": "the {s} is clean",
+}
+
+
+def _sentence(relation: str, subject: str, obj: str | None) -> str:
+    return PHRASES[relation].format(s=subject, o=obj)
+
+
 def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: dict, bindings: list) -> tuple[str, list]:
     """success if every goal holds in the last frame, failure if any is false, else unknown."""
     names = {e["id"]: e["name"] for e in scene["entities"]}
     bound = {b["role"]: names.get(b["entity"], b["entity"]) for b in bindings}
     goals = "; ".join(
-        f"{i + 1}. {g['relation']}({bound.get(g['subject'], g['subject'])}" + (f", {bound.get(g['object'], g['object'])}" if g["object"] else "") + f") = {str(g['value']).lower()}"
+        f"{i + 1}. {_sentence(g['relation'], bound.get(g['subject'], g['subject']), g['object'] and bound.get(g['object'], g['object']))}"
         for i, g in enumerate(task["goals"])
     )
     schema = {"type": "object", "additionalProperties": False, "required": ["goals", "note"], "properties": {
@@ -305,7 +318,7 @@ def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: 
     check = lambda d: [] if len(d["goals"]) == len(task["goals"]) else [f"need {len(task['goals'])} goal verdicts"]
     text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals)
     doc = _ask(llm, [out / "first.jpg", out / "last.jpg", text], schema, check)
-    holds = doc["goals"]
+    holds = [None if v is None else v == g["value"] for v, g in zip(doc["goals"], task["goals"])]
     outcome = "failure" if False in holds else "success" if all(h is True for h in holds) else "unknown"
     evidence = [{"asset": ref(ep, camera, ep.length - 1), "detail": f"VLM goal check on the last frame: {doc['goals']}; {doc['note']}"[:500]}]
     return outcome, evidence
