@@ -266,15 +266,18 @@ def _task_signature(t: dict) -> tuple:
 TASK_HINT = """
 Another episode of this dataset was annotated with the task below. Reuse its role names, kinds and naming style for the same objects, but describe THIS episode: add or drop roles and steps to match the objects actually manipulated here, in the order seen.
 {task}"""
+NOTES_HINT = """
+Notes on this dataset's task (from a reviewer; follow them): {notes}"""
 
 
-def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1, hint: dict | None = None) -> dict:
+def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1, hint: dict | None = None, notes: str | None = None) -> dict:
     strip, _ = _strip(ep, out, camera, TASK_FRAMES, "task_strip")
     closes, opens = _events(ep)
     text = TASK_PROMPT.format(
         instruction=ep.task, n=TASK_FRAMES, episode=ep.index, camera=camera, robot=ep.robot, task_id=_slug(ep.task),
         events=f"gripper closes at frames {closes}, reopens at frames {opens}; the gripper clearly held an object {len(holds(ep))} times, usually one step per hold",
-        hint=TASK_HINT.format(task=json.dumps({k: hint[k] for k in ("roles", "steps", "goals")})) if hint else "",
+        hint=(TASK_HINT.format(task=json.dumps({k: hint[k] for k in ("roles", "steps", "goals")})) if hint else "")
+        + (NOTES_HINT.format(notes=notes) if notes else ""),
     )
     drafts = [_ask(llm, [strip, text], bundle("task"), check_task) for _ in range(votes)]
     drafts = [d for d in drafts if not check_task(d)] or drafts
@@ -487,7 +490,8 @@ def annotate_episode(llm, root: Path, repo: str, revision: str, i: int, ep_dir: 
     hint_path = out / "tasks" / f"{_slug(ep.task)}.json"
     if ep.task not in tasks and hint_path.exists():
         tasks[ep.task] = json.loads(hint_path.read_text())
-    task = draft_task(llm, ep, camera, ep_dir, args.votes + 1, hint=tasks.get(ep.task))
+    notes_path = hint_path.with_suffix(".notes.txt")
+    task = draft_task(llm, ep, camera, ep_dir, args.votes + 1, hint=tasks.get(ep.task), notes=notes_path.read_text().strip() if notes_path.exists() else None)
     if ep.task not in tasks:
         tasks[ep.task] = task
         hint_path.parent.mkdir(parents=True, exist_ok=True)
