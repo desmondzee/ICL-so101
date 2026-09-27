@@ -5,13 +5,35 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from curate.convert import _canonical_features, convert
 from curate.episodes import SELECTION
+from curate.io import load
 
 EPISODES = Path("data/so101_curated/_episodes")
+
+
+def _frames(video: Path) -> int:
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(video)],
+                       capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    return int(r.stdout.strip() or 0)
+
+
+def length_mismatch(entry: dict) -> dict[int, str]:
+    """v2.1 episodes whose per-episode video frame count differs from the trajectory length."""
+    src = load(entry["root"])
+    if not src.version.startswith("v2"):
+        return {}
+    by_name = {v: k for k, v in src.cameras.items()}
+    keys = [by_name[c] for c in (entry["front"], entry["wrist"]) if c]
+    jobs = [(int(ep), int(n), k) for ep, n in zip(src.episodes.episode_index, src.episodes.length) for k in keys]
+    with ThreadPoolExecutor(8) as ex:
+        counts = list(ex.map(lambda j: _frames(src.video(j[2], j[0])[0]), jobs))
+    return {ep: f"video has {c} frames, data {n}" for (ep, n, _), c in zip(jobs, counts) if abs(c - n) > 2}
 
 
 def decisions(name: str, review: list[dict]) -> tuple[set[int], dict[int, str], dict]:
@@ -27,7 +49,7 @@ def decisions(name: str, review: list[dict]) -> tuple[set[int], dict[int, str], 
             drop[ep] = "review: " + ",".join(r["flags"])
         elif r and (r["swap"] or (m.get("swapped") and r["swapped_cameras"])):
             swap.add(ep)
-        elif m.get("swapped") != (r["swapped_cameras"] if r else m.get("swapped")):
+        elif r and bool(m.get("swapped")) != r["swapped_cameras"]:
             drop[ep] = "camera assignment ambiguous"
     summary = {"reviewed": len(rows), "missing_review": sorted(set(motion) - set(rows))}
     return swap, drop, summary
@@ -49,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"skip {e['name']}")
             continue
         swap, drop, summary = decisions(e["name"], review)
+        drop = length_mismatch(e) | drop
         prov = {"source": e["source"], "family": e["family"], "source_tasks": e["tasks"], "review": summary}
         convert(Path(e["root"]), out, e["front"], e["wrist"], prov, swap, drop)
         print(f"done {e['name']}: {len(swap)} swapped, {len(drop)} dropped by review/video", flush=True)

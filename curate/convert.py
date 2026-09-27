@@ -47,9 +47,21 @@ def _encode(src: Path, dst: Path) -> None:
                 raise
 
 
+def _reindex_v21(work: Path) -> None:
+    """Take episode_index from the file name and rebuild the global index; some sources carry stale values."""
+    start = 0
+    for f in sorted((work / "data").rglob("episode_*.parquet"), key=lambda f: int(f.stem.split("_")[-1])):
+        df = pd.read_parquet(f)
+        df["episode_index"] = int(f.stem.split("_")[-1])
+        df["index"] = np.arange(start, start + len(df))
+        start += len(df)
+        df.to_parquet(f)
+
+
 def _copy_v21(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None:
     shutil.copytree(src / "meta", work / "meta")
     shutil.copytree(src / "data", work / "data")
+    _reindex_v21(work)
     other = dict(zip(keep, reversed(keep))) if len(keep) == 2 else {}
     jobs = []
     for chunk in (src / "videos").glob("chunk-*"):
