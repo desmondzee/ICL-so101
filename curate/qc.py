@@ -20,7 +20,7 @@ def row(video: Path, start: float, length_s: float) -> list[Image.Image]:
     with tempfile.TemporaryDirectory() as tmp:
         times = [start + length_s * (i + 0.5) / FRAMES for i in range(FRAMES)]
         for i, t in enumerate(times):
-            subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-ss", f"{t:.3f}", "-i", str(video), "-frames:v", "1", f"{tmp}/{i}.jpg"], check=True)
+            subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", f"{t:.3f}", "-i", str(video), "-frames:v", "1", f"{tmp}/{i}.jpg"], check=True, stdin=subprocess.DEVNULL)
         return [Image.open(f"{tmp}/{i}.jpg").convert("RGB").resize(CELL) for i in range(FRAMES)]
 
 

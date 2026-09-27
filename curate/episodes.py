@@ -20,17 +20,23 @@ FRONT_FRAMES, WRIST_FRAMES = 6, 3
 CELL = (200, 150)
 
 
+def duration(video: Path) -> float:
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)], capture_output=True, text=True)
+    return float(r.stdout.strip() or 0)
+
+
 def _frames(video: Path, start: float, length_s: float, n: int, size: tuple[int, int]) -> np.ndarray:
-    """n evenly spaced RGB frames, [n, h, w, 3] uint8."""
+    """n evenly spaced RGB frames, [n, h, w, 3] uint8, within the part of the episode the file holds."""
     w, h = size
+    length_s = max(0.1, min(length_s, duration(video) - start - 0.1))
     out = []
     for i in range(n):
         t = start + length_s * (i + 0.5) / n
         raw = subprocess.run(
-            ["ffmpeg", "-loglevel", "error", "-ss", f"{t:.3f}", "-i", str(video), "-frames:v", "1", "-vf", f"scale={w}:{h}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-            capture_output=True, check=True,
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-ss", f"{t:.3f}", "-i", str(video), "-frames:v", "1", "-vf", f"scale={w}:{h}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True, stdin=subprocess.DEVNULL,
         ).stdout
-        out.append(np.frombuffer(raw, np.uint8).reshape(h, w, 3))
+        out.append(np.frombuffer(raw, np.uint8).reshape(h, w, 3) if len(raw) == w * h * 3 else np.zeros((h, w, 3), np.uint8))
     return np.stack(out)
 
 
@@ -54,8 +60,11 @@ def check(entry: dict, sheets: Path) -> dict:
     for ep, length in zip(eps.episode_index, eps.length):
         ep, secs = int(ep), length / fps
         v, s = src.video(front, ep)
+        rec = {"video_s": round(duration(v) - s, 2), "data_s": round(secs, 2)}
+        rec["video_short"] = rec["video_s"] < 0.9 * secs
         f = _frames(v, s, secs, FRONT_FRAMES, CELL)
-        rec = {"front_motion": round(motion(f), 1)}
+        rec["front_motion"] = round(motion(f), 1)
+        rec["video_error"] = bool((f.reshape(len(f), -1).max(1) == 0).any())
         w = None
         if wrist:
             v, s = src.video(wrist, ep)
@@ -96,11 +105,16 @@ def main(argv: list[str] | None = None) -> int:
         path = args.out / "motion" / f"{entry['name']}.json"
         if path.exists():
             return entry["name"], "cached"
-        report = check(entry, args.out / "sheets")
+        try:
+            report = check(entry, args.out / "sheets")
+        except Exception as e:
+            return entry["name"], f"ERROR {type(e).__name__}: {e}"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(report, indent=1))
         swapped = sum(r.get("swapped", False) for r in report.values())
-        return entry["name"], f"{len(report)} episodes, {swapped} swapped"
+        short = sum(r["video_short"] for r in report.values())
+        broken = sum(r["video_error"] for r in report.values())
+        return entry["name"], f"{len(report)} episodes, {swapped} swapped, {short} short video, {broken} unreadable"
 
     with ThreadPoolExecutor(args.workers) as ex:
         for name, msg in ex.map(run, entries):

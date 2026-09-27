@@ -30,13 +30,21 @@ MIN_EPISODE_S = 2.0
 MIN_MOTION_DEG = 5.0
 MAX_JUMP_DEG = 30.0
 WIDTH, HEIGHT = 640, 480
-ENCODE = ["-c:v", "libsvtav1", "-preset", "10", "-crf", "30", "-g", "2", "-pix_fmt", "yuv420p", "-an"]
+ENCODE = ["-c:v", "libsvtav1", "-preset", "10", "-crf", "30", "-g", "2", "-svtav1-params", "lp=2", "-pix_fmt", "yuv420p", "-an"]
+ENCODE_TIMEOUT_S = 300
 
 
 def _encode(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     vf = f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease,pad={WIDTH}:{HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1"
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(src), "-vf", vf, *ENCODE, str(dst)], check=True)
+    cmd = ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(src), "-vf", vf, *ENCODE, str(dst)]
+    for attempt in range(2):
+        try:
+            subprocess.run(cmd, check=True, stdin=subprocess.DEVNULL, capture_output=True, timeout=ENCODE_TIMEOUT_S)
+            return
+        except subprocess.TimeoutExpired:
+            if attempt:
+                raise
 
 
 def _copy_v21(src: Path, work: Path, keep: list[str], swapped: set[int]) -> None:
@@ -124,6 +132,36 @@ def _joints(root: Path, unit: str, offset: np.ndarray, kin: Kinematics) -> None:
     (root / "meta/info.json").write_text(json.dumps(info, indent=4))
 
 
+def _canonical_features(root: Path) -> None:
+    """Rewrite feature definitions from one template so every curated dataset can be aggregated."""
+    info = json.loads((root / "meta/info.json").read_text())
+    video = {
+        "dtype": "video", "shape": [HEIGHT, WIDTH, 3], "names": ["height", "width", "channels"],
+        "info": {"video.height": HEIGHT, "video.width": WIDTH, "video.codec": "av1", "video.pix_fmt": "yuv420p",
+                 "video.is_depth_map": False, "video.fps": info["fps"], "video.channels": 3, "has_audio": False},
+    }
+    features = {
+        "action": {"dtype": "float32", "shape": [6], "names": NAMES},
+        "observation.state": {"dtype": "float32", "shape": [6], "names": NAMES},
+        "action.ee": {"dtype": "float32", "shape": [7], "names": EE_NAMES},
+        "observation.state.ee": {"dtype": "float32", "shape": [7], "names": EE_NAMES},
+        "timestamp": {"dtype": "float32", "shape": [1], "names": None},
+        "frame_index": {"dtype": "int64", "shape": [1], "names": None},
+        "episode_index": {"dtype": "int64", "shape": [1], "names": None},
+        "index": {"dtype": "int64", "shape": [1], "names": None},
+        "task_index": {"dtype": "int64", "shape": [1], "names": None},
+    }
+    for key in ("observation.images.front", "observation.images.wrist"):
+        if key in info["features"]:
+            features[key] = video
+    extra = set(info["features"]) - set(features)
+    if extra:
+        raise ValueError(f"{root}: unexpected features {sorted(extra)}")
+    info["features"] = features
+    info["robot_type"] = "so101_follower"
+    (root / "meta/info.json").write_text(json.dumps(info, indent=4))
+
+
 def _bad_episodes(root: Path, fps: float) -> dict[int, str]:
     df = pd.concat([pd.read_parquet(f, columns=["episode_index", "observation.state"]) for f in sorted((root / "data").rglob("*.parquet"))])
     bad = {}
@@ -183,6 +221,7 @@ def convert(src: Path, out: Path, front: str, wrist: str | None, provenance: dic
         shutil.rmtree(staged)
     else:
         staged.rename(out)
+    _canonical_features(out)
     curation = provenance | {
         "units": unit,
         "rest_offset_deg": np.round(offset[:5], 2).tolist(),

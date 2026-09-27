@@ -96,7 +96,7 @@ def frame(ep: Episode, camera: str, index: int, out: Path) -> Path:
     t = ep.video_from[camera] + min(index, ep.length - 1) / ep.fps
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-y", "-ss", f"{t:.4f}", "-i", str(video_path(ep, camera)), "-frames:v", "1", "-q:v", "2", str(out)],
+        ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-ss", f"{t:.4f}", "-i", str(video_path(ep, camera)), "-frames:v", "1", "-q:v", "2", str(out)],
         check=True,
     )
     return out
