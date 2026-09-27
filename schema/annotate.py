@@ -29,7 +29,7 @@ Gripper events (hints, may be incomplete): {events}
 - roles: every participant, plus role "robot" (kind actor). name: colour + type, at most 4 words.
 - steps: one per object manipulation, in the order seen (each object moved is one step; opening a drawer is one step). A tool use is one step covering picking up, using and putting down the tool (e.g. one wipe step); do not add separate lift steps.
 - goals: the end state, including released objects not held_by the robot.
-- Use role names everywhere. Only facts the task requires."""
+- Use role names everywhere. Only facts the task requires.{hint}"""
 
 SCENE_PROMPT = """Annotate the scene at the first frame of a robot episode (image 1, camera {camera}).
 The robot is a single {robot} arm: include it as entity "robot" (kind actor).
@@ -224,12 +224,18 @@ def _task_signature(t: dict) -> tuple:
     return kinds, tuple(s["action"] for s in t["steps"]), goals
 
 
-def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1) -> dict:
+TASK_HINT = """
+Another episode of this dataset was annotated with the task below. Reuse its role names, kinds and naming style for the same objects, but describe THIS episode: add or drop roles and steps to match the objects actually manipulated here, in the order seen.
+{task}"""
+
+
+def draft_task(llm, ep: Episode, camera: str, out: Path, votes: int = 1, hint: dict | None = None) -> dict:
     strip, _ = _strip(ep, out, camera, TASK_FRAMES, "task_strip")
     closes, opens = _events(ep)
     text = TASK_PROMPT.format(
         instruction=ep.task, n=TASK_FRAMES, episode=ep.index, camera=camera, robot=ep.robot, task_id=_slug(ep.task),
         events=f"gripper closes at frames {closes}, reopens at frames {opens}",
+        hint=TASK_HINT.format(task=json.dumps({k: hint[k] for k in ("roles", "steps", "goals")})) if hint else "",
     )
     drafts = [_ask(llm, [strip, text], bundle("task"), check_task) for _ in range(votes)]
     drafts = [d for d in drafts if not check_task(d)] or drafts
@@ -299,7 +305,7 @@ def verify_outcome(llm, ep: Episode, camera: str, out: Path, task: dict, scene: 
     check = lambda d: [] if len(d["goals"]) == len(task["goals"]) else [f"need {len(task['goals'])} goal verdicts"]
     text = OUTCOME_PROMPT.format(camera=camera, caption=task["robot_caption"], goals=goals)
     doc = _ask(llm, [out / "first.jpg", out / "last.jpg", text], schema, check)
-    holds = [v == g["value"] if v is not None else None for v, g in zip(doc["goals"], task["goals"])]
+    holds = doc["goals"]
     outcome = "failure" if False in holds else "success" if all(h is True for h in holds) else "unknown"
     evidence = [{"asset": ref(ep, camera, ep.length - 1), "detail": f"VLM goal check on the last frame: {doc['goals']}; {doc['note']}"[:500]}]
     return outcome, evidence
@@ -408,18 +414,18 @@ def main(argv: list[str] | None = None) -> int:
     for i in args.episodes:
         ep = load_episode(root, repo, revision, i)
         ep_dir = out / f"episode_{i:03d}"
-        task_path = out / "tasks" / f"{_slug(ep.task)}.json"
+        hint_path = out / "tasks" / f"{_slug(ep.task)}.json"
+        if ep.task not in tasks and hint_path.exists():
+            tasks[ep.task] = json.loads(hint_path.read_text())
+        task = draft_task(llm, ep, camera, ep_dir, args.votes + 1, hint=tasks.get(ep.task))
         if ep.task not in tasks:
-            if task_path.exists():
-                tasks[ep.task] = json.loads(task_path.read_text())
-            else:
-                tasks[ep.task] = draft_task(llm, ep, camera, ep_dir, args.votes + 1)
-                task_path.parent.mkdir(parents=True, exist_ok=True)
-                task_path.write_text(json.dumps(tasks[ep.task], indent=2) + "\n")
-        scene, bindings = draft_scene(llm, ep, camera, ep_dir, tasks[ep.task], args.votes)
-        segs = segment_steps(llm, ep, camera, ep_dir, tasks[ep.task])
-        pair = assemble(ep, camera, tasks[ep.task], scene, bindings, args.hand, segs)
-        outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, tasks[ep.task], scene, bindings)
+            tasks[ep.task] = task
+            hint_path.parent.mkdir(parents=True, exist_ok=True)
+            hint_path.write_text(json.dumps(task, indent=2) + "\n")
+        scene, bindings = draft_scene(llm, ep, camera, ep_dir, task, args.votes)
+        segs = segment_steps(llm, ep, camera, ep_dir, task)
+        pair = assemble(ep, camera, task, scene, bindings, args.hand, segs)
+        outcome, evidence = verify_outcome(llm, ep, camera, ep_dir, task, scene, bindings)
         pair["source"]["outcome"] = outcome
         pair["source"]["evidence"] += evidence
         errors = check_pair(pair)

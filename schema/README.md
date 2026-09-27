@@ -5,7 +5,7 @@ Records for HumanGen-style human-robot pairs. A VLM fills the scene and task; co
 | File | Unit | Filled by |
 | --- | --- | --- |
 | `scene.schema.json` | first frame of one episode, one camera | VLM, per episode |
-| `task.schema.json` | one dataset task, over role names | VLM, once per task |
+| `task.schema.json` | the task one episode performs, over role names | VLM, per episode, reusing the dataset's first task as a naming hint |
 | `pair.schema.json` | episode + camera: source, scene, task, role bindings, step segments, generation settings, human reference/video, checks | code; `bindings` by the scene call |
 | `common.schema.json` | relations, conditions, evidence, checks | |
 

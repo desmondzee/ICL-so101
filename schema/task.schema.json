@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:icl-so101:task:0.2",
   "title": "Task",
-  "description": "One dataset task; uses role names, bound per episode.",
+  "description": "The task one episode performs; roles are bound to that episode's scene. Episodes of a dataset reuse role names where objects match.",
   "type": "object",
   "additionalProperties": false,
   "required": [
