@@ -30,6 +30,7 @@ inference_image = (
         "python -m pip install decord==0.6.0",
     )
     .env({"PYTHONPATH": REMOTE_REPO, "MODEL_PATH": MODEL_DIR})
+    .add_local_file(str(Path(__file__).with_name("so101_runtime.py")), remote_path=f"{REMOTE_REPO}/so101_runtime.py")
 )
 
 
@@ -56,29 +57,54 @@ class PretrainSO101:
         os.environ["WORLD_SIZE"] = "1"
         from wan_va.configs import VA_CONFIGS
         from wan_va.distributed.util import init_distributed
-        from wan_va.wan_va_server import VA_Server
+        import wan_va.wan_va_server as server_module
+        from wan_va.modules.icl_model import WanICLTransformer3DModel
+
+        transformer_config = json.loads((Path(MODEL_DIR) / "transformer" / "config.json").read_text())
+        if transformer_config.get("_class_name") != "WanICLTransformer3DModel":
+            raise ValueError("Unexpected released pretrain transformer architecture")
+
+        def checked_transformer(path, torch_dtype, torch_device, **kwargs):
+            model, info = WanICLTransformer3DModel.from_pretrained(
+                path, torch_dtype=torch_dtype, output_loading_info=True,
+            )
+            problems = {key: value for key, value in info.items() if value}
+            if problems:
+                raise RuntimeError(f"Pretrain checkpoint load is not exact: {problems}")
+            self.checkpoint_load = {"class": type(model).__name__, "loading_info": info}
+            print("[so101-checkpoint-load] " + json.dumps(self.checkpoint_load), flush=True)
+            return model.to(device=torch_device, dtype=torch_dtype)
+
+        server_module.load_transformer = checked_transformer
 
         config = VA_CONFIGS["demo"]
         config.model_path = MODEL_DIR
+        config.use_icl_model = True
+        config.icl_guidance_scale = 5.0
         config.rank = config.local_rank = 0
         config.world_size = 1
         config.save_root = "/tmp/zero-wam-so101-pretrain"
         init_distributed(1, 0, 0)
-        self.model = VA_Server(config)
+        self.model = server_module.VA_Server(config)
 
     @modal.method()
     def so101_step(self, request):
         import copy
         import numpy as np
         import torch
+        import time
+        from so101_runtime import finish_call
+        started = time.monotonic()
 
         if request.get("reset"):
             if request.get("icl_video_bytes"):
-                raise ValueError("Released pretrain demo config has no ICL video model")
+                raise ValueError("This pretrain text-only evaluation does not accept ICL video")
             channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[request["mode"]]
             config = self.model.job_config
             config.used_action_channel_ids = channels
             config.obs_cam_keys = request.get("camera_keys") or ["observation.images.top", "observation.images.wrist"]
+            config.num_inference_steps = request.get("inference_steps", 5)
+            config.action_num_inference_steps = request.get("inference_steps", 10)
             inverse = [len(channels)] * 30
             for index, channel in enumerate(channels):
                 inverse[channel] = index
@@ -86,8 +112,24 @@ class PretrainSO101:
             config.norm_stat = copy.deepcopy(request["stats"])
             torch.manual_seed(int(request["seed"]))
             np.random.seed(int(request["seed"]))
-            return self.model.infer({"reset": True, "prompt": request["prompt"]})
-        return self.model.infer(request)
+            result = finish_call(self.model, request, self.model.infer({
+                "reset": True, "prompt": request["prompt"], "use_icl": False,
+                "video_guidance_scale": 5.0, "icl_guidance_scale": 5.0,
+            }), started)
+            result["_so101_runtime"]["checkpoint_load"] = self.checkpoint_load
+            return result
+        if request.get("compute_kv_cache"):
+            # The ICL architecture reads this buffer, not request["state"].
+            executed = np.asarray(request["executed_model_actions"], dtype=np.float32)
+            normalized = self.model.preprocess_action(executed)
+            normalized[:, ~self.model.action_mask.cpu()] = 0
+            if self.model.chunk_idx == 0:
+                normalized[:, :, 0] = 0
+            self.model.last_predicted_actions = normalized.to(self.model.device, self.model.dtype)
+            result = finish_call(self.model, request, self.model.infer(request), started)
+            result["_so101_runtime"]["action_history_source"] = "executed_model_actions"
+            return result
+        return finish_call(self.model, request, self.model.infer(request), started)
 
 
 @app.local_entrypoint()
@@ -134,10 +176,15 @@ def so101_screen_variants(variants: str, seed: int = 100, max_steps: int = 128, 
 
 
 @app.local_entrypoint()
-def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask"):
+def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask", tasks: str = "", skip_completed: bool = False):
     from zero_wam.so101_eval import run_trial
 
     worker = PretrainSO101()
-    for seed_text in seeds.split(","):
-        for variant in variants.split(","):
-            print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "pretrain", task), flush=True)
+    for selected_task in (tasks or task).split(","):
+        for seed_text in seeds.split(","):
+            for variant in variants.split(","):
+                summary = Path(save_root) / selected_task / "pretrain" / variant / f"seed{seed_text}_steps{max_steps}" / "summary.json"
+                if skip_completed and summary.exists():
+                    print(f"Skipping completed episode: {summary}", flush=True)
+                    continue
+                print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "pretrain", selected_task), flush=True)

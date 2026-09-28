@@ -64,6 +64,7 @@ inference_image = (
         "python -m pip install decord==0.6.0",
     )
     .env({"PYTHONPATH": REMOTE_REPO, "MODEL_PATH": MODEL_DIR, "ICL_CFG": "5"})
+    .add_local_file(str(Path(__file__).with_name("so101_runtime.py")), remote_path=f"{REMOTE_REPO}/so101_runtime.py")
 )
 
 
@@ -148,6 +149,7 @@ class ZeroWAM:
     @modal.enter()
     def load(self) -> None:
         import sys
+        import json
 
         if not Path(MODEL_DIR).is_dir():
             raise FileNotFoundError(
@@ -162,7 +164,25 @@ class ZeroWAM:
 
         from wan_va.configs import VA_CONFIGS
         from wan_va.distributed.util import init_distributed
-        from wan_va.wan_va_server import VA_Server
+        import wan_va.wan_va_server as server_module
+        from wan_va.modules.icl_model import WanICLTransformer3DModel
+
+        transformer_config = json.loads((Path(MODEL_DIR) / "transformer" / "config.json").read_text())
+        if transformer_config.get("_class_name") != "WanICLTransformer3DModel":
+            raise ValueError("Unexpected released posttrain transformer architecture")
+
+        def checked_transformer(path, torch_dtype, torch_device, **kwargs):
+            model, info = WanICLTransformer3DModel.from_pretrained(
+                path, torch_dtype=torch_dtype, output_loading_info=True,
+            )
+            problems = {key: value for key, value in info.items() if value}
+            if problems:
+                raise RuntimeError(f"Posttrain checkpoint load is not exact: {problems}")
+            self.checkpoint_load = {"class": type(model).__name__, "loading_info": info}
+            print("[so101-checkpoint-load] " + json.dumps(self.checkpoint_load), flush=True)
+            return model.to(device=torch_device, dtype=torch_dtype)
+
+        server_module.load_transformer = checked_transformer
 
         config = VA_CONFIGS["robotwin"]
         config.model_path = MODEL_DIR
@@ -173,7 +193,7 @@ class ZeroWAM:
         config.world_size = 1
         config.save_root = "/tmp/zero-wam"
         init_distributed(1, 0, 0)
-        self.model = VA_Server(config)
+        self.model = server_module.VA_Server(config)
         original_icl_loader = self.model._load_or_encode_icl
 
         def load_or_encode_icl(video_path: str, latent_path: str):
@@ -274,6 +294,9 @@ class ZeroWAM:
         import copy
         import numpy as np
         import torch
+        import time
+        from so101_runtime import finish_call
+        started = time.monotonic()
 
         if request.get("reset"):
             import hashlib
@@ -282,6 +305,8 @@ class ZeroWAM:
             channels = request.get("channels") or {"pose": [0, 1, 2, 3, 4, 5, 6, 28], "joint": [14, 15, 16, 17, 18, 28]}[mode]
             cfg = self.model.job_config
             cfg.obs_cam_keys = request.get("camera_keys") or ["observation.images.top", "observation.images.wrist"]
+            cfg.num_inference_steps = request.get("inference_steps", 50)
+            cfg.action_num_inference_steps = request.get("inference_steps", 50)
             cfg.used_action_channel_ids = channels
             inverse = [len(channels)] * 30
             for i, channel in enumerate(channels):
@@ -297,7 +322,9 @@ class ZeroWAM:
                 if not path.exists():
                     path.write_bytes(video_bytes)
                 reset["icl_video_path"] = str(path)
-            return self.model.infer(reset)
+            result = finish_call(self.model, request, self.model.infer(reset), started)
+            result["_so101_runtime"]["checkpoint_load"] = self.checkpoint_load
+            return result
         if request.get("compute_kv_cache") and self.model.use_icl_model:
             # Cache the actions actually executed after simulator safety limits.
             executed = np.asarray(request["executed_model_actions"], dtype=np.float32)
@@ -306,7 +333,10 @@ class ZeroWAM:
             if self.model.chunk_idx == 0:
                 normalized[:, :, 0] = 0
             self.model.last_predicted_actions = normalized.to(self.model.device, self.model.dtype)
-        return self.model.infer(request)
+        result = finish_call(self.model, request, self.model.infer(request), started)
+        if request.get("compute_kv_cache") and self.model.use_icl_model:
+            result["_so101_runtime"]["action_history_source"] = "executed_model_actions"
+        return result
 
     @modal.method()
     def inspect_human_prompt(self) -> dict:
@@ -478,10 +508,11 @@ def so101_screen_variants(
 
 
 @app.local_entrypoint()
-def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask", icl_video: str = ""):
+def so101_multitask(task: str = "soup_lift", variants: str = "pose,joint", seeds: str = "1,7,8", max_steps: int = 128, save_root: str = "outputs/zero_wam/so101/multitask", icl_video: str = "", tasks: str = ""):
     from zero_wam.so101_eval import run_trial
 
     worker = ZeroWAM()
-    for seed_text in seeds.split(","):
-        for variant in variants.split(","):
-            print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "posttrain", task, icl_video or None), flush=True)
+    for selected_task in (tasks or task).split(","):
+        for seed_text in seeds.split(","):
+            for variant in variants.split(","):
+                print(run_trial(worker, variant, int(seed_text), max_steps, save_root, "posttrain", selected_task, icl_video or None), flush=True)

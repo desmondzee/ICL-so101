@@ -10,20 +10,26 @@ from pathlib import Path
 from zero_wam.so101_eval import MULTITASK_OBJECTS, make_env
 
 
-def run(seed: int, task: str, mode: str = "pose", video_path: Path | None = None) -> dict:
+def run(seed: int, task: str, mode: str = "pose", video_path: Path | None = None, native_initial_state: bool = False, camera_variant: str | None = None, image_width: int = 448, image_height: int = 320) -> dict:
     sim_dir = str(Path(__file__).resolve().parents[1] / "sim")
     if sim_dir not in sys.path:
         sys.path.insert(0, sim_dir)
     from record_demos import closing_dirs
     from scripted import PickPlace
 
-    env = make_env(mode, cameras=video_path is not None, width=448, height=320, task=task)
+    env = make_env(mode, cameras=video_path is not None, width=image_width, height=image_height, task=task)
     if mode == "joint":
         import mujoco
 
         env._ik_data = mujoco.MjData(env.model)
         from so101_nexus.kinematics import rotvec_to_quat
     obs, _ = env.reset(seed=seed)
+    if native_initial_state:
+        from zero_wam.so101_eval import prepare_initial_state
+        obs = prepare_initial_state(env, obs)
+    if camera_variant is not None:
+        from zero_wam.so101_eval import configure_cameras, TRIAL_VARIANTS
+        obs = configure_cameras(env, TRIAL_VARIANTS[camera_variant], obs)
     frames = [obs["overhead_camera"]] if video_path is not None else []
     target = {"soup": "alphabet_soup", "cheese": "cream_cheese"}.get(task.split("_")[0])
     order = [target] if target else ["alphabet_soup", "cream_cheese"]
