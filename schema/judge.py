@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("command", choices=["sheets", "accept"])
     p.add_argument("root", type=Path, help="directory of <dataset>/episode_*/pair.json")
-    p.add_argument("--verdicts", type=Path, nargs="+", help="accept: JSON lists of judge records with 'pair' and 'overall', oldest first; per episode the usable, best-rated, newest version wins")
+    p.add_argument("--verdicts", type=Path, nargs="+", help="accept: JSON lists of judge records with 'pair' and 'overall', oldest first; the newest verdict on a file counts, then per episode the usable, best-rated, newest version wins")
     args = p.parse_args(argv)
     out = args.root / "_judge"
     out.mkdir(exist_ok=True)
@@ -83,18 +83,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(made)} new sheets, {len(index)} total")
         return 0
     rank = {"pass": 2, "minor_issues": 1, "fail": 0}
-    best: dict[tuple[str, str], tuple] = {}
+    latest: dict[str, tuple[int, dict]] = {}  # a newer verdict on the same file supersedes older ones (the file was re-drafted or fixed)
     for order, path in enumerate(args.verdicts):
         for v in json.loads(path.read_text()):
-            q = Path(v["pair"])
-            if not q.exists():
-                continue
-            pair = json.loads(q.read_text())
-            usable = not check_pair(pair) and pair["source"]["outcome"] == "success" and v["overall"] != "fail"
-            key = (q.parts[-3], q.parts[-2])
-            score = (usable, rank[v["overall"]], order)
-            if key not in best or score > best[key][0]:
-                best[key] = (score, str(q), v["overall"])
+            latest[v["pair"]] = (order, v)
+    best: dict[tuple[str, str], tuple] = {}
+    for order, v in latest.values():
+        q = Path(v["pair"])
+        if not q.exists():
+            continue
+        pair = json.loads(q.read_text())
+        usable = not check_pair(pair) and pair["source"]["outcome"] == "success" and v["overall"] != "fail"
+        key = (q.parts[-3], q.parts[-2])
+        score = (usable, rank[v["overall"]], order)
+        if key not in best or score > best[key][0]:
+            best[key] = (score, str(q), v["overall"])
     accepted = [{"dataset": k[0], "episode": k[1], "pair": b[1], "judge": b[2]} for k, b in sorted(best.items()) if b[0][0]]
     (args.root / "accepted.json").write_text(json.dumps(accepted, indent=1) + "\n")
     print(f"accepted {len(accepted)} of {len(best)} judged episodes ({len(pairs(args.root))} current pairs)")
