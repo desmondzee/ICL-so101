@@ -24,6 +24,7 @@ from reactor_sdk import Reactor
 logger = logging.getLogger(__name__)
 
 MODEL = "reactor/h3-reference-to-video-turbo-realtime"
+FAST_MODEL = "reactor/fast-h3"  # image-to-video: the reference is the first frame, optional ending frame
 ASPECTS = ("16:9", "1:1", "9:16", "4:3")
 Aspect = Literal["16:9", "1:1", "9:16", "4:3"]
 
@@ -63,6 +64,7 @@ class VideoRequest:
     duration: float
     seed: int | None = None
     output_path: str | Path | None = None
+    ending_image: str | Path | bytes | None = None  # FastH3 only: the clip ends on this frame
 
 
 def load_batch(folder: str | Path, *, force: bool = False) -> list[VideoRequest]:
@@ -109,8 +111,13 @@ async def generate_videos(
     output_dir: str | Path | None = None,
     aspect: Aspect = "16:9",
     api_key: str | None = None,
+    model: str = MODEL,
 ) -> list[Path]:
-    """Open one H3 session and return one MP4 path per item, in input order."""
+    """Open one session and return one MP4 path per item, in input order.
+
+    With ``model=FAST_MODEL`` each reference image is the clip's starting frame and
+    ``ending_image`` (if set) its ending frame; otherwise the reference guides appearance.
+    """
     batch = list(items)
     if not batch:
         raise ValueError("items is empty")
@@ -134,7 +141,7 @@ async def generate_videos(
     def on_message(message: Any) -> None:
         loop.call_soon_threadsafe(messages.put_nowait, message)
 
-    async with Reactor(MODEL, api_key=key) as reactor:
+    async with Reactor(model, api_key=key) as reactor:
         reactor.on("message", on_message)
         frames = _subscribe(reactor, recorder := _LiveRecorder())
         try:
@@ -144,8 +151,11 @@ async def generate_videos(
             state = _body(await reactor.send_command("get_state", {}))
             capacity = int(state.get("generation_capacity") or DEFAULT_GENERATION_CAPACITY)
             refs = await _upload_unique(reactor, batch)
+            ends = await _upload_endings(reactor, batch)
+            bounds = (state.get("clip_seconds_min"), state.get("clip_seconds_max"))
             return await _play_all(
-                reactor, batch, refs, outputs, messages, capacity, frames, recorder
+                reactor, batch, refs, outputs, messages, capacity, frames, recorder,
+                fast=model == FAST_MODEL, ends=ends, bounds=bounds,
             )
         finally:
             reactor.off("message", on_message)
@@ -187,9 +197,10 @@ def generate_videos_sync(
     output_dir: str | Path | None = None,
     aspect: Aspect = "16:9",
     api_key: str | None = None,
+    model: str = MODEL,
 ) -> list[Path]:
     return asyncio.run(
-        generate_videos(items, output_dir=output_dir, aspect=aspect, api_key=api_key)
+        generate_videos(items, output_dir=output_dir, aspect=aspect, api_key=api_key, model=model)
     )
 
 
@@ -227,6 +238,9 @@ async def _play_all(
     capacity: int,
     frames: dict[str, int],
     recorder: "_LiveRecorder",
+    fast: bool = False,
+    ends: list[Any] | None = None,
+    bounds: tuple[Any, Any] = (None, None),
 ) -> list[Path]:
     next_index = 0
     generating = 0
@@ -242,12 +256,18 @@ async def _play_all(
         nonlocal next_index, generating
         index = next_index
         next_index += 1
-        payload: dict[str, Any] = {
-            "prompt": items[index].prompt,
-            "reference_image": refs[index],
-            "seconds": items[index].duration,
-            "metadata": str(index),
-        }
+        seconds = float(items[index].duration)
+        if bounds[0] is not None:
+            seconds = max(float(bounds[0]), seconds)
+        if bounds[1] is not None:
+            seconds = min(float(bounds[1]), seconds)
+        payload: dict[str, Any] = {"prompt": items[index].prompt, "seconds": seconds, "metadata": str(index)}
+        if fast:
+            payload["starting_frame"] = refs[index]
+            if ends and ends[index] is not None:
+                payload["ending_frame"] = ends[index]
+        else:
+            payload["reference_image"] = refs[index]
         if items[index].seed is not None:
             payload["seed"] = items[index].seed
         reply = await reactor.send_command("enqueue", payload)
@@ -664,6 +684,10 @@ async def _upload_image(reactor: Reactor, image: str | Path | bytes) -> Any:
         mime, name = _mime_from_bytes(image)
         return await reactor.upload_file(image, name=name, mime_type=mime)
     return await reactor.upload_file(Path(image))
+
+
+async def _upload_endings(reactor: Reactor, items: list[VideoRequest]) -> list[Any]:
+    return [None if item.ending_image is None else await _upload_image(reactor, item.ending_image) for item in items]
 
 
 def _image_key(image: str | Path | bytes) -> str:
