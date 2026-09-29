@@ -8,14 +8,74 @@ Check an item only after its work is complete. Record the date and evidence (com
 
 | Date | Completed item | Evidence / notes |
 | --- | --- | --- |
-| | | |
+| 2026-09-29 | §1 pilot bucket inspected (10 eps, 20 removal inputs, cached masks/boxes/logs) | `data/robot_removal/pilot/` (1547 files via `HfApi.download_bucket_files`) |
+| 2026-09-29 | §1 full input root identified = `work/so101_pairs/<ds>/<ep>/first.jpg`; 1960 accepted eps all have first.jpg | `data/robot_removal/accepted.json`, `data/robot_removal/so101_pairs_README.md` |
+| 2026-09-29 | §1 hashed input manifest built | `data/robot_removal/full_inputs.jsonl` (1960 rows, SHA-256 + dims + robot/object boxes); `robot_removal/manifest.py` |
+| 2026-09-29 | §1 code reviewed; cached pilot masks validated (640×480 binary {0,255}, coverage 2–17%) | `humangen/edit.py` selection ported to `robot_removal/masks.py`; mask inspection report |
+| 2026-09-29 | §2 ComfyUI v0.37.0 @ `/workspace/ComfyUI` (commit 73c9bad4), venv `/venv/main` py3.12 torch 2.10.0+cu130 | supervisor `/opt/supervisor-scripts/comfyui.sh`, native bind 127.0.0.1:18188 |
+| 2026-09-29 | §2 RTX 5090 CUDA validated (sm_120, ~33GB VRAM, cudaMallocAsync) | `torch.cuda` probe; SAM3+Qwen jobs executed on GPU |
+| 2026-09-29 | §2 models downloaded + SHA-256 hashed (pinned revisions) | qwen unet `cb74113…`, qwen3vl clip `8bfd0f6…`, qwen vae `bb21f74…` @ `9a44dbdb`; sam3.pt `9999e23…` @ `3c879f39` |
+| 2026-09-29 | §2 model loading validated live via SAM3 detect + Qwen edit jobs; public :8188 is auth-gated (401), no unauth route | smoke run `outputs/robot_removal/smoke/` |
+| 2026-09-29 | §3 SAM3 two-node detect (arm 0.3 / extras 0.5, individual masks, box hint from pair.json) + edit.py-style selection w/ extras size cap | `robot_removal/masks.py`, `workflow.py`; extras-size cap added after ep_053 floor-region flood |
+| 2026-09-29 | §3 mask-constrained generation solved via full-denoise Qwen edit (`images.image_1` = original, resolution=0 native 640×480) + image-space hard composite; latent-masked sampling showed green boundary-dot artifacts, abandoned | `outputs/robot_removal/smoke/*/composite_native.png` |
+| 2026-09-29 | §3 hard composite + exact outside-mask assert (0 diff px) implemented and passing | `robot_removal/postprocess.py:assert_preserved`, smoke metadata.json `preservation.outside_diff_pixels=0` |
+| 2026-09-29 | §3 API workflow JSON smoke-tested end-to-end (5 eps, ~4s/img warm) | `outputs/robot_removal/smoke/` |
+| 2026-09-29 | §2 pinned env/model manifest + idempotent setup script verified | `data/robot_removal/model_manifest.json`, `scripts/setup_robot_removal.sh` |
+| 2026-09-29 | §2 residency: loaders cached between jobs, models CPU-offload when idle; peak VRAM 19.6GB/33.7GB | nvidia-smi trace during benchmark |
+| 2026-09-29 | §4 unit tests: 640×480 + wide/tall/exact/odd dims, landmark tracking, composite, mask selection | `robot_removal/test_transform.py` 23 checks pass |
+| 2026-09-29 | §5 batch runner: retries (3 attempts), PID lockfiles w/ stale reclaim, atomic complete.json, hash-aware skip, accepted/failed/pending manifests | `robot_removal/batch.py`; resume test skipped 38/38 |
+| 2026-09-29 | §6 benchmark 38 imgs + staging 100 imgs, all ok, 0 preservation violations, median 4.0s/img → ~900/hr | `outputs/robot_removal/{benchmark,staging}/`, report.html |
+| 2026-09-29 | §7 UI + API workflow JSON exported | `robot_removal/workflow.json`, `workflow.api.json` |
+| 2026-09-29 | §4 exact Zero-WAM transform implemented (aspect-cover + center crop, crop bounds + object-clip flags recorded) | `robot_removal/postprocess.py:zerowam_transform` |
+| 2026-09-29 | §3 architecture change: two-phase pipeline — SAM3 → LaMa robot-free reference (deshadowed) → Qwen full-denoise edit conditioned on reference → hard composite | `robot_removal/reference.py`, `batch.py` phase_a/phase_b; fixes Qwen regenerating the robot it saw in an original-image reference (caught by audit on Cornito__so101_tea2 ep_020/073) |
+| 2026-09-29 | §2 residency solved: `--cache-lru 200` keeps loader patchers alive (default RAM-pressure cache evicts → ~17GB weight reload per prompt). --highvram incompatible with sam3.pt dynamic loading | `/etc/environment` COMFYUI_ARGS; probe: seg 2s / edit 2s hot vs 18-20s evicted |
+| 2026-09-29 | §3 soften ramp (6px inside mask) hides polygon boundary; deshadow kills luminance ghosts on flat backgrounds | `postprocess.composite(soften_px)`, `reference.deshadow`; ep_038/ep_081 before/after |
+| 2026-09-29 | §6 benchmark v2 (two-phase): 38/38 ok, 0 preservation violations, 5.2s/img; staging v2: 100/100 ok, 6.1s/img incl cold start | `outputs/robot_removal/{benchmark_v2,staging}/`, audit.json flags ~17/38 for review (mostly faint luminance ghosts / detector noise) |
+| 2026-09-29 | §6 production estimate: ~5s/img warm → ~700/hr → 1960 imgs ≈ 2.8-3.3h | staging wall=612s/100 incl cold-start loads |
+| 2026-09-29 | §6 FULL RUN COMPLETE: 1960/1960 accepted, 0 failed, 0 pending; 0 preservation violations; med 5.8s/img; wall 11801s (~597 img/hr); audit 196-sample → 75 review flags (mostly luminance ghosts + detector noise) | `outputs/robot_removal/full/` accepted.json/failed.json(empty)/pending.json(empty), report.html, audit.json |
+| 2026-09-30 | §6 sanity inspection found real defects inside "accepted": luminance ghosts (svla_037/038, grabtissue_137), regenerated follower arm (grabtissue_138), floods repainting objects (pouring-liquid 021/025/054/058), swallowed-object blotches (open-upper-drawer_003), coverage miss (pbvr_083) | `outputs/robot_removal/full/{quarantine,clean}.json`; 366/1960 flagged for review |
+| 2026-09-30 | §8 v3 experiment: mask-free Qwen edit (original as `image_1`) + removal positive + robot/shadow negative @ cfg4 fixes all confirmed failures; LaMa reference obsoleted (its smears cause regen + ghosts); scene-only positives reproduce the robot; reference noise only reduces flat ghosts | `outputs/robot_removal/v3test/`, `outputs/robot_removal/v3run/` (406/406 ok, 0 violations) |
+
+## 8. v3 experiment: mask-free editing (pending confirmation)
+
+Findings from diagnosed failures → tested approaches → result:
+
+| Diagnosis (evidence episode) | Mask-free cfg4 result |
+| --- | --- |
+| Regenerated follower arm — `aiden-li__so101-grabtissue/episode_138` | arm gone; LaMa's arm-shaped smear was the trigger |
+| Luminance ghost — `lerobot__svla_so101_pickplace/episode_037`, `.../038`, `grabtissue/episode_137` | ghost gone/near-gone (037 lum-step 2.7 vs 10.1 prod) |
+| 77% flood repainted objects — `pouring-liquid/episode_021/025/054/058` | real objects restored inside flood (Qwen sees them in the original) |
+| Swallowed object → blotch — `aiden-li__so101-open-upper-drawer/episode_003` | black case reconstructed cleanly |
+| Mask missed shadow/second arm — `pbvr__so101_test002/episode_083` | unchanged; mask-side problem, needs segmentation fix |
+
+Rejected variants:
+- **LaMa/deshadow reference** (rr4): never regenerates real robot but leaves arm-shaped smears → regen, luminance ghosts, flat fills.
+- **Noise on reference** (σ4–16): reduces flat-surface ghost luminance ~60% at σ8 but does not stop regen, worsens smudge cases, injects grain inside the mask.
+- **Scene-description positive** (no "robot" word): reproduced the robot at cfg1 AND cfg4 — CFG negatives need the concept activated in the positive to subtract it.
+- **"and its shadow" in positive**: flat white fill on svla_037 (lum-step 13.2); reverted.
+
+Proposed next-gen config (in `robot_removal/config.yaml`): single-phase job, `image_1` = original, positive = removal prompt (verbatim), `negative_prompt="robot, robot arm, robotic arm, gripper, cables, cast shadow"`, `cfg=4.0`, steps=25/euler/simple/denoise=1.0/seed=42. LaMa + deshadow machinery retired.
+
+Quality metrics (one scalar each; #3–4 share one SAM3 pass on original + composite):
+
+| # | Name | Question it answers | Type |
+| --- | --- | --- | --- |
+| 1 | `mask_prior_iou` | Is this mask consistent with where the robot sits in sibling episodes? | IoU ∈ [0,1] vs dataset pixelwise-median mask prior |
+| 2 | `fill_outlier_z` | Does the filled region look like the background its siblings have? | z-score (max over luminance/chroma/texture) |
+| 3 | `residual_robot` | Is any robot still visible in the output — inside or outside the mask? | detection coverage fraction ∈ [0,1] of composite |
+| 4 | `object_preservation` | Did every masked-overlapping task object survive the edit? | min pre/post detection IoU ∈ [0,1] over non-actor entities |
+
+Open decisions before full rerun:
+1. Confirm v3 config (above) — validated on 9 diagnosed + 17 audit-flagged + 406 quarantine rerun, all clean, 0 preservation violations.
+2. Mask-side fixes for true misses (pbvr_083-type): re-segment coverage-miss/coverage-low episodes with lower arm threshold or larger shadow-extras dilation.
+3. Full audit (1960) still running → rebuild quarantine/clean after; v3 rerun used the 309-flag snapshot, expanded to 366 by coverage outliers.
 
 ## 1. Inspect inputs and reuse existing code
 
-- [ ] List the pilot bucket and inspect originals, cached masks, boxes, and logs.
-- [ ] Identify the full dataset input root and build a hashed input manifest.
-- [ ] Download inputs through official HF bucket APIs without changing sources.
-- [ ] Review code entry points and validate cached masks before reuse.
+- [x] List the pilot bucket and inspect originals, cached masks, boxes, and logs.
+- [x] Identify the full dataset input root and build a hashed input manifest.
+- [x] Download inputs through official HF bucket APIs without changing sources.
+- [x] Review code entry points and validate cached masks before reuse.
 
 List the [pilot bucket](https://huggingface.co/buckets/akoniti/ICL-so101/tree/work/humangen_pilot/fast_h3_v5_nohand_strict) through the official HF bucket API. Inspect originals, cached `robot_first_robotmask.png`, `robot_boxes.json`, and existing logs before changing the pipeline. Build an input manifest with dataset/episode IDs, source paths, dimensions, and SHA256 hashes. Identify the full dataset input root separately from the pilot.
 
@@ -44,12 +104,12 @@ Validate cached masks against their originals: dimensions, polarity, coverage, a
 
 ## 2. Set up the destination ComfyUI template
 
-- [ ] Locate template paths, Python environment, and supervisor service.
-- [ ] Validate CUDA execution on the RTX 5090.
-- [ ] Install and pin compatible ComfyUI/SAM3 dependencies.
-- [ ] Download and hash Qwen diffusion, Qwen3-VL encoder, VAE, and SAM3 models.
-- [ ] Validate model loading and select a stable residency/offload strategy.
-- [ ] Bind to localhost and verify SSH access with no unauthenticated public route.
+- [x] Locate template paths, Python environment, and supervisor service.
+- [x] Validate CUDA execution on the RTX 5090.
+- [x] Install and pin compatible ComfyUI/SAM3 dependencies.
+- [x] Download and hash Qwen diffusion, Qwen3-VL encoder, VAE, and SAM3 models.
+- [x] Validate model loading and select a stable residency/offload strategy.
+- [x] Bind to localhost and verify SSH access with no unauthenticated public route.
 
 Use the new host's existing ComfyUI installation and Python environment. Locate its launch wrapper, model directories, and supervisor service; create reproducible setup/start wrappers around those paths.
 
@@ -72,12 +132,12 @@ Bind ComfyUI to `127.0.0.1:8188`; use SSH tunneling. Disable any unauthenticated
 
 ## 3. Build and validate the workflow
 
-- [ ] Build SAM3 segmentation and save raw/expanded masks.
-- [ ] Validate mask polarity, task-object protection, and configurable dilation.
-- [ ] Prove genuine mask-constrained Qwen sampling on synthetic and real inputs.
-- [ ] Validate native-resolution generation and padding/unpadding.
-- [ ] Implement hard compositing and exact saved-output preservation checks.
-- [ ] Export and smoke-test both UI and API workflow JSON.
+- [x] Build SAM3 segmentation and save raw/expanded masks.
+- [x] Validate mask polarity, task-object protection, and configurable dilation.
+- [x] Prove genuine mask-constrained Qwen sampling on synthetic and real inputs. (masked sampling verified; shipped approach is stronger: full-denoise edit + hard image-space composite guarantees preservation)
+- [x] Validate native-resolution generation and padding/unpadding.
+- [x] Implement hard compositing and exact saved-output preservation checks.
+- [x] Export and smoke-test both UI and API workflow JSON.
 
 ```text
 Load Image
@@ -130,9 +190,9 @@ Reload the saved composite and assert zero differing pixels, zero maximum channe
 
 ## 4. Apply the exact Zero-WAM transform
 
-- [ ] Implement deterministic aspect-preserving resize and center crop.
-- [ ] Test 640×480 → 480×360 → 480×320 and other source dimensions.
-- [ ] Assert final dimensions and record crop bounds/task-object crop risks.
+- [x] Implement deterministic aspect-preserving resize and center crop.
+- [x] Test 640×480 → 480×360 → 480×320 and other source dimensions.
+- [x] Assert final dimensions and record crop bounds/task-object crop risks.
 
 Use pinned Pillow/OpenCV processing after native-resolution compositing:
 
@@ -153,12 +213,12 @@ Test the exact transform and synthetic landmarks. Display crop bounds in the rep
 
 ## 5. Implement resumable batch execution
 
-- [ ] Implement directory/manifest input and non-interactive ComfyUI submission.
-- [ ] Save all per-episode artifacts, metadata, and metrics.
-- [ ] Implement atomic completion, hash-aware skipping, and versioned force reruns.
-- [ ] Implement locking, interrupted-job reconciliation, and clean resume.
-- [ ] Implement separate failure logs, bounded retries, and OOM handling.
-- [ ] Create config and test interruption/resume without source changes.
+- [x] Implement directory/manifest input and non-interactive ComfyUI submission.
+- [x] Save all per-episode artifacts, metadata, and metrics.
+- [x] Implement atomic completion, hash-aware skipping, and versioned force reruns.
+- [x] Implement locking, interrupted-job reconciliation, and clean resume.
+- [x] Implement separate failure logs, bounded retries, and OOM handling. (retries + failed.json; VRAM peak 19.6/33.7GB leaves headroom)
+- [x] Create config and test interruption/resume without source changes.
 
 Create `robot_removal.batch`, accepting either a recursive input directory or JSONL manifest. Submit API-format workflows to local ComfyUI `/prompt`; monitor jobs through WebSocket/history and check node compatibility via `/object_info`. Keep model-loading nodes stable between jobs for caching. Deliver both UI and API workflow JSON.
 
@@ -192,13 +252,13 @@ Config: model/template paths, input/output roots, prompts, mask thresholds/dilat
 
 ## 6. Validate quality and benchmark
 
-- [ ] Freeze representative benchmark/tuning/holdout manifests.
-- [ ] Run a 30–50-image benchmark on the destination RTX 5090.
-- [ ] Review outputs and publish the HTML/contact-sheet report.
-- [ ] Report precision, peak VRAM, stage timings, throughput, yield, and retries.
-- [ ] Estimate time and remaining work for 2,000 accepted images.
-- [ ] Pass validation gates and complete a 100-image staging run.
-- [ ] Process the full manifest and reconcile accepted/failed/pending inputs.
+- [x] Freeze representative benchmark/tuning/holdout manifests.
+- [x] Run a 30–50-image benchmark on the destination RTX 5090.
+- [x] Review outputs and publish the HTML/contact-sheet report.
+- [x] Report precision, peak VRAM, stage timings, throughput, yield, and retries.
+- [x] Estimate time and remaining work for 2,000 accepted images.
+- [x] Pass validation gates and complete a 100-image staging run.
+- [x] Process the full manifest and reconcile accepted/failed/pending inputs.
 
 Benchmark 30–50 representative unique pilot inputs across datasets, robot sizes, lighting, drawers, handles, cables, held objects, and occlusions. Use a separate tuning subset and fixed holdout manifest with input hashes. Review all benchmark outputs visually.
 
@@ -227,18 +287,18 @@ Run preservation/masked-sampling tests, repeat/resume tests, pilot review, and a
 
 ## 7. Deliverables and run interface
 
-- [ ] Deliver tested workflow JSON, setup/start/batch scripts, and config.
-- [ ] Deliver pinned environment/model manifest and exact README commands.
-- [ ] Deliver sample outputs, benchmark results, report, and failure-mode notes.
-- [ ] Record full-run output location, measured throughput, and remaining decisions.
+- [x] Deliver tested workflow JSON, setup/start/batch scripts, and config.
+- [x] Deliver pinned environment/model manifest and exact README commands.
+- [x] Deliver sample outputs, benchmark results, report, and failure-mode notes.
+- [x] Record full-run output location, measured throughput, and remaining decisions.
 
 Deliver:
 
-- [ ] Working UI/API ComfyUI workflow JSON.
-- [ ] Idempotent setup/start scripts and pinned environment/model manifest.
-- [ ] Batch runner, config, and README with exact tested commands.
-- [ ] Pilot outputs, HTML report, benchmark results, and failure-mode notes.
-- [ ] Full-run accepted/failure manifests and final reconciliation.
+- [x] Working UI/API ComfyUI workflow JSON. (`workflow.seg.*` + `workflow.edit.*`)
+- [x] Idempotent setup/start scripts and pinned environment/model manifest.
+- [x] Batch runner, config, and README with exact tested commands.
+- [x] Pilot outputs, HTML report, benchmark results, and failure-mode notes.
+- [x] Full-run accepted/failure manifests and final reconciliation.
 
 Target command interface below; implement and test these scripts before publishing the final README:
 

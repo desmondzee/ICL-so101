@@ -1,0 +1,44 @@
+comfy_url: http://127.0.0.1:18188
+job_timeout_s: 1800
+retries: 2
+
+models:
+  sam3: sam3.pt
+  unet: qwen_image_2.1_int8_convrot.safetensors
+  clip: qwen3vl_8b_int8_convrot.safetensors
+  vae: qwen_image_2.1_vae_bf16.safetensors
+
+sam3:
+  arm_prompt: "robot arm:4, robotic arm:4, robot:4"
+  arm_threshold: 0.3
+  extra_prompt: "cable:8, robot base:4, shadow:8"
+  extra_threshold: 0.5
+  refine_iterations: 2
+
+reference:
+  method: lama
+  device: cuda
+
+mask:
+  dilate_px: 8
+  soften_px: 6
+  min_coverage: 0.005
+  max_coverage: 0.45
+
+qwen:
+  prompt: >-
+    Remove the robot arm/gripper and reconstruct the occluded background
+    naturally. Preserve all other objects, geometry, camera viewpoint,
+    lighting, colors, and scene contents unchanged.
+  negative_prompt: "robot, robot arm, robotic arm, gripper, cables, cast shadow"
+  resolution: 0
+  steps: 25
+  cfg: 4.0
+  sampler: euler
+  scheduler: simple
+  denoise: 1.0
+  seed: 42
+
+output:
+  width: 480
+  height: 320

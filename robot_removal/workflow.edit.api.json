@@ -1,0 +1,100 @@
+{
+ "2": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "REFERENCE.png"
+  }
+ },
+ "20": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  }
+ },
+ "21": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+   "type": "qwen_image",
+   "device": "default"
+  }
+ },
+ "22": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+  }
+ },
+ "23": {
+  "class_type": "TextEncodeQwenImage21",
+  "inputs": {
+   "clip": [
+    "21",
+    0
+   ],
+   "prompt": "Remove the robot arm/gripper and reconstruct the occluded background naturally. Preserve all other objects, geometry, camera viewpoint, lighting, colors, and scene contents unchanged.",
+   "negative_prompt": "",
+   "vae": [
+    "22",
+    0
+   ],
+   "resolution": 0,
+   "images.image_1": [
+    "2",
+    0
+   ]
+  }
+ },
+ "24": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "20",
+    0
+   ],
+   "positive": [
+    "23",
+    0
+   ],
+   "negative": [
+    "23",
+    1
+   ],
+   "latent_image": [
+    "23",
+    2
+   ],
+   "seed": 42,
+   "control_after_generate": "fixed",
+   "steps": 25,
+   "cfg": 1.0,
+   "sampler_name": "euler",
+   "scheduler": "simple",
+   "denoise": 1.0
+  }
+ },
+ "25": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "24",
+    0
+   ],
+   "vae": [
+    "22",
+    0
+   ]
+  }
+ },
+ "26": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "25",
+    0
+   ],
+   "filename_prefix": "rr__qwen"
+  }
+ }
+}

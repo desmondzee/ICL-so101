@@ -1,0 +1,129 @@
+{
+ "1": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "sam3.pt"
+  }
+ },
+ "2": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "INPUT_IMAGE.jpg"
+  }
+ },
+ "3": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "robot arm:4, robotic arm:4, robot:4"
+  }
+ },
+ "5": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "image": [
+    "2",
+    0
+   ],
+   "conditioning": [
+    "3",
+    0
+   ],
+   "threshold": 0.3,
+   "refine_iterations": 2,
+   "individual_masks": true,
+   "bboxes": [
+    "4",
+    0
+   ]
+  }
+ },
+ "6": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "text": "cable:8, robot base:4, shadow:8"
+  }
+ },
+ "7": {
+  "class_type": "SAM3_Detect",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "image": [
+    "2",
+    0
+   ],
+   "conditioning": [
+    "6",
+    0
+   ],
+   "threshold": 0.5,
+   "refine_iterations": 2,
+   "individual_masks": true,
+   "bboxes": [
+    "4",
+    0
+   ]
+  }
+ },
+ "8": {
+  "class_type": "MaskToImage",
+  "inputs": {
+   "mask": [
+    "5",
+    0
+   ]
+  }
+ },
+ "9": {
+  "class_type": "MaskToImage",
+  "inputs": {
+   "mask": [
+    "7",
+    0
+   ]
+  }
+ },
+ "10": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "8",
+    0
+   ],
+   "filename_prefix": "rr__arm"
+  }
+ },
+ "11": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "images": [
+    "9",
+    0
+   ],
+   "filename_prefix": "rr__ext"
+  }
+ },
+ "4": {
+  "class_type": "PrimitiveBoundingBox",
+  "inputs": {
+   "x": 261,
+   "y": 79,
+   "width": 122,
+   "height": 205
+  }
+ }
+}
