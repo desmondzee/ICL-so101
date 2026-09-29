@@ -273,6 +273,13 @@ class ZeroWAM:
 
         import torch
 
+        if obs.get("reset") and obs.get("icl_video_bytes"):
+            import hashlib
+            obs = dict(obs)
+            video_bytes = obs.pop("icl_video_bytes")
+            path = Path("/tmp") / f"robotwin_icl_{hashlib.sha256(video_bytes).hexdigest()}.mp4"
+            path.write_bytes(video_bytes)
+            obs["icl_video_path"] = str(path)
         t0 = time.time()
         result = self.model.infer(obs)
         kind = (
@@ -418,6 +425,20 @@ def smoke(mode: str = "text") -> None:
     if action.shape != (16, 2, 16):
         raise AssertionError(f"Unexpected action shape: {action.shape}")
     print(f"action shape: {action.shape}")
+
+
+@app.local_entrypoint()
+def conditioning_test(conditions: str = "green_on_red,red_on_green,neutral", seed: int = 0,
+                      test_num: int = 3, save_root: str = "outputs/zero_wam/robotwin_conditioning",
+                      video_root: str = ""):
+    """Compare conflicting instructions in an identical two-block scene."""
+    from zero_wam.robotwin_conditioning import run_condition
+    worker = ZeroWAM()
+    save_root = str(Path(save_root).resolve())
+    video_root = str(Path(video_root).resolve()) if video_root else ""
+    for condition in conditions.split(","):
+        video = str(Path(video_root) / f"seed100000_{condition}.mp4") if video_root else ""
+        run_condition(worker, condition, seed, test_num, str(Path(save_root) / condition), video)
 
 
 @app.local_entrypoint()

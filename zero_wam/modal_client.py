@@ -40,7 +40,8 @@ class ModalPolicy:
         return result
 
 
-def run(model, mode: str, task: str, test_num: int, seed: int, save_root: str) -> None:
+def run(model, mode: str, task: str, test_num: int, seed: int, save_root: str,
+        icl_video_bytes: bytes | None = None) -> None:
     """Keep SAPIEN local while the injected class lives in `modal run`."""
     import yaml
 
@@ -49,7 +50,12 @@ def run(model, mode: str, task: str, test_num: int, seed: int, save_root: str) -
     os.environ["ROBOTWIN_ROOT"] = str(robotwin_root)
     from evaluation.robotwin import eval_policy_client_openpi as client
 
-    client.WebsocketClientPolicy = lambda port: ModalPolicy(model, mode, port)
+    class UploadedVideoPolicy(ModalPolicy):
+        def infer(self, obs):
+            if obs.get("reset") and icl_video_bytes:
+                obs = dict(obs, icl_video_bytes=icl_video_bytes)
+            return super().infer(obs)
+    client.WebsocketClientPolicy = lambda port: UploadedVideoPolicy(model, mode, port)
     client.Sapien_TEST()
     with (robotwin_root / "policy/ACT/deploy_policy.yml").open() as file:
         args = yaml.safe_load(file)
