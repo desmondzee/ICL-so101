@@ -35,8 +35,9 @@ Check an item only after its work is complete. Record the date and evidence (com
 | 2026-09-29 | §6 FULL RUN COMPLETE: 1960/1960 accepted, 0 failed, 0 pending; 0 preservation violations; med 5.8s/img; wall 11801s (~597 img/hr); audit 196-sample → 75 review flags (mostly luminance ghosts + detector noise) | `outputs/robot_removal/full/` accepted.json/failed.json(empty)/pending.json(empty), report.html, audit.json |
 | 2026-09-30 | §6 sanity inspection found real defects inside "accepted": luminance ghosts (svla_037/038, grabtissue_137), regenerated follower arm (grabtissue_138), floods repainting objects (pouring-liquid 021/025/054/058), swallowed-object blotches (open-upper-drawer_003), coverage miss (pbvr_083) | `outputs/robot_removal/full/{quarantine,clean}.json`; 366/1960 flagged for review |
 | 2026-09-30 | §8 v3 experiment: mask-free Qwen edit (original as `image_1`) + removal positive + robot/shadow negative @ cfg4 fixes all confirmed failures; LaMa reference obsoleted (its smears cause regen + ghosts); scene-only positives reproduce the robot; reference noise only reduces flat ghosts | `outputs/robot_removal/v3test/`, `outputs/robot_removal/v3run/` (406/406 ok, 0 violations) |
+| 2026-09-30 | §9 v4 full run: mask-free edit (result = raw Qwen output, no composite) 1960/1960, 0 failed, ~4.5s/img; 4-scalar metric sweep audited all 1960 → 558 quarantined / 1402 clean; flagship failures verified fixed | `outputs/robot_removal/v4/` accepted.json, failed.json(empty), audit.json, quarantine.json, clean.json, flagged_review.jpg |
 
-## 8. v3 experiment: mask-free editing (pending confirmation)
+## 8. v3 experiment: mask-free editing (confirmed → v4)
 
 Findings from diagnosed failures → tested approaches → result:
 
@@ -56,19 +57,47 @@ Rejected variants:
 
 Proposed next-gen config (in `robot_removal/config.yaml`): single-phase job, `image_1` = original, positive = removal prompt (verbatim), `negative_prompt="robot, robot arm, robotic arm, gripper, cables, cast shadow"`, `cfg=4.0`, steps=25/euler/simple/denoise=1.0/seed=42. LaMa + deshadow machinery retired.
 
-Quality metrics (one scalar each; #3–4 share one SAM3 pass on original + composite):
+Quality metrics (one scalar each; #3–4 share SAM3 passes on original + result):
 
 | # | Name | Question it answers | Type |
 | --- | --- | --- | --- |
 | 1 | `mask_prior_iou` | Is this mask consistent with where the robot sits in sibling episodes? | IoU ∈ [0,1] vs dataset pixelwise-median mask prior |
 | 2 | `fill_outlier_z` | Does the filled region look like the background its siblings have? | z-score (max over luminance/chroma/texture) |
-| 3 | `residual_robot` | Is any robot still visible in the output — inside or outside the mask? | detection coverage fraction ∈ [0,1] of composite |
+| 3 | `residual_robot` | Is any robot still visible in the output — inside or outside the mask? | detection coverage fraction ∈ [0,1] of result |
 | 4 | `object_preservation` | Did every masked-overlapping task object survive the edit? | min pre/post detection IoU ∈ [0,1] over non-actor entities |
 
 Open decisions before full rerun:
 1. Confirm v3 config (above) — validated on 9 diagnosed + 17 audit-flagged + 406 quarantine rerun, all clean, 0 preservation violations.
 2. Mask-side fixes for true misses (pbvr_083-type): re-segment coverage-miss/coverage-low episodes with lower arm threshold or larger shadow-extras dilation.
 3. Full audit (1960) still running → rebuild quarantine/clean after; v3 rerun used the 309-flag snapshot, expanded to 366 by coverage outliers.
+
+## 9. v4 run — mask-free edit + scalar quality metrics
+
+Confirmed approach: reuse stored rr4 masks; Qwen edits the ORIGINAL image
+(mask-free conditioning AND mask-free result — the Qwen output IS the final
+image, no compositing). Masks are used only for metrics. Per-episode sheet:
+original | binary mask | mask overlay | qwen result. `scene_drift`
+(outside-mask edit drift) recorded as a fidelity diagnostic.
+
+- [x] v4 runner `scripts/v4_run.py`: resumable edit-only pass over all 1960, artifacts + `sheet.png` per episode under `outputs/robot_removal/v4/`.
+- [x] `mask_prior_iou`: per-dataset pixelwise-median mask prior → IoU per episode; 27/29 datasets got priors, bimodal ones excluded automatically (prior <0.3% coverage).
+- [x] `fill_outlier_z`: per-episode lum-step/chroma/texture stats inline in metadata → dataset-relative MAD z in `quarantine.py`, flag at z>4.
+- [x] `residual_robot`: SAM3 robot detection over the whole result at threshold 0.45 (clean≈0.3-1.4%, regen≈5-7%, ghost≈50%); quarantine flags >0.05. Empty-detection ComfyUI crash handled via per-text fallback.
+- [x] `object_preservation`: entity-name re-detection on result vs original for non-actor boxes overlapping the mask → min IoU; flag <0.4.
+- [x] Edit pass complete: 1960/1960, 0 failed, ~4.5s/img. Result = raw Qwen output; no compositing.
+- [x] Audit/metric sweep complete (1960 audited, 8 audit-error episodes); `quarantine.json` (558) + `clean.json` (1402) rebuilt on v4.
+- [x] Review sheet built: `outputs/robot_removal/v4/flagged_review.jpg` — all 558 flagged cells (mask overlay | result) sorted by `residual_robot` desc, 2424×31640.
+
+v4 results:
+
+- Flag distribution across the 558 quarantined: `residual_robot` 254, `fill_outlier_z` 181, `uncovered_px` 98, `coverage_high` 63, `object_preservation` 50, `mask_prior_iou` 37, `coverage_low` 11 (categories overlap).
+- All four diagnosed flagship failures verified fixed visually: grabtissue_138 regen gone, svla_037 ghost gone, pouring-liquid_021 objects restored, open-upper-drawer_003 case intact.
+- Known caveats:
+  - **Color drift**: mask-free Qwen applies a small systematic hue shift (worst: psg777 mint→grey ≈ −9 in R-mean, grabtissue outside-drift 11.4). Content preserved; colorimetry drifts. Open decision: accept vs global color-alignment post-step.
+  - **`residual_robot` noise tail**: psg777 block scores ≈0.99 — SAM3 breaks down on near-textureless color-shifted frames; verified clean visually. Real regen cases sit at 0.05–0.3 — the middle band needs eyeballing.
+  - **8 audit-error episodes** flagged via non-audit metrics only.
+  - `uncovered_px` (98) = mask misses the prompt cannot fix (pbvr_083-type); a segmentation-side problem by design.
+- Open: visual pass over the residual_robot mid-band (0.05–0.3) in flagged_review.jpg; color-drift decision; re-audit the 8 error episodes.
 
 ## 1. Inspect inputs and reuse existing code
 
