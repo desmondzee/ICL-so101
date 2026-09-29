@@ -1,0 +1,15 @@
+{
+  "task": "stack_blocks_two",
+  "condition": "empty",
+  "prompt": "",
+  "seed_argument": 0,
+  "test_num": 3,
+  "checkpoint": "Robbyant-Research/zero-wam-posttrain-robotwin",
+  "revision": "07ee865f175d9474a5653e9147698390e47b6143",
+  "mode": "text",
+  "expert_gate": "stock green_on_red",
+  "limitations": [
+    "Reverse stacking needs a separate scripted feasibility gate",
+    "Successful stock ordering alone does not establish conditioning"
+  ]
+}

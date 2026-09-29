@@ -1,0 +1,104 @@
+[
+  {
+    "seed": 100000,
+    "condition": "neutral",
+    "prompt": "Stack the blocks.",
+    "initial_red_position": [
+      -0.1560845822095871,
+      0.025239696726202965,
+      0.7650008201599121
+    ],
+    "initial_green_position": [
+      0.239385724067688,
+      0.01774773560464382,
+      0.7650007605552673
+    ],
+    "ever": {
+      "green_on_red": false,
+      "red_on_green": false
+    },
+    "scoring_goal": "green_on_red",
+    "final_red_position": [
+      0.025626584887504578,
+      -0.12181105464696884,
+      0.7650008797645569
+    ],
+    "final_green_position": [
+      0.2742188274860382,
+      0.002026801696047187,
+      0.7650008797645569
+    ],
+    "final_outcomes": {
+      "green_on_red": false,
+      "red_on_green": false
+    }
+  },
+  {
+    "seed": 100001,
+    "condition": "neutral",
+    "prompt": "Stack the blocks.",
+    "initial_red_position": [
+      -0.27066558599472046,
+      0.033791061490774155,
+      0.7650006413459778
+    ],
+    "initial_green_position": [
+      0.2298264354467392,
+      0.02730672061443329,
+      0.7650007009506226
+    ],
+    "ever": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "scoring_goal": "green_on_red",
+    "final_red_position": [
+      0.008547346107661724,
+      -0.10221348702907562,
+      0.7650004625320435
+    ],
+    "final_green_position": [
+      0.002729568397626281,
+      -0.11084520816802979,
+      0.8149952292442322
+    ],
+    "final_outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    }
+  },
+  {
+    "seed": 100002,
+    "condition": "neutral",
+    "prompt": "Stack the blocks.",
+    "initial_red_position": [
+      -0.15745405852794647,
+      0.005045109428465366,
+      0.7650007605552673
+    ],
+    "initial_green_position": [
+      -0.2780584990978241,
+      -0.047313589602708817,
+      0.7650007605552673
+    ],
+    "ever": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "scoring_goal": "green_on_red",
+    "final_red_position": [
+      0.03397916629910469,
+      -0.18798096477985382,
+      0.7651580572128296
+    ],
+    "final_green_position": [
+      0.018955055624246597,
+      -0.19610415399074554,
+      0.8152146935462952
+    ],
+    "final_outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    }
+  }
+]

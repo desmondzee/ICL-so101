@@ -1,0 +1,104 @@
+[
+  {
+    "seed": 100000,
+    "condition": "red_on_green",
+    "prompt": "Stack the red block on top of the green block.",
+    "initial_red_position": [
+      -0.1560845822095871,
+      0.025239696726202965,
+      0.7650008201599121
+    ],
+    "initial_green_position": [
+      0.239385724067688,
+      0.01774773560464382,
+      0.7650007605552673
+    ],
+    "ever": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "scoring_goal": "red_on_green",
+    "final_red_position": [
+      0.03478960320353508,
+      -0.13254621624946594,
+      0.7649998068809509
+    ],
+    "final_green_position": [
+      0.045434627681970596,
+      -0.12647508084774017,
+      0.8149927854537964
+    ],
+    "final_outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    }
+  },
+  {
+    "seed": 100001,
+    "condition": "red_on_green",
+    "prompt": "Stack the red block on top of the green block.",
+    "initial_red_position": [
+      -0.27066558599472046,
+      0.033791061490774155,
+      0.7650006413459778
+    ],
+    "initial_green_position": [
+      0.2298264354467392,
+      0.02730672061443329,
+      0.7650007009506226
+    ],
+    "ever": {
+      "green_on_red": false,
+      "red_on_green": false
+    },
+    "scoring_goal": "red_on_green",
+    "final_red_position": [
+      -0.006573494523763657,
+      -0.11707772314548492,
+      0.7650006413459778
+    ],
+    "final_green_position": [
+      0.07526134699583054,
+      -0.12941400706768036,
+      0.7650007009506226
+    ],
+    "final_outcomes": {
+      "green_on_red": false,
+      "red_on_green": false
+    }
+  },
+  {
+    "seed": 100002,
+    "condition": "red_on_green",
+    "prompt": "Stack the red block on top of the green block.",
+    "initial_red_position": [
+      -0.15745405852794647,
+      0.005045109428465366,
+      0.7650007605552673
+    ],
+    "initial_green_position": [
+      -0.2780584990978241,
+      -0.047313589602708817,
+      0.7650007605552673
+    ],
+    "ever": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "scoring_goal": "red_on_green",
+    "final_red_position": [
+      -0.003980257082730532,
+      -0.14913176000118256,
+      0.7650074362754822
+    ],
+    "final_green_position": [
+      0.12171288579702377,
+      -0.11448178440332413,
+      0.7650007605552673
+    ],
+    "final_outcomes": {
+      "green_on_red": false,
+      "red_on_green": false
+    }
+  }
+]

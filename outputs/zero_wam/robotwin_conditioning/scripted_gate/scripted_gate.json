@@ -1,0 +1,134 @@
+[
+  {
+    "seed": 100000,
+    "goal": "green_on_red",
+    "initial": {
+      "red": [
+        -0.1560845822095871,
+        0.025239696726202965,
+        0.7650008201599121
+      ],
+      "green": [
+        0.239385724067688,
+        0.01774773560464382,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "success": true
+  },
+  {
+    "seed": 100000,
+    "goal": "red_on_green",
+    "initial": {
+      "red": [
+        -0.1560845822095871,
+        0.025239696726202965,
+        0.7650008201599121
+      ],
+      "green": [
+        0.239385724067688,
+        0.01774773560464382,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": false,
+      "red_on_green": true
+    },
+    "success": true
+  },
+  {
+    "seed": 100001,
+    "goal": "green_on_red",
+    "initial": {
+      "red": [
+        -0.27066558599472046,
+        0.033791061490774155,
+        0.7650006413459778
+      ],
+      "green": [
+        0.2298264354467392,
+        0.02730672061443329,
+        0.7650007009506226
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "success": true
+  },
+  {
+    "seed": 100001,
+    "goal": "red_on_green",
+    "initial": {
+      "red": [
+        -0.27066558599472046,
+        0.033791061490774155,
+        0.7650006413459778
+      ],
+      "green": [
+        0.2298264354467392,
+        0.02730672061443329,
+        0.7650007009506226
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": false,
+      "red_on_green": true
+    },
+    "success": true
+  },
+  {
+    "seed": 100002,
+    "goal": "green_on_red",
+    "initial": {
+      "red": [
+        -0.15745405852794647,
+        0.005045109428465366,
+        0.7650007605552673
+      ],
+      "green": [
+        -0.2780584990978241,
+        -0.047313589602708817,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "success": true
+  },
+  {
+    "seed": 100002,
+    "goal": "red_on_green",
+    "initial": {
+      "red": [
+        -0.15745405852794647,
+        0.005045109428465366,
+        0.7650007605552673
+      ],
+      "green": [
+        -0.2780584990978241,
+        -0.047313589602708817,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": false,
+      "red_on_green": true
+    },
+    "success": true
+  }
+]

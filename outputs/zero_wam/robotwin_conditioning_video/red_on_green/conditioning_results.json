@@ -1,0 +1,36 @@
+[
+  {
+    "seed": 100000,
+    "condition": "red_on_green",
+    "prompt": "Stack the blocks.",
+    "initial_red_position": [
+      -0.1560845822095871,
+      0.025239696726202965,
+      0.7650008201599121
+    ],
+    "initial_green_position": [
+      0.239385724067688,
+      0.01774773560464382,
+      0.7650007605552673
+    ],
+    "ever": {
+      "green_on_red": false,
+      "red_on_green": true
+    },
+    "scoring_goal": "red_on_green",
+    "final_red_position": [
+      -0.01595272310078144,
+      -0.11287780851125717,
+      0.8149992227554321
+    ],
+    "final_green_position": [
+      -0.016539186239242554,
+      -0.13186438381671906,
+      0.7649999856948853
+    ],
+    "final_outcomes": {
+      "green_on_red": false,
+      "red_on_green": true
+    }
+  }
+]

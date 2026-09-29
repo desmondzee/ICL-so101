@@ -52,4 +52,7 @@ outputs/zero_wam/video_run2/*
 outputs/zero_wam/so101/**
 !outputs/zero_wam/so101/**/
 !outputs/zero_wam/so101/**/*.mp4
+!outputs/zero_wam/robotwin_conditioning/
+!outputs/zero_wam/robotwin_conditioning_text/
+!outputs/zero_wam/robotwin_conditioning_video/
 *.ts

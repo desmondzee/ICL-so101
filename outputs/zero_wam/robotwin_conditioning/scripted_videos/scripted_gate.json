@@ -1,0 +1,56 @@
+[
+  {
+    "seed": 100000,
+    "goal": "green_on_red",
+    "initial": {
+      "red": [
+        -0.1560845822095871,
+        0.025239696726202965,
+        0.7650008201599121
+      ],
+      "green": [
+        0.239385724067688,
+        0.01774773560464382,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": true,
+      "red_on_green": false
+    },
+    "success": true,
+    "video": "/workspace/ICL-so101/outputs/zero_wam/robotwin_conditioning/scripted_videos/seed100000_green_on_red.mp4",
+    "captured_frames": 244,
+    "output_frames": 96,
+    "fps": 12,
+    "sampling": "uniform over entire successful expert; endpoints included"
+  },
+  {
+    "seed": 100000,
+    "goal": "red_on_green",
+    "initial": {
+      "red": [
+        -0.1560845822095871,
+        0.025239696726202965,
+        0.7650008201599121
+      ],
+      "green": [
+        0.239385724067688,
+        0.01774773560464382,
+        0.7650007605552673
+      ]
+    },
+    "plan_success": true,
+    "outcomes": {
+      "green_on_red": false,
+      "red_on_green": true
+    },
+    "success": true,
+    "video": "/workspace/ICL-so101/outputs/zero_wam/robotwin_conditioning/scripted_videos/seed100000_red_on_green.mp4",
+    "captured_frames": 244,
+    "output_frames": 96,
+    "fps": 12,
+    "sampling": "uniform over entire successful expert; endpoints included"
+  }
+]

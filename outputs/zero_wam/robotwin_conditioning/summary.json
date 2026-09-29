@@ -1,0 +1,97 @@
+{
+  "completed_episodes": 11,
+  "paired_initial_positions_verified": true,
+  "rows": [
+    {
+      "mode": "text",
+      "condition": "green_on_red",
+      "episodes": 3,
+      "seeds": [
+        100000,
+        100001,
+        100002
+      ],
+      "ever": {
+        "green_on_red": 2,
+        "red_on_green": 0
+      },
+      "final": {
+        "green_on_red": 2,
+        "red_on_green": 0
+      },
+      "results": "outputs/zero_wam/robotwin_conditioning_text/green_on_red/conditioning_results.json"
+    },
+    {
+      "mode": "text",
+      "condition": "red_on_green",
+      "episodes": 3,
+      "seeds": [
+        100000,
+        100001,
+        100002
+      ],
+      "ever": {
+        "green_on_red": 2,
+        "red_on_green": 0
+      },
+      "final": {
+        "green_on_red": 1,
+        "red_on_green": 0
+      },
+      "results": "outputs/zero_wam/robotwin_conditioning_text/red_on_green/conditioning_results.json"
+    },
+    {
+      "mode": "text",
+      "condition": "neutral",
+      "episodes": 3,
+      "seeds": [
+        100000,
+        100001,
+        100002
+      ],
+      "ever": {
+        "green_on_red": 2,
+        "red_on_green": 0
+      },
+      "final": {
+        "green_on_red": 2,
+        "red_on_green": 0
+      },
+      "results": "outputs/zero_wam/robotwin_conditioning_text/neutral/conditioning_results.json"
+    },
+    {
+      "mode": "video",
+      "condition": "green_on_red",
+      "episodes": 1,
+      "seeds": [
+        100000
+      ],
+      "ever": {
+        "green_on_red": 1,
+        "red_on_green": 0
+      },
+      "final": {
+        "green_on_red": 1,
+        "red_on_green": 0
+      },
+      "results": "outputs/zero_wam/robotwin_conditioning_video/green_on_red/conditioning_results.json"
+    },
+    {
+      "mode": "video",
+      "condition": "red_on_green",
+      "episodes": 1,
+      "seeds": [
+        100000
+      ],
+      "ever": {
+        "green_on_red": 0,
+        "red_on_green": 1
+      },
+      "final": {
+        "green_on_red": 0,
+        "red_on_green": 1
+      },
+      "results": "outputs/zero_wam/robotwin_conditioning_video/red_on_green/conditioning_results.json"
+    }
+  ]
+}
