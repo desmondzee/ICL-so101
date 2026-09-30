@@ -30,11 +30,11 @@ def robot_entry(pair: dict) -> dict | None:
     return None
 
 
-def build_manifest(full_root: Path, accepted: set[str] | None = None) -> list[dict]:
-    """One record per episode dir containing first.jpg + pair.json."""
+def build_manifest(full_root: Path, accepted: set[str] | None = None, image_name: str = "first.jpg") -> list[dict]:
+    """One record per episode dir containing <image_name> + pair.json."""
     rows = []
     for ep in sorted(full_root.glob("*/*/")):
-        first, pair_p = ep / "first.jpg", ep / "pair.json"
+        first, pair_p = ep / image_name, ep / "pair.json"
         if not first.exists() or not pair_p.exists():
             continue
         dataset_id, episode_id = ep.parent.name, ep.name
@@ -89,7 +89,7 @@ def main(argv: list[str]) -> int:
     out = Path(argv[2]) if len(argv) > 2 else Path("data/robot_removal/full_inputs.jsonl")
     accepted_p = Path(argv[3]) if len(argv) > 3 else Path("data/robot_removal/accepted.json")
     accepted = load_accepted_keys(accepted_p) if accepted_p.exists() else None
-    rows = build_manifest(root, accepted)
+    rows = build_manifest(root, accepted, image_name=argv[4] if len(argv) > 4 else "first.jpg")
     write_jsonl(rows, out)
     if accepted is not None:
         got = {r["key"] for r in rows}

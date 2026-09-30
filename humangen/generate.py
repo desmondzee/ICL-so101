@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from reactor_sdk import Reactor
+from reactor_sdk.errors import ReactorError, RequestTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ Aspect = Literal["16:9", "1:1", "9:16", "4:3"]
 DURATION_MIN = 5.0
 DURATION_MAX = 15.084
 DEFAULT_GENERATION_CAPACITY = 20
+UPLOAD_CONCURRENCY = 4
 GENERATE_WAIT_SECONDS = 180.0
 PLAY_GRACE_SECONDS = 10.0
 TRACK_QUIET_SECONDS = 0.2
@@ -45,6 +47,8 @@ CONTACT_CELL = 192
 CONTACT_COLS = 5
 FRAME_NAME = "frame.png"
 META_NAME = "meta.json"
+CAPTURE_NAME = "capture.json"
+RECORDING_VERSION = "v2_hold_apad"
 _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
@@ -148,15 +152,29 @@ async def generate_videos(
             await reactor.connect()
             await _resume_outputs(reactor)
             _raise_if_error(await reactor.send_command("set_canvas", {"aspect": aspect}))
+            if model == FAST_MODEL:
+                _raise_if_error(await reactor.send_command("set_autoplay", {"enabled": False}))
+                # Keep queued tail frames available instead of flushing the media
+                # stream as soon as the control-channel completion event fires.
+                _raise_if_error(await reactor.send_command("set_flush_on_clip_end", {"enabled": False}))
             state = _body(await reactor.send_command("get_state", {}))
             capacity = int(state.get("generation_capacity") or DEFAULT_GENERATION_CAPACITY)
-            refs = await _upload_unique(reactor, batch)
-            ends = await _upload_endings(reactor, batch)
+            logger.info("session=%s capacity=%s autoplay=%s flush_on_clip_end=%s",
+                        reactor.session_id, capacity, state.get("autoplay"), state.get("flush_on_clip_end"))
+            # Upload only the frames needed by the generation queue. This overlaps
+            # later uploads with generation/playback and avoids a long idle setup.
+            refs = [None] * len(batch)
+            ends = [None] * len(batch)
             bounds = (state.get("clip_seconds_min"), state.get("clip_seconds_max"))
             return await _play_all(
                 reactor, batch, refs, outputs, messages, capacity, frames, recorder,
                 fast=model == FAST_MODEL, ends=ends, bounds=bounds,
+                upload_on_enqueue=True,
             )
+        except ReactorError as exc:
+            # SDK transport errors can contain signed upload URLs. Retain the
+            # operation/code for diagnosis without putting credentials in logs.
+            raise BatchError(-1, f"Reactor {exc.operation or 'operation'} failed ({exc.code})") from None
         finally:
             reactor.off("message", on_message)
             await reactor.disconnect()
@@ -241,6 +259,7 @@ async def _play_all(
     fast: bool = False,
     ends: list[Any] | None = None,
     bounds: tuple[Any, Any] = (None, None),
+    upload_on_enqueue: bool = False,
 ) -> list[Path]:
     next_index = 0
     generating = 0
@@ -249,8 +268,16 @@ async def _play_all(
     play_started = 0.0
     index_by_id: dict[str, int] = {}
     seconds_by_id: dict[str, float] = {}
+    expected_frames_by_id: dict[str, int] = {}
     generated: set[str] = set()
     finished: list[Path | None] = [None] * len(items)
+    uploads: dict[str, asyncio.Task[Any]] = {}
+
+    async def upload_once(image: str | Path | bytes) -> Any:
+        key = _image_key(image)
+        if key not in uploads:
+            uploads[key] = asyncio.create_task(_upload_image(reactor, image))
+        return await uploads[key]
 
     async def enqueue_next() -> None:
         nonlocal next_index, generating
@@ -261,6 +288,14 @@ async def _play_all(
             seconds = max(float(bounds[0]), seconds)
         if bounds[1] is not None:
             seconds = min(float(bounds[1]), seconds)
+        if upload_on_enqueue:
+            if fast and items[index].ending_image is not None:
+                refs[index], end = await asyncio.gather(
+                    upload_once(items[index].reference_image), upload_once(items[index].ending_image))
+                if ends is not None:
+                    ends[index] = end
+            else:
+                refs[index] = await upload_once(items[index].reference_image)
         payload: dict[str, Any] = {"prompt": items[index].prompt, "seconds": seconds, "metadata": str(index)}
         if fast:
             payload["starting_frame"] = refs[index]
@@ -270,9 +305,7 @@ async def _play_all(
             payload["reference_image"] = refs[index]
         if items[index].seed is not None:
             payload["seed"] = items[index].seed
-        reply = await reactor.send_command("enqueue", payload)
-        _raise_if_error(reply, index)
-        clip = _clip(_body(reply))
+        clip = await _enqueue_with_recovery(reactor, payload, messages, index)
         if not clip.get("clip_id"):
             clip = _take_queued(messages, index)
         if not clip.get("clip_id"):
@@ -284,6 +317,7 @@ async def _play_all(
         clip_id = str(clip["clip_id"])
         index_by_id[clip_id] = index
         seconds_by_id[clip_id] = float(clip["seconds"])
+        expected_frames_by_id[clip_id] = int(clip.get("frames") or round(float(clip["seconds"]) * FRAME_RATE))
         logger.info(
             "queued index=%s clip_id=%s seconds=%s frames=%s",
             index,
@@ -312,6 +346,7 @@ async def _play_all(
         )
         await _wait_for_quiet(frames)
         recorder.start(outputs[index_by_id[clip_id]])
+        recorder._expected_video_frames = expected_frames_by_id[clip_id]
         reply = await reactor.send_command("play", {"clip_id": clip_id})
         _raise_if_error(reply, index_by_id.get(clip_id, -1))
 
@@ -370,6 +405,7 @@ async def _play_all(
                 frames["main_video"],
                 frames["main_audio"],
             )
+            await _drain_recording(recorder, expected_frames_by_id[clip_id])
             recorder.finish()
             finished[index] = outputs[index]
             if playing == clip_id:
@@ -388,6 +424,56 @@ async def _play_all(
             logger.info("message %s", kind)
 
     return [path for path in finished if path is not None]
+
+
+async def _enqueue_with_recovery(reactor: Reactor, payload: dict[str, Any],
+                                 messages: asyncio.Queue[Any], index: int) -> dict[str, Any]:
+    """An acknowledgment timeout does not prove enqueue failed.
+
+    Recover the uniquely tagged clip from the authoritative queue before ever
+    resending the request. Autoplay is off, so unplayed clips remain discoverable.
+    """
+    for attempt in range(3):
+        try:
+            reply = await reactor.send_command("enqueue", payload)
+            _raise_if_error(reply, index)
+            return _clip(_body(reply))
+        except RequestTimeoutError:
+            logger.warning("enqueue index=%s acknowledgment timed out; checking queue", index)
+            clip = _take_queued(messages, index)
+            if clip.get("clip_id"):
+                return clip
+            snapshot = None
+            for _ in range(3):
+                try:
+                    snapshot = _body(await reactor.send_command("get_queue", {}))
+                    break
+                except RequestTimeoutError:
+                    await asyncio.sleep(1)
+            if snapshot is None:
+                raise BatchError(index, "enqueue acknowledgment and queue recovery both timed out") from None
+            for entries in (snapshot.get("generation", []), snapshot.get("playout", []), snapshot.get("history", [])):
+                for clip in entries:
+                    if str(clip.get("metadata", "")) == str(index) and clip.get("clip_id"):
+                        logger.info("recovered queued index=%s clip_id=%s", index, clip["clip_id"])
+                        return clip
+            logger.warning("queue confirms index=%s absent; retrying enqueue (%s/3)", index, attempt + 1)
+    raise BatchError(index, "enqueue repeatedly timed out without a queued clip")
+
+
+async def _drain_recording(recorder: "_LiveRecorder", expected: int) -> None:
+    """Control-channel completion can arrive before the last media frames.
+
+    Keep recording until the expected video frames arrive, with a bounded wait
+    if transport lost frames. Do this before stopping the encoder, not after.
+    """
+    deadline = time.monotonic() + TRACK_DRAIN_SECONDS
+    while recorder.counts["main_video"] - recorder._video_start_count < expected:
+        if time.monotonic() >= deadline:
+            logger.warning("recording received %s/%s frames after media drain",
+                           recorder.counts["main_video"] - recorder._video_start_count, expected)
+            return
+        await asyncio.sleep(0.05)
 
 
 async def _wait_for_quiet(counts: dict[str, int]) -> None:
@@ -450,6 +536,7 @@ class _LiveRecorder:
         self._audio_q = queue.Queue()
         self._samples = []
         self._sample_index = 0
+        self._video_start_count = self.counts["main_video"]
         self._recording = True
         self._threads = [
             threading.Thread(target=self._write_video, name="humangen-video", daemon=True),
@@ -474,6 +561,11 @@ class _LiveRecorder:
             raise BatchError(-1, "ffmpeg failed while writing the clip")
         logger.info("wrote %s", self._output)
         if self._output is not None and self._samples:
+            self._output.with_name(CAPTURE_NAME).write_text(json.dumps({
+                "recording_version": RECORDING_VERSION,
+                "received_video_frames": self._sample_index,
+                "expected_video_frames": getattr(self, "_expected_video_frames", None),
+            }, indent=2) + "\n")
             sheet = self._output.with_name(CONTACT_NAME)
             _write_contact_sheet(self._samples, self._width, self._height, sheet)
             logger.info("wrote %s", sheet)
@@ -487,13 +579,13 @@ class _LiveRecorder:
         _timestamp_us: int,
         _user_data: bytes,
     ) -> None:
+        if self._recording:
+            if not self._width:
+                self._width = width
+                self._height = height
+            self._video_q.put(bgra)
+        # Completion must not see a frame count before that frame is queued.
         self.counts["main_video"] += 1
-        if not self._recording:
-            return
-        if not self._width:
-            self._width = width
-            self._height = height
-        self._video_q.put(bgra)
 
     def on_audio(self, pcm: bytes, _num_samples: int, sample_rate: int, num_channels: int) -> None:
         self.counts["main_audio"] += 1
@@ -536,6 +628,18 @@ class _LiveRecorder:
                     os.close(audio_fd)
                     return
                 _write_all(audio_fd, pcm)
+        except BrokenPipeError as exc:
+            # With padded audio and -shortest, video EOF can make FFmpeg close
+            # its audio input before queued trailing audio has been written.
+            # finish() still verifies the encoder exit status and publication
+            # checks that every received video frame was retained.
+            if self._recording:
+                self._error = exc
+            if self._audio_fd is not None:
+                try:
+                    os.close(self._audio_fd)
+                except OSError:
+                    pass
         except BaseException as exc:
             self._error = exc
 
@@ -576,6 +680,8 @@ class _LiveRecorder:
                 "yuv420p",
                 "-c:a",
                 "aac",
+                "-af",
+                "apad",
                 "-shortest",
                 str(self._output),
             ],
@@ -669,25 +775,61 @@ def _take_queued(messages: asyncio.Queue[Any], index: int) -> dict[str, Any]:
 
 
 async def _upload_unique(reactor: Reactor, items: list[VideoRequest]) -> list[Any]:
-    cache: dict[str, Any] = {}
-    refs: list[Any] = []
-    for item in items:
-        key = _image_key(item.reference_image)
-        if key not in cache:
-            cache[key] = await _upload_image(reactor, item.reference_image)
-        refs.append(cache[key])
-    return refs
+    return await _upload_images(reactor, [item.reference_image for item in items], "starting")
 
 
 async def _upload_image(reactor: Reactor, image: str | Path | bytes) -> Any:
-    if isinstance(image, bytes):
-        mime, name = _mime_from_bytes(image)
-        return await reactor.upload_file(image, name=name, mime_type=mime)
-    return await reactor.upload_file(Path(image))
+    for attempt in range(5):
+        try:
+            if isinstance(image, bytes):
+                mime, name = _mime_from_bytes(image)
+                return await reactor.upload_file(image, name=name, mime_type=mime)
+            return await reactor.upload_file(Path(image))
+        except ReactorError as exc:
+            if not exc.recoverable and exc.code not in {"NETWORK_ERROR", "REQUEST_TIMEOUT"}:
+                raise BatchError(-1, f"image upload rejected ({exc.code})") from None
+            if attempt == 4:
+                raise BatchError(-1, f"image upload failed after five attempts ({exc.code})") from None
+            logger.warning("image upload retry %s/5 (%s)", attempt + 1, exc.code)
+            await asyncio.sleep(min(2 ** attempt, 8))
 
 
 async def _upload_endings(reactor: Reactor, items: list[VideoRequest]) -> list[Any]:
-    return [None if item.ending_image is None else await _upload_image(reactor, item.ending_image) for item in items]
+    return await _upload_images(reactor, [item.ending_image for item in items], "ending")
+
+
+async def _upload_images(reactor: Reactor, images: list[str | Path | bytes | None], label: str) -> list[Any]:
+    """Bound upload concurrency while retaining the exact input-to-ref mapping."""
+    semaphore = asyncio.Semaphore(UPLOAD_CONCURRENCY)
+    tasks: dict[str, asyncio.Task[Any]] = {}
+    ordered: list[asyncio.Task[Any] | None] = []
+    completed = 0
+
+    async def upload(image: str | Path | bytes) -> Any:
+        nonlocal completed
+        async with semaphore:
+            ref = await _upload_image(reactor, image)
+            completed += 1
+            if len(images) >= 100 and completed % 100 == 0:
+                logger.info("uploaded %s frames %s/%s", label, completed, len(images))
+            return ref
+
+    for image in images:
+        if image is None:
+            ordered.append(None)
+            continue
+        key = _image_key(image)
+        if key not in tasks:
+            tasks[key] = asyncio.create_task(upload(image))
+        ordered.append(tasks[key])
+    try:
+        await asyncio.gather(*tasks.values())
+        return [None if task is None else task.result() for task in ordered]
+    finally:
+        for task in tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks.values(), return_exceptions=True)
 
 
 def _image_key(image: str | Path | bytes) -> str:

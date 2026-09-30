@@ -140,8 +140,21 @@ def risky_states(conds: list[dict], names: dict) -> str:
     return "; ".join(_fact(c, names) for c in keep)
 
 
+def _motion_prompt(duration: float) -> str:
+    """Shared trajectory, appearance and pacing constraints for frame interpolation."""
+    finish = max(0.0, duration - HOLD_S)
+    return ("The hand follows a direct, task-appropriate path between the interaction locations in the scene, "
+            "keeping the action at the objects' working distance from the camera. "
+            "Each grasp flows immediately into the required manipulation and release. "
+            "Each object keeps its original size, shape, colour and markings throughout, "
+            "with natural perspective and only the rotation required by the task. "
+            "Maintain a secure grip during transport and release after the object is supported at its destination. "
+            f"Complete the action and hand retreat by {finish:g} seconds; "
+            "hold the supplied ending state still for the final second.")
+
+
 def step_prompt(pair: dict, step: dict, hand: str, edge: str, duration: float) -> str:
-    """A 60-100 word FastH3 prompt for one step, built from the schema (nothing paraphrased)."""
+    """A FastH3 prompt for one step, built from the schema."""
     ents = {e["id"]: e for e in pair["scene"]["entities"]}
     binds = {b["role"]: b["entity"] for b in pair["bindings"]}
     obj = ents.get(binds.get(step["object"], step["object"]))
@@ -154,12 +167,16 @@ def step_prompt(pair: dict, step: dict, hand: str, edge: str, duration: float) -
         verb += f" and moves it to the {_looks(dest)}"
     return (f"One person's {hand} forearm and hand enters from the {edge} of the frame, reaches the {what}{where}, grasps it, {verb}, "
             f"then lets go and rests near the {edge}. The {what} moves only while the hand holds it. "
-            f"Only this one hand moves; every other object stays still. The motion is smooth and natural, over {duration:g} seconds. "
+            f"Only this one hand moves; every other object stays still. {_motion_prompt(duration)} "
+            f"The motion is smooth and natural, over {duration:g} seconds. "
             f"One locked static shot from the same viewpoint. Silent.")
 
 
-def task_prompt(pair: dict, hand: str, edge: str, duration: float, enters: bool = False) -> str:
-    """One FastH3 prompt for the whole task (at most ~120 words): the action first, the object's mechanism and end
+TASK_PROMPT_VERSION = "v3_fl2va"
+
+
+def task_prompt_v2(pair: dict, hand: str, edge: str, duration: float, enters: bool = False) -> str:
+    """One FastH3 prompt for the whole task: the action first, the object's mechanism and end
     state, then the constraints. Built from the schema, nothing paraphrased."""
     ents = {e["id"]: e for e in pair["scene"]["entities"]}
     binds = {b["role"]: b["entity"] for b in pair["bindings"]}
@@ -187,18 +204,80 @@ def task_prompt(pair: dict, hand: str, edge: str, duration: float, enters: bool 
     action = "; ".join(parts)
     moved_names = [_looks(ents[binds.get(st["object"], st["object"])]) for st in pair["task"]["steps"] if binds.get(st["object"], st["object"]) in ents]
     if enters:  # no hand in the first frame: one hand comes in, does the task on objects already there, and leaves
-        # Short, strict and only positive: FastH3 has no negative prompt, so naming unwanted things (text, extra hands,
-        # new objects) makes them appear. The judge rejects any clip that adds anything.
+        # Use positive continuity instructions; FastH3 exposes no negative-prompt field.
         names_ = list(dict.fromkeys(moved_names)) or ["object"]
         moved = names_[0] if len(names_) == 1 else ", ".join(names_[:-1]) + " and " + names_[-1]
         verb, them = ("moves", "it") if len(names_) == 1 else ("move", "them")
         return (f"Fixed camera, one continuous {duration:g}-second shot of this same table. "
-                f"A person's {hand} hand reaches in from the {edge}, {action}, then moves back out of the frame. "
+                f"A person's single {hand} hand and forearm reaches in empty from the {edge}, {action}, "
+                f"then releases its grip and withdraws empty through the same edge. "
                 f"Only the {moved} {verb}, and only while the hand is holding or pushing {them}; "
-                f"everything else stays exactly where it is. Smooth, natural, real-world motion. "
+                f"everything else stays exactly where it is. {_motion_prompt(duration)} "
+                f"Smooth, natural, real-world motion. "
                 f"Sound: a quiet room and the soft sounds of the hand handling the {moved}.")
     return (f"A person's {hand} hand {action}, then lets go and rests still on the table for the final second. "
             f"One continuous {duration:g}-second shot from a fixed camera. "
             f"Only this one hand and forearm, entering from the {edge}, are ever in view: no extra hands, arms or people at any point. "
             f"Nothing else in the scene changes. No object appears, disappears, duplicates or changes shape. "
-            f"Objects move only when the hand touches them, with realistic weight, grip and contact, and stay where they are put. Silent.")
+            f"Objects move only when the hand touches them, with realistic weight, grip and contact, and stay where they are put. "
+            f"{_motion_prompt(duration)} Silent.")
+
+
+def task_prompt(pair: dict, hand: str, edge: str, duration: float, enters: bool = False,
+                *, effective_duration: float | None = None, version: str = TASK_PROMPT_VERSION) -> str:
+    """Versioned whole-task prompt. Pass the API-aligned duration for FL2VA timing.
+
+    v3 uses MiniMax's base/keyframe format, with music omitted for these demos.
+    v2 retains the previous prose format for comparison.
+    """
+    if version == "v2_motion":
+        return task_prompt_v2(pair, hand, edge, duration, enters)
+    if version not in {TASK_PROMPT_VERSION, "v4_inventory", "v5_exclusion", "v6_one_person"}:
+        raise ValueError(f"unknown task prompt version: {version}")
+    end = duration if effective_duration is None else effective_duration
+    prose = task_prompt_v2(pair, hand, edge, duration, enters)
+    if enters:
+        visual, sound = prose.rsplit("Sound: ", 1)
+    else:
+        visual, sound = prose.removesuffix("Silent."), "N/A"
+    if version in {"v4_inventory", "v5_exclusion", "v6_one_person"}:
+        if enters:
+            action = visual.split("A person's ", 1)[1].split("Only the ", 1)[0].strip()
+            action = "A person's " + action
+        else:
+            action = visual.split("One continuous ", 1)[0].strip()
+        visual = (
+            "The camera remains fixed. The task uses only the objects already visible in Picture 1, "
+            "with the same count, appearance and background throughout. "
+            "Any people already visible at the image edges remain still in their original positions. "
+            "One acting hand and forearm performs the task; the rest of that person stays outside the image. "
+            f"{action} "
+            "The hand completes each manipulation directly at the task locations, with continuous "
+            "physical contact while moving the object. "
+            f"By {max(0.0, end - HOLD_S):.2f} seconds, the task is complete and the hand is in its ending state; "
+            "the scene remains still for the final second."
+        )
+        if version in {"v5_exclusion", "v6_one_person"}:
+            visual += " No other hands or objects enter the scene at any time."
+        if version == "v6_one_person":
+            visual = visual.replace(
+                "Any people already visible at the image edges remain still in their original positions. "
+                "One acting hand and forearm performs the task; the rest of that person stays outside the image.",
+                "Any people already visible at the image edges remain still and do not participate. "
+                f"Exactly one person performs the entire task using only their {hand} hand and forearm. "
+                "Their other hand and the rest of their body stay outside the frame. "
+                f"The person stands off-camera beyond the {edge}; their {hand} forearm extends "
+                f"from that edge toward the task objects and stays connected to the same {hand} hand throughout. "
+                f"After completing the task, that same hand and forearm withdraw through the {edge}."
+            )
+    return (
+        "How the reference pictures align with the target video — "
+        "Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; "
+        f"Picture 2 (from Shot 1) aligns with the {end:.2f}-second mark of the target video.\n\n"
+        "integrated_multimodal_description: [Shot 1] Live-action, beginning with the "
+        "camera framing, lighting, objects and spatial arrangement established by Picture 1. "
+        f"{visual.strip()} "
+        "The action continuously brings the scene into the object arrangement, hand visibility "
+        "and composition established by Picture 2 at the end of this single static shot.\n\n"
+        f"overall_soundscape: {sound.strip()}"
+    )

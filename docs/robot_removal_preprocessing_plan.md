@@ -99,6 +99,17 @@ v4 results:
   - `uncovered_px` (98) = mask misses the prompt cannot fix (pbvr_083-type); a segmentation-side problem by design.
 - Open: visual pass over the residual_robot mid-band (0.05–0.3) in flagged_review.jpg; color-drift decision; re-audit the 8 error episodes.
 
+## 10. v4_last — last-frame robot removal
+
+Same mask-free pipeline on `last.jpg` (episode final frames) → `outputs/robot_removal/v4_last/<dataset>/<episode>/` with identical artifact names. Masks re-segmented per last frame (robot pose differs from frame 0); `pair.json` `robot_box_2d` is a first-frame box and must NOT be used as the SAM3 box hint — text prompts only. `object_boxes` remain scene-valid.
+
+- [x] Verify `last.jpg` availability in bucket; download all 1960 → `data/robot_removal/full_last/<key>/`
+- [x] Build `data/robot_removal/full_inputs_last.jsonl` manifest (1960 rows, hashed; `pair.json` symlinked for scene entities)
+- [ ] Segmentation pass (no box hint): `expanded_robot_mask.png` + `original_rgb.png` per episode — `scripts/v4_last_seg.py`, running
+- [ ] v4 mask-free edit pass: 1960/1960, artifacts + `sheet.png` per episode
+- [ ] Audit/metric sweep (all 4 scalars) + quarantine/clean rebuild
+- [ ] `flagged_review.jpg` review sheet + spot-check results
+
 ## 1. Inspect inputs and reuse existing code
 
 - [x] List the pilot bucket and inspect originals, cached masks, boxes, and logs.
