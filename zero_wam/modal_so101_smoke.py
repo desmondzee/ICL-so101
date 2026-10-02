@@ -8,7 +8,7 @@ single-arm. WandB is switched on through zero_wam/so101_wandb_train.py.
 
     uv run python -m zero_wam.so101_smoke_data           # local: LeRobot v2.1 dirs, action metadata, manifests
     modal run zero_wam/modal_so101_smoke.py::prepare      # checkpoint to the volume, upload data, encode latents (1 GPU)
-    modal run zero_wam/modal_so101_smoke.py::smoke        # train 300 steps (8x H100), then held-out and train-episode losses
+    modal run --detach zero_wam/modal_so101_smoke.py::smoke  # train (8x H100), then held-out and train-episode losses
 
 Secrets: Modal secret `so101-smoke-wandb` holding WANDB_API_KEY, WANDB_TEAM_NAME (and optionally WANDB_BASE_URL).
 """
@@ -206,13 +206,19 @@ def _split_args(split: str) -> list[str]:
 
 
 @app.function(image=image, gpu="H100:8", volumes={VOL: volume}, secrets=[wandb_secret], timeout=6 * 3600, memory=480 * 1024, cpu=32)
-def train(run: str = "smoke", num_steps: int = 300) -> str:
-    """Overfit on the train episode with the preset's optimiser and losses; one checkpoint at the end."""
+def train(run: str = "smoke", num_steps: int = 300, warmup_steps: int = 0, cosine: bool = False) -> str:
+    """Overfit on the train episode with the preset's optimiser and losses; one checkpoint at the end. warmup_steps > 0
+    overrides the preset's 200, and cosine decays the learning rate to 0 by the last step (see so101_wandb_train.py)."""
     save_root = Path(RUNS_DIR) / run
     losses = save_root / "train_losses.jsonl"
     losses.unlink(missing_ok=True)
+    env = {"WANDB_NAME": f"so101-smoke-{run}-train", "SO101_LOSS_LOG": str(losses), "ZERO_WAM_SAVE_ROOT": str(save_root)}
+    if warmup_steps:
+        env["SO101_WARMUP_STEPS"] = str(warmup_steps)
+    if cosine:
+        env["SO101_COSINE_TOTAL_STEPS"] = str(num_steps)
     _torchrun(_split_args("train") + ["--save-root", str(save_root), "--num-steps", str(num_steps), "--save-interval", str(num_steps)],
-              {"WANDB_NAME": f"so101-smoke-{run}-train", "SO101_LOSS_LOG": str(losses), "ZERO_WAM_SAVE_ROOT": str(save_root)}, save_root / "train.log")
+              env, save_root / "train.log")
     return str(save_root / "checkpoints" / f"checkpoint_step_{num_steps}")
 
 
@@ -232,12 +238,15 @@ def evaluate(model_path: str, split: str, tag: str, run: str = "smoke", steps: i
 
 
 @app.local_entrypoint()
-def prepare(checkpoint: bool = True) -> None:
+def prepare(checkpoint: bool = True, encode_latents: bool = True) -> None:
+    """Checkpoint, data upload and latents; --no-encode-latents re-uploads only (e.g. new action stats; the latents
+    already on the volume stay)."""
     if checkpoint:
         prepare_checkpoint.remote()
     with volume.batch_upload(force=True) as batch:
         batch.put_directory(str(LOCAL_DATA), f"/so101_smoke/{LOCAL_DATA.name}")
-    print(json.dumps(encode.remote(), indent=2))
+    if encode_latents:
+        print(json.dumps(encode.remote(), indent=2))
 
 
 @app.local_entrypoint()
@@ -251,15 +260,27 @@ def evals(run: str = "smoke", num_steps: int = 300, eval_steps: int = 20, skip: 
                 print(json.dumps(evaluate.remote(model, split, tag, run, eval_steps)), flush=True)
 
 
-@app.local_entrypoint()
-def smoke(run: str = "smoke", num_steps: int = 300, eval_steps: int = 20) -> None:
-    checkpoint = train.remote(run, num_steps)
+@app.function(image=download_image, volumes={VOL: volume}, timeout=10 * 3600)
+def pipeline(run: str, num_steps: int, eval_steps: int, warmup_steps: int, cosine: bool) -> dict:
+    """Train, then the four validation passes, chained on Modal so a dropped local connection cannot stop it midway
+    (launch with `modal run --detach`). The summary is also written to the volume."""
+    checkpoint = train.remote(run, num_steps, warmup_steps, cosine)
     results = []
     for tag, model in (("pretrain", MODEL_DIR), (f"step{num_steps}", checkpoint)):
         for split in ("train", "val"):
             results.append(evaluate.remote(model, split, tag, run, eval_steps))
             print(json.dumps(results[-1]), flush=True)
+    summary = {"checkpoint": checkpoint, "results": results}
+    volume.reload()
+    (Path(RUNS_DIR) / run / "eval.json").write_text(json.dumps(summary, indent=2))
+    volume.commit()
+    return summary
+
+
+@app.local_entrypoint()
+def smoke(run: str = "smoke", num_steps: int = 300, eval_steps: int = 20, warmup_steps: int = 0, cosine: bool = False) -> None:
+    summary = pipeline.remote(run, num_steps, eval_steps, warmup_steps, cosine)
     out = Path(__file__).resolve().parents[1] / "outputs" / "zero_wam" / "so101_smoke" / run / "eval.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"checkpoint": checkpoint, "results": results}, indent=2))
+    out.write_text(json.dumps(summary, indent=2))
     print(f"wrote {out}")

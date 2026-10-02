@@ -62,10 +62,12 @@ def frames() -> pd.DataFrame:
 
 
 def action_stats(data: pd.DataFrame) -> dict:
-    """Quantiles of what the processor normalises: xyz relative to the episode's first state (the latents cover whole
-    episodes, so each segment starts at frame 0), over every episode of the dataset; quaternion and gripper over their
-    full ranges, as in the released Robotwin stats."""
+    """Quantiles of what the processor normalises, over every episode of the dataset: xyz relative to the episode's
+    first state (the latents cover whole episodes, so each segment starts at frame 0) and the absolute gripper, whose
+    nominal 0-100 range is far wider than what the datasets use; quaternion over its full range, as in the released
+    Robotwin stats."""
     rel = []
+    gripper = np.stack(data["action.ee"].to_numpy())[:, 6]
     for _, ep in data.groupby("episode_index"):
         ee = np.stack(ep.sort_values("frame_index")["action.ee"].to_numpy())
         s0 = np.stack(ep.sort_values("frame_index")["observation.state.ee"].to_numpy())[0]
@@ -75,7 +77,7 @@ def action_stats(data: pd.DataFrame) -> dict:
     q99 = np.quantile(rel, 0.99, axis=0).tolist() + [1.0] * 4
     return {"method": "abs", "window_size": 0, "norm_stats": {
         "action.hand.position": {"q01": q01, "q99": q99},
-        "action.effector.position": {"q01": [0.0], "q99": [100.0]},
+        "action.effector.position": {"q01": [float(np.quantile(gripper, 0.01))], "q99": [float(np.quantile(gripper, 0.99))]},
     }}
 
 
