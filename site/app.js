@@ -1,150 +1,95 @@
-// Static viewer for the curated SO-101 HumanGen pairs. The index ships with the site; videos and images stream from the
-// public HF bucket (index.base_url). Routes: #/ (overview), #/task/<task>, #/ep/<task>/<episode>.
+// One-page viewer for the curated SO-101 HumanGen pairs. The index ships with the site; videos and thumbnails stream from
+// the public HF bucket (index.base_url). The selected task is kept in the URL hash (#<task>).
 
-const app = document.getElementById('app')
+const PAGE = 6  // pairs shown before "Show more" (three rows of two)
 let DATA = null
+let shown = PAGE
 
+const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-const pretty = (task) => task.replace(/^[^_]+__/, '').replace(/[_-]+/g, ' ')
-const owner = (task) => task.split('__')[0]
-const url = (ep, file) => `${DATA.base_url}episodes/${ep.id}/${file}`
-const byTask = (task) => DATA.episodes.filter((e) => e.task === task)
 const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1)
+// Short tab names; the full instruction is shown above each task's pairs.
+const LABELS = {
+  'aiden-li__so101-close-upper-drawer': 'Close drawer', 'aiden-li__so101-open-upper-drawer': 'Open drawer',
+  'aiden-li__so101-close-lower-drawer': 'Close lower drawer', 'aiden-li__so101-open-lower-drawer': 'Open lower drawer',
+  'aiden-li__so101-grabtissue': 'Grab tissue', 'b3rnd__record-50-episodes': 'Stack cube', 'chirag1701__can': 'Can in box',
+  'chirag1701__sandwich': 'Sandwich in box', 'EverNorif__so101-table-cleanup': 'Pens in holder', 'k1000dai__standup_petbottle': 'Stand bottle up',
+  'lerobot__svla_so101_pickplace': 'Lego in box', 'pbvr__so101_test002': 'Block in box', 'pbvr__so101_test005': 'Three blocks in box',
+  'psg777__combinedtape': 'Move tape roll', 'ReubenLim__so101_tape_in_square': 'Push to square', 'ricky0526__so101_pick_toy_to_plate_v3': 'Toy on plate',
+  'sattgle__clean-test': 'Slippers on shelf', 'sattgle__clean2-test': 'Two pairs of slippers', 'stsqitx__clean': 'Wipe table',
+  'tenkau__SO101-Stack3Blocks': 'Stack three blocks', 'un1c0rnio__so101_sock_stowing_3pair2': 'Stow sock', 'Cornito__so101_tea2': 'Make tea',
+  'tenkau__so101_color_block': 'Stack by colour', 'Tear4Pixelation__lego2': 'Stack lego', 'Rorschach4153__so101_30_fold': 'Fold cloth',
+  'fbeltrao__so101_unplug_cable_4': 'Unplug cable', 'LeRobot-worldwide-hackathon__27-AI_Learners-Shape_Pick_and_Place': 'Shape sorter',
+  'LeRobot-worldwide-hackathon__91-AM-PM-pouring-liquid': 'Pour liquid',
+}
+const short = (task) => LABELS[task] || task.replace(/^[^_]+__/, '').replace(/[_-]+/g, ' ')
+const url = (ep, file) => `${DATA.base_url}episodes/${ep.id}/${file}`
+const tasks = () => DATA.tasks.filter((t) => t.episodes > 0).sort((a, b) => b.episodes - a.episodes || a.task.localeCompare(b.task))
 
-function card(href, thumbs, title, meta) {
-  return `<a class="card" href="${href}">
-    <div class="thumbs">${thumbs.map((t) => `<img loading="lazy" src="${t}" alt="">`).join('')}</div>
-    <div class="body"><div class="title">${title}</div><div class="meta">${meta}</div></div></a>`
+function stats() {
+  const mins = DATA.episodes.reduce((s, e) => s + e.robot_duration_s, 0) / 60
+  const wrist = DATA.episodes.filter((e) => e.views.wrist).length
+  $('stats').textContent = `${DATA.episodes_total} pairs · ${tasks().length} tasks · ${Math.round(mins)} min of robot data · ` +
+    `front camera on every pair, wrist camera on ${wrist}`
 }
 
-function overview() {
-  const tasks = DATA.tasks.filter((t) => t.episodes > 0)
-  const views = new Set(DATA.episodes.flatMap((e) => Object.keys(e.views)))
-  const hours = DATA.episodes.reduce((s, e) => s + e.robot_duration_s, 0) / 3600
-  app.innerHTML = `
-    <h1>SO-101 HumanGen pairs</h1>
-    <p class="lede">Real SO-101 robot episodes, each paired with a generated video of a person doing the same task in the same scene.
-      Every pair was checked by two independent reviewers for task adherence and physical plausibility; only pairs both accepted are here.</p>
-    <div class="stats">
-      <div class="stat"><b>${DATA.episodes_total}</b><span>pairs</span></div>
-      <div class="stat"><b>${tasks.length}</b><span>tasks</span></div>
-      <div class="stat"><b>${views.size + 1}</b><span>views per pair (human + ${[...views].join(', ')})</span></div>
-      <div class="stat"><b>${hours >= 1 ? hours.toFixed(1) + ' h' : Math.round(hours * 60) + ' min'}</b><span>robot data</span></div>
+function tabs(current) {
+  $('tabs').innerHTML = tasks().map((t) =>
+    `<button class="tab" role="tab" aria-selected="${t.task === current}" data-task="${esc(t.task)}">${esc(short(t.task))}<span class="n">${t.episodes}</span></button>`).join('')
+  $('tabs').querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.task }))
+  const sel = $('tabs').querySelector('[aria-selected="true"]')  // keep it in view when the row scrolls (phones)
+  if (sel) $('tabs').scrollLeft = sel.offsetLeft - $('tabs').offsetLeft - 16
+}
+
+function pairHTML(ep) {
+  const views = Object.keys(ep.views)
+  const switcher = views.length > 1
+    ? `<div class="views">${views.map((v, i) => `<button aria-pressed="${i === 0}" data-file="${esc(ep.views[v])}">${esc(v)}</button>`).join('')}</div>` : ''
+  const r = ep.review
+  return `<article class="pair" data-id="${esc(ep.id)}">
+    <div class="videos">
+      <div class="clip"><span class="tag">Human demonstration</span>
+        <video controls playsinline preload="none" poster="${url(ep, ep.thumb)}" src="${url(ep, ep.human)}"></video></div>
+      <div class="clip"><span class="tag">Robot video</span>${switcher}
+        <video controls muted playsinline preload="none" poster="${url(ep, ep.robot_thumb)}" src="${url(ep, ep.views[views[0]])}"></video></div>
     </div>
-    <div class="filter"><input id="q" placeholder="Filter tasks…" aria-label="Filter tasks"></div>
-    <div class="grid" id="tasks"></div>`
-  const draw = (q) => {
-    document.getElementById('tasks').innerHTML = tasks
-      .filter((t) => !q || (t.task + ' ' + t.instruction).toLowerCase().includes(q))
-      .map((t) => {
-        const ep = byTask(t.task)[0]
-        const under = t.episodes < 5 ? '<span class="badge warn">under target</span>' : ''
-        return card(`#/task/${t.task}`, [url(ep, ep.thumb), url(ep, ep.robot_thumb)], esc(cap(t.instruction)),
-          `<span>${t.episodes} pairs</span><span>${esc(pretty(t.task))}</span>${under}`)
-      }).join('')
-  }
-  document.getElementById('q').addEventListener('input', (e) => draw(e.target.value.toLowerCase()))
-  draw('')
+    <div class="caption"><span>Episode ${ep.curated_episode_index} · human ${ep.human_duration_s.toFixed(1)} s · robot ${ep.robot_duration_s.toFixed(1)} s</span>
+      <span>task ${r.task_adherence}/5 · physics ${r.physics}/5</span></div>
+    <details><summary>Review notes</summary><p>${esc(r.summary)}</p><p><b>Second reviewer:</b> ${esc(r.verify)}</p></details>
+  </article>`
 }
 
-function taskView(task) {
-  const t = DATA.tasks.find((x) => x.task === task)
-  const eps = byTask(task)
-  if (!t || !eps.length) return notFound()
-  app.innerHTML = `
-    <div class="crumbs"><a href="#/">All tasks</a> / ${esc(pretty(task))}</div>
-    <h1>${esc(cap(t.instruction))}</h1>
-    <p class="lede"><span class="mono">${esc(task)}</span> · ${eps.length} pairs · robot views: ${esc(t.views.join(', '))} ·
-      ${t.accepted} accepted of ${t.reviewed} reviewed (${t.available_demos} generated)</p>
-    <div class="grid">${eps.map((e) => card(`#/ep/${e.id}`, [url(e, e.thumb), url(e, e.robot_thumb)],
-      `Episode ${e.curated_episode_index}`,
-      `<span>robot ${e.robot_duration_s.toFixed(1)} s</span><span>human ${e.human_duration_s.toFixed(1)} s</span>
-       <span class="badge good">task ${e.review.task_adherence}/5 · physics ${e.review.physics}/5</span>`)).join('')}</div>`
-}
-
-function episodeView(id) {
-  const ep = DATA.episodes.find((e) => e.id === id)
-  if (!ep) return notFound()
-  const eps = byTask(ep.task)
-  const i = eps.indexOf(ep)
-  const prev = eps[(i - 1 + eps.length) % eps.length], next = eps[(i + 1) % eps.length]
-  app.innerHTML = `
-    <div class="crumbs"><a href="#/">All tasks</a> / <a href="#/task/${ep.task}">${esc(pretty(ep.task))}</a> / episode ${ep.curated_episode_index}</div>
-    <h1>${esc(cap(ep.instruction))}</h1>
-    <div class="player">
-      <div class="view human"><video data-role="human" src="${url(ep, ep.human)}" muted playsinline preload="auto"></video>
-        <div class="label"><b>Human demo (generated)</b><span>${ep.human_duration_s.toFixed(1)} s</span></div></div>
-      ${Object.entries(ep.views).map(([name, file]) => `
-      <div class="view"><video data-role="robot" src="${url(ep, file)}" muted playsinline preload="auto"></video>
-        <div class="label"><span>Robot · ${esc(name)}</span><span>${ep.robot_duration_s.toFixed(1)} s</span></div></div>`).join('')}
-    </div>
-    <div class="controls">
-      <button id="play">Play</button>
-      <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Progress through the episode">
-      <label class="toggle"><input id="align" type="checkbox" checked> Align durations</label>
-      <label class="toggle"><input id="sound" type="checkbox"> Sound</label>
-      <a class="btn" href="#/ep/${prev.id}">‹ Prev</a><a class="btn" href="#/ep/${next.id}">Next ›</a>
-    </div>
-    <div class="panels">
-      <div class="panel"><h3>Review</h3>
-        <div class="scores"><span>Task <b>${ep.review.task_adherence}</b>/5</span><span>Physics <b>${ep.review.physics}</b>/5</span></div>
-        <p>${esc(ep.review.summary)}</p>
-        ${ep.review.issues.length ? `<ul>${ep.review.issues.map((x) => `<li class="muted">${esc(x)}</li>`).join('')}</ul>` : ''}
-        <p class="muted"><b>Second reviewer:</b> ${esc(ep.review.verify)}</p></div>
-      <div class="panel"><h3>Episode</h3>
-        <dl class="kv">
-          <dt>Task</dt><dd class="mono">${esc(ep.task)}</dd>
-          <dt>Episode</dt><dd>${ep.curated_episode_index} (export index ${ep.export_episode_index})</dd>
-          <dt>Robot</dt><dd>${ep.robot_frames} frames at ${ep.fps} fps</dd>
-          <dt>Steps</dt><dd>${ep.steps.length ? `<ol>${ep.steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol>` : '—'}</dd>
-          <dt>Files</dt><dd class="files"><a href="${url(ep, 'pair.json')}" target="_blank">pair.json</a> ·
-            <a href="${url(ep, 'robot_data.parquet')}">robot_data.parquet</a> · <a href="${url(ep, 'review.json')}" target="_blank">review.json</a> ·
-            <a href="${url(ep, ep.human)}" target="_blank">human.mp4</a></dd>
-        </dl></div>
-    </div>`
-  syncPlayer()
-}
-
-// Play every view together. With "align durations" the robot views are sped up or slowed down so all views start and
-// finish together (the human clip is ~5 s, the robot episode 7-40 s); the scrubber works in fractions of each clip.
-function syncPlayer() {
-  const vids = [...app.querySelectorAll('video')]
-  const human = vids[0]
-  const play = document.getElementById('play'), seek = document.getElementById('seek')
-  const align = document.getElementById('align'), sound = document.getElementById('sound')
-  let playing = false
-  const rates = () => vids.forEach((v) => {
-    if (v === human || !align.checked || !human.duration || !v.duration) v.playbackRate = 1
-    else v.playbackRate = Math.min(16, Math.max(0.0625, v.duration / human.duration))
+function show(task) {
+  const t = DATA.tasks.find((x) => x.task === task && x.episodes > 0) || tasks()[0]
+  const eps = DATA.episodes.filter((e) => e.task === t.task)
+  tabs(t.task)
+  $('task-head').innerHTML = `<h3>${esc(cap(t.instruction))}</h3><span class="meta">${eps.length} pairs · robot views: ${esc(t.views.join(', '))}</span>`
+  $('pairs').innerHTML = eps.slice(0, shown).map(pairHTML).join('')
+  $('more').innerHTML = eps.length > shown ? `<button id="more-btn">Show ${eps.length - shown} more</button>` : ''
+  if (eps.length > shown) $('more-btn').addEventListener('click', () => { shown = eps.length; show(t.task) })
+  // Front / wrist switch: swap the robot video's source and keep playing.
+  $('pairs').querySelectorAll('.pair').forEach((card) => {
+    const ep = eps.find((e) => e.id === card.dataset.id)
+    const video = card.querySelectorAll('video')[1]
+    card.querySelectorAll('.views button').forEach((b, _, all) => b.addEventListener('click', () => {
+      all.forEach((x) => x.setAttribute('aria-pressed', x === b))
+      video.src = url(ep, b.dataset.file)
+      video.play().catch(() => {})
+    }))
   })
-  const setAll = (frac) => vids.forEach((v) => { if (v.duration) v.currentTime = Math.min(v.duration - 0.01, frac * v.duration) })
-  vids.forEach((v) => v.addEventListener('loadedmetadata', rates))
-  align.addEventListener('change', rates)
-  sound.addEventListener('change', () => { human.muted = !sound.checked })
-  play.addEventListener('click', () => {
-    playing = !playing
-    play.textContent = playing ? 'Pause' : 'Play'
-    if (playing) {
-      if (human.ended || human.currentTime >= human.duration - 0.05) setAll(0)
-      rates(); vids.forEach((v) => v.play().catch(() => {}))
-    } else vids.forEach((v) => v.pause())
-  })
-  seek.addEventListener('input', () => setAll(seek.value / 1000))
-  human.addEventListener('timeupdate', () => { if (human.duration) seek.value = Math.round(1000 * human.currentTime / human.duration) })
-  human.addEventListener('ended', () => { playing = false; play.textContent = 'Play'; vids.forEach((v) => v.pause()) })
-  vids.slice(1).forEach((v) => v.addEventListener('ended', () => v.pause()))
 }
 
-function notFound() { app.innerHTML = '<p class="muted">Not found. <a href="#/">Back to all tasks</a></p>' }
-
-function route() {
-  window.scrollTo(0, 0)
-  const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''))
-  if (h.startsWith('task/')) return taskView(h.slice(5))
-  if (h.startsWith('ep/')) return episodeView(h.slice(3))
-  return overview()
+function table() {
+  const rows = [...DATA.tasks].sort((a, b) => b.episodes - a.episodes || a.task.localeCompare(b.task))
+  $('table').innerHTML = `<thead><tr><th>Task</th><th>Pairs</th><th>Accepted / reviewed</th><th>Generated</th></tr></thead><tbody>` +
+    rows.map((t) => `<tr class="${t.episodes ? '' : 'empty'}"><td>${esc(cap(t.instruction))}</td><td class="num">${t.episodes}</td>` +
+      `<td class="num">${t.accepted} / ${t.reviewed}</td><td class="num">${t.available_demos}</td></tr>`).join('') + '</tbody>'
 }
 
-fetch('data/index.json').then((r) => r.json()).then((d) => { DATA = d; route() })
-  .catch(() => { app.innerHTML = '<p class="muted">Could not load the dataset index.</p>' })
-window.addEventListener('hashchange', () => DATA && route())
+function route() { shown = PAGE; show(decodeURIComponent(location.hash.slice(1))) }
+
+fetch('data/index.json').then((r) => r.json()).then((d) => {
+  DATA = d
+  stats(); table(); route()
+  window.addEventListener('hashchange', route)
+}).catch(() => { $('pairs').innerHTML = '<p>Could not load the dataset index.</p>' })
