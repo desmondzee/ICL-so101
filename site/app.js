@@ -41,11 +41,12 @@ function tabs(current) {
   if (sel) $('tabs').scrollLeft = sel.offsetLeft - $('tabs').offsetLeft - 16
 }
 
+const eps_index = (ep) => DATA.episodes.filter((e) => e.task === ep.task).indexOf(ep) + 1
+
 function pairHTML(ep) {
   const views = Object.keys(ep.views)
   const switcher = views.length > 1
     ? `<div class="views">${views.map((v, i) => `<button aria-pressed="${i === 0}" data-file="${esc(ep.views[v])}">${esc(v)}</button>`).join('')}</div>` : ''
-  const r = ep.review
   return `<article class="pair" data-id="${esc(ep.id)}">
     <div class="videos">
       <div class="clip"><span class="tag">Human demonstration</span>
@@ -54,8 +55,7 @@ function pairHTML(ep) {
         <video controls muted playsinline preload="none" poster="${url(ep, ep.robot_thumb)}" src="${url(ep, ep.views[views[0]])}"></video></div>
     </div>
     <div class="caption"><span>Episode ${ep.curated_episode_index} · human ${ep.human_duration_s.toFixed(1)} s · robot ${ep.robot_duration_s.toFixed(1)} s</span>
-      <span>task ${r.task_adherence}/5 · physics ${r.physics}/5</span></div>
-    <details><summary>Review notes</summary><p>${esc(r.summary)}</p><p><b>Second reviewer:</b> ${esc(r.verify)}</p></details>
+      <a href="viewer.html#${esc(ep.task)}/${eps_index(ep)}">open in viewer</a></div>
   </article>`
 }
 

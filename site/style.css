@@ -113,3 +113,37 @@ footer { font: 12.5px "Roboto Mono", monospace; color: var(--faint); border-top:
   .subtitle { font-size: 19px; }
   .task-head h3 { font-size: 25px; }
 }
+
+/* viewer.html: one pair at a time */
+body.viewer main.stage { max-width: 1400px; padding: 28px 24px 40px; }
+.bar {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 24px; background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.bar .home { font: 400 21px "EB Garamond", Georgia, serif; text-decoration: none; margin-right: auto; }
+.bar select {
+  font: 13px "Roboto Mono", monospace; padding: 7px 10px; border-radius: 6px; max-width: 420px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text);
+}
+.nav { display: flex; align-items: center; gap: 10px; }
+.nav button {
+  font: 13px "Roboto Mono", monospace; padding: 7px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--text);
+}
+.nav button:hover { border-color: var(--faint); }
+.count { font: 13px "Roboto Mono", monospace; color: var(--muted); min-width: 64px; text-align: center; }
+.stage-title { font: 400 32px/1.2 "EB Garamond", Georgia, serif; margin: 6px 0 16px; text-align: left; }
+.videos.big { gap: 12px; }
+.videos.big .clip .tag { font-size: 12px; padding: 3px 8px; top: 10px; left: 10px; }
+.videos.big .views { top: 9px; right: 9px; }
+.videos.big .views button { font-size: 12px; padding: 4px 10px; }
+.stage .caption { margin-top: 12px; }
+.links .viewer-link { font-weight: 500; }
+@media (max-width: 720px) {
+  .bar { padding: 10px 16px; gap: 10px; }
+  .bar .home { width: 100%; }
+  .bar select { width: 100%; max-width: none; }
+  .nav { width: 100%; justify-content: space-between; }
+  body.viewer main.stage { padding: 18px 16px 32px; }
+  .stage-title { font-size: 24px; }
+}
