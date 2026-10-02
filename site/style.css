@@ -114,36 +114,48 @@ footer { font: 12.5px "Roboto Mono", monospace; color: var(--faint); border-top:
   .task-head h3 { font-size: 25px; }
 }
 
-/* viewer.html: one pair at a time */
-body.viewer main.stage { max-width: 1400px; padding: 28px 24px 40px; }
-.bar {
-  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 12px 24px; background: var(--bg); border-bottom: 1px solid var(--line);
+/* viewer.html: one pair at a time. Header and stage share one centred column whose width keeps both 4:3 videos
+   inside the window height (bar ~61px, title ~70px, caption ~44px, padding ~56px). */
+body.viewer { --stage-w: min(1600px, calc((100vh - 235px) * 8 / 3 + 12px)); }
+body.viewer main.stage {
+  width: 100%; max-width: calc(var(--stage-w) + 48px); margin: 0 auto; padding: 24px 24px 32px;
+  min-height: calc(100vh - 62px); display: flex; flex-direction: column; justify-content: center;
 }
-.bar .home { font: 400 21px "EB Garamond", Georgia, serif; text-decoration: none; margin-right: auto; }
+.bar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar-inner {
+  max-width: calc(var(--stage-w) + 48px); margin: 0 auto; padding: 12px 24px;
+  display: flex; align-items: center; gap: 14px;
+}
+.bar .home { font: 400 21px "EB Garamond", Georgia, serif; text-decoration: none; margin-right: auto; white-space: nowrap; }
 .bar select {
-  font: 13px "Roboto Mono", monospace; padding: 7px 10px; border-radius: 6px; max-width: 420px;
+  font: 13px "Roboto Mono", monospace; padding: 7px 10px; border-radius: 6px; width: 360px; min-width: 0; flex: 0 1 360px;
   border: 1px solid var(--line); background: var(--bg); color: var(--text);
 }
-.nav { display: flex; align-items: center; gap: 10px; }
+.nav { display: flex; align-items: center; gap: 8px; flex: none; }
 .nav button {
   font: 13px "Roboto Mono", monospace; padding: 7px 14px; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--line); background: transparent; color: var(--text);
 }
 .nav button:hover { border-color: var(--faint); }
-.count { font: 13px "Roboto Mono", monospace; color: var(--muted); min-width: 64px; text-align: center; }
-.stage-title { font: 400 32px/1.2 "EB Garamond", Georgia, serif; margin: 6px 0 16px; text-align: left; }
+.count { font: 13px "Roboto Mono", monospace; color: var(--muted); min-width: 70px; text-align: center; }
+.stage-title { font: 400 30px/1.2 "EB Garamond", Georgia, serif; margin: 4px 0 14px; }
 .videos.big { gap: 12px; }
 .videos.big .clip .tag { font-size: 12px; padding: 3px 8px; top: 10px; left: 10px; }
 .videos.big .views { top: 9px; right: 9px; }
 .videos.big .views button { font-size: 12px; padding: 4px 10px; }
 .stage .caption { margin-top: 12px; }
 .links .viewer-link { font-weight: 500; }
-@media (max-width: 720px) {
-  .bar { padding: 10px 16px; gap: 10px; }
+@media (max-width: 860px) {
+  body.viewer { --stage-w: 100vw; }
+  .bar-inner { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
   .bar .home { width: 100%; }
-  .bar select { width: 100%; max-width: none; }
+  .bar select { flex: 1 1 100%; width: 100%; }
   .nav { width: 100%; justify-content: space-between; }
-  body.viewer main.stage { padding: 18px 16px 32px; }
+  body.viewer main.stage { max-width: none; padding: 18px 16px 32px; min-height: 0; justify-content: flex-start; }
   .stage-title { font-size: 24px; }
+}
+@media (max-width: 860px) {
+  .videos.big { grid-template-columns: 1fr; }
+  /* stacked: narrow enough that both 4:3 videos fit the window height (bar ~140px, title and caption ~120px) */
+  body.viewer main.stage { max-width: min(100vw, calc((100vh - 260px) * 2 / 3 + 32px)); }
 }
