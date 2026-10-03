@@ -1,0 +1,21 @@
+{
+ "note": "Manual curation decisions applied by humangen.curate_dataset build (2026-10-03).",
+ "targets": {
+  "LeRobot-worldwide-hackathon__27-AI_Learners-Shape_Pick_and_Place": 20
+ },
+ "exclude_tasks": {
+  "Rorschach4153__so101_30_fold": "cloth motion not good enough in any demo; to be regenerated"
+ },
+ "exclude_keys": {
+  "sattgle__clean2-test/episode_003": "slippers morph slightly (manual review)",
+  "sattgle__clean2-test/episode_009": "an extra hand appears (manual review)"
+ },
+ "deprioritise_keys": {
+  "k1000dai__standup_petbottle/episode_000": "bottle cap swaps ends (cap check, data/so101_curation/cap_check_petbottle.json)",
+  "k1000dai__standup_petbottle/episode_036": "bottle cap swaps ends (cap check, data/so101_curation/cap_check_petbottle.json)",
+  "k1000dai__standup_petbottle/episode_012": "bottle cap swaps ends (cap check, data/so101_curation/cap_check_petbottle.json)"
+ },
+ "trim_tail_frames": {
+  "Tear4Pixelation__lego2/episode_008": 3
+ }
+}

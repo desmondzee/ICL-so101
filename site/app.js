@@ -82,7 +82,7 @@ function show(task) {
 function table() {
   const rows = [...DATA.tasks].sort((a, b) => b.episodes - a.episodes || a.task.localeCompare(b.task))
   $('table').innerHTML = `<thead><tr><th>Task</th><th>Pairs</th><th>Accepted / reviewed</th><th>Generated</th></tr></thead><tbody>` +
-    rows.map((t) => `<tr class="${t.episodes ? '' : 'empty'}"><td>${esc(cap(t.instruction))}</td><td class="num">${t.episodes}</td>` +
+    rows.map((t) => `<tr class="${t.episodes ? '' : 'empty'}"><td>${esc(cap(t.instruction))}${t.excluded ? ' <span class="note">(being regenerated)</span>' : ''}</td><td class="num">${t.episodes}</td>` +
       `<td class="num">${t.accepted} / ${t.reviewed}</td><td class="num">${t.available_demos}</td></tr>`).join('') + '</tbody>'
 }
 

@@ -201,15 +201,28 @@ def sheets(n: int) -> None:
     print(f"round {n}: {len(done)} sheets in {WORK / 'review'}")
 
 
+def overrides() -> dict:
+    """Manual decisions on top of the reviews (data/so101_curation/overrides.json): per-task targets, excluded tasks
+    and pairs, pairs used only when nothing else is left (deprioritise_keys), and frames to trim off a human video's end."""
+    f = WORK / "overrides.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
 def select() -> dict[str, list[str]]:
-    """Up to TARGET verified pairs per task, in candidate order (spread over the episode range)."""
+    """Up to TARGET (or the task's override) verified pairs per task, in candidate order (spread over the episode
+    range), skipping excluded pairs and taking deprioritised ones last."""
     cands = json.loads((WORK / "candidates.json").read_text())
     verdicts = load_verdicts()
+    ov = overrides()
     out = {}
     for task, eps in cands.items():
+        if task in ov.get("exclude_tasks", {}):
+            continue
         good = [f"{task}/episode_{e:03d}" for e in eps if verdicts.get(f"{task}/episode_{e:03d}", {}).get("final") == "accept"]
+        good = [k for k in good if k not in ov.get("exclude_keys", {})]
+        good = [k for k in good if k not in ov.get("deprioritise_keys", {})] + [k for k in good if k in ov.get("deprioritise_keys", {})]
         if good:
-            out[task] = good[:TARGET]
+            out[task] = good[:ov.get("targets", {}).get(task, TARGET)]
     return out
 
 
@@ -229,7 +242,16 @@ def build_episode(key: str, verdict: dict, cache: dict) -> dict:
     d = OUT / "episodes" / task / ep
     d.mkdir(parents=True, exist_ok=True)
     review = WORK / "review" / task / ep
-    subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(review / "human.mp4"), "-c", "copy", "-movflags", "+faststart", str(d / "human.mp4")], check=True)
+    # The human video without its audio (training uses only the frames); a few end frames cut where an override says so.
+    trim = overrides().get("trim_tail_frames", {}).get(key)
+    if trim:
+        n = int(subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames",
+                                "-of", "csv=p=0", str(review / "human.mp4")], capture_output=True, text=True, check=True).stdout.strip())
+        subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(review / "human.mp4"), "-frames:v", str(n - trim), "-an",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-movflags", "+faststart", str(d / "human.mp4")], check=True)
+    else:
+        subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", str(review / "human.mp4"), "-an", "-c:v", "copy",
+                        "-movflags", "+faststart", str(d / "human.mp4")], check=True)
     info = json.loads((EXPORT / "lerobot" / task / "meta" / "info.json").read_text())
     cams = [k for k in info["features"] if k.startswith("observation.images.")]
     meta = cache.setdefault(task, _episodes_meta(task))
@@ -266,6 +288,13 @@ def build() -> None:
     for task in chosen:
         cache[task] = _episodes_meta(task)
     keys = [k for ks in chosen.values() for k in ks]
+    import shutil
+    for old in (OUT / "episodes").glob("*/*"):  # pairs no longer selected
+        if f"{old.parent.name}/{old.name}" not in keys:
+            shutil.rmtree(old)
+    for old in (OUT / "episodes").glob("*"):
+        if old.is_dir() and not any(old.iterdir()):
+            old.rmdir()
     with ThreadPoolExecutor(6) as ex:
         eps = list(ex.map(lambda k: build_episode(k, verdicts[k], cache), keys))
     cands = json.loads((WORK / "candidates.json").read_text())
@@ -273,7 +302,7 @@ def build() -> None:
     for task in sorted(cands):
         reviewed = [k for k in verdicts if k.startswith(task + "/")]
         mine = [e for e in eps if e["task"] == task]
-        tasks.append({"task": task, "instruction": mine[0]["instruction"] if mine else
+        tasks.append({"task": task, "excluded": overrides().get("exclude_tasks", {}).get(task), "instruction": mine[0]["instruction"] if mine else
                       json.loads((EXPORT / accepted()[(task, cands[task][0])]["pair"]).read_text())["task"]["instruction"],
                       "episodes": len(mine), "reviewed": len(reviewed), "accepted": sum(verdicts[k]["final"] == "accept" for k in reviewed),
                       "available_demos": len(cands[task]), "views": sorted(mine[0]["views"]) if mine else []})
@@ -284,7 +313,7 @@ def build() -> None:
 
 
 def upload() -> None:
-    subprocess.run(["uvx", "--from", "huggingface_hub", "hf", "buckets", "sync", str(OUT), f"hf://buckets/{DEST_BUCKET}"], check=True)
+    subprocess.run(["uvx", "--from", "huggingface_hub", "hf", "buckets", "sync", str(OUT), f"hf://buckets/{DEST_BUCKET}", "--delete"], check=True)
 
 
 def main() -> None:

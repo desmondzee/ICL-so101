@@ -98,6 +98,7 @@ th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--lin
 th { font: 500 12px "Roboto Mono", monospace; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 td.num { font-family: "Roboto Mono", monospace; font-size: 13.5px; white-space: nowrap; }
 tr.empty td { color: var(--faint); }
+.note { font: 12px "Roboto Mono", monospace; }
 
 footer { font: 12.5px "Roboto Mono", monospace; color: var(--faint); border-top: 1px solid var(--line); padding-top: 18px; }
 
