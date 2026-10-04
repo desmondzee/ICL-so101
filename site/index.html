@@ -31,11 +31,22 @@
     </section>
 
     <section>
-      <h2><span class="sq"></span>Pairs.</h2>
+      <h2><span class="sq"></span>Training pairs.</h2>
       <div class="tabs" id="tabs" role="tablist"></div>
       <div class="task-head" id="task-head"></div>
       <div class="pairs" id="pairs"></div>
       <div class="more" id="more"></div>
+    </section>
+
+    <section id="validation">
+      <h2><span class="sq"></span>Validation (simulation).</h2>
+      <p>Five unseen tasks recorded in simulation with a scripted oracle, 10 episodes each, with distractor objects in every scene.
+        The human videos were generated from robot-free renders of the first and last frames and passed the same two reviewers.
+        The tasks are new to the policy, so they serve as a validation loss and, in simulation, as a closed-loop test.</p>
+      <div class="tabs" id="val-tabs" role="tablist"></div>
+      <div class="task-head" id="val-head"></div>
+      <div class="pairs" id="val-pairs"></div>
+      <div class="more" id="val-more"></div>
     </section>
 
     <section>

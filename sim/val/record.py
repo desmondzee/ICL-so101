@@ -52,7 +52,7 @@ def with_ee(kin, joints):
     return np.hstack([kin.ee(joints[:, :5]), joints[:, 5:6]]).astype(np.float32)
 
 
-def record(task, episodes, seed, out=OUT, max_seeds=200):
+def record(task, episodes, seed, out=OUT, max_seeds=200, seeds=None):
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     env_cls, oracle_cls = load(task)
@@ -64,12 +64,17 @@ def record(task, episodes, seed, out=OUT, max_seeds=200):
     ds = LeRobotDataset.create(repo_id=f"local/so101_sim_val_{task}", fps=FPS, features=FEATURES, root=root,
                                robot_type="so101_follower", use_videos=True)
     saved, tried, s = 0, [], seed
+    queue = list(seeds) if seeds is not None else None  # explicit seeds (e.g. the episodes chosen for the final set)
+    if queue is not None:
+        episodes, s = len(queue), queue.pop(0)
     while saved < episodes and len(tried) < max_seeds:
         env.render_images = False
         info, _ = rollout(env, oracle_cls, s)
         tried.append((s, bool(info["success"])))
         if not info["success"]:
             print(f"seed {s}: oracle failed, skipped", flush=True)
+            if queue is not None:
+                raise RuntimeError(f"seed {s} was chosen but the oracle failed")
             s += 1
             continue
         env.render_images = True
@@ -91,6 +96,8 @@ def record(task, episodes, seed, out=OUT, max_seeds=200):
         if not info["success"]:
             ds.clear_episode_buffer()
             print(f"seed {s}: replay diverged, skipped", flush=True)
+            if queue is not None:
+                raise RuntimeError(f"seed {s} was chosen but its replay diverged")
             s += 1
             continue
         last = env.render_scene_without_robot("front")
@@ -108,7 +115,7 @@ def record(task, episodes, seed, out=OUT, max_seeds=200):
         (folder / "meta.json").write_text(json.dumps(meta, indent=2))
         print(f"episode {saved}: seed {s}, {count[0]} frames", flush=True)
         saved += 1
-        s += 1
+        s = queue.pop(0) if queue else s + 1
     ds.finalize()
     shutil.rmtree(root / "images", ignore_errors=True)
     (root / "meta" / "val_episodes.json").write_text(json.dumps({"task": task, "seeds_tried": tried}, indent=2))
@@ -122,8 +129,10 @@ def main():
     p.add_argument("--episodes", type=int, default=10)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", type=Path, default=OUT)
+    p.add_argument("--seeds", default="", help="comma-separated seeds to record, in order (overrides --episodes/--seed)")
     a = p.parse_args()
-    saved, tried = record(a.task, a.episodes, a.seed, a.out)
+    seeds = [int(x) for x in a.seeds.split(",")] if a.seeds else None
+    saved, tried = record(a.task, a.episodes, a.seed, a.out, seeds=seeds)
     print(f"{saved} episodes saved; oracle success {sum(ok for _, ok in tried)}/{len(tried)} seeds")
 
 
