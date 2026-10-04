@@ -5,7 +5,7 @@ export const meta = {
 }
 
 const REPO = '/Users/desmondzee/Hardware/ICL-so101'
-const DIR = `${REPO}/data/so101_curation/review`
+const DIR = args.dir || `${REPO}/data/so101_curation/review`  // args.dir: another review folder in the same layout (e.g. the sim val set)
 
 const RULES = `A pair is a generated human demonstration video (human.mp4) and the real SO-101 robot episode it was generated from. The human video must show a person doing the same task as the robot, so a policy can learn the task from it. Accept only if ALL of these hold:
 1. Task adherence: the person does the task in info.json (instruction, steps, goals) on the same objects, in the same order, to the same destinations, and the human video's last frames show the same end state as the robot's last frame (object positions and states: inside, on top, open/closed, folded, upright...). Partial completion, a different destination, or a different end state rejects.

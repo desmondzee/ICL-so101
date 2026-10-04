@@ -2,7 +2,7 @@
 
 Each recorded episode has robot-free first and last front-camera frames (data/so101_sim_val/frames/<task>/episode_XXX/);
 the generator gets them as start and end images with a v5-style prompt built from the task instruction: one right hand
-reaches in empty from the bottom edge, does the task, and withdraws. Videos go to
+reaches in empty from the bottom edge, does the task in the robot's order (one object at a time), and withdraws. Videos go to
 data/so101_sim_val/human/<task>/episode_XXX/seed_<k>/ (video.mp4, contact.png, meta.json). Re-running resumes queued
 requests and skips finished ones; --seed gives a fresh attempt for episodes whose earlier video was rejected.
 
@@ -38,10 +38,36 @@ def action_text(instruction: str) -> str:
     return re.sub(r"\s+", " ", " ".join(words))
 
 
-def prompt(instruction: str) -> str:
+NAMES = {"red_block": "red block", "blue_block": "blue block", "red_mug": "red mug", "white_mug": "yellow mug"}
+
+
+def grasp_order(meta: dict) -> list[str]:
+    """Objects in the order the oracle picked them up (its log records each successful grasp)."""
+    return [e[0] for e in meta.get("oracle_log", []) if len(e) == 4 and e[1] == "grasp" and e[3] == "True"]
+
+
+def task_action(meta: dict) -> str:
+    """What the hand does, in the robot's order and one object at a time; the generic instruction rewrite otherwise."""
+    order = [NAMES.get(o, o.replace("_", " ")) for o in grasp_order(meta)]
+    if meta["task"] == "sort_blocks" and len(order) == 2:
+        a, b = order
+        return (f"first picks up the {a} and sets it on the {a.split()[0]} plate, then picks up the {b} and sets it on the "
+                f"{b.split()[0]} plate")
+    if meta["task"] == "mugs_in_microwave" and len(order) == 2:
+        a, b = order
+        return (f"first picks up the {a} on its own, carries it into the open microwave and sets it down inside, then goes back, "
+                f"picks up the {b} on its own, carries it into the microwave and sets it down next to the {a}; the hand holds "
+                "one mug at a time and each mug moves only while the hand is holding it")
+    if meta["task"] == "pan_on_stove":
+        return ("grips the frying pan by its single long handle, lifts it and carries it by that same handle, keeping the pan level, "
+                "and sets it down flat on the stove's burner")
+    return action_text(meta["instruction"])
+
+
+def prompt(instruction: str, action: str | None = None) -> str:
     """The v5_exclusion prompt (humangen/context.py) with the sim task's action."""
     end = DURATION
-    action = (f"A person's single right hand and forearm reaches in empty from the bottom edge, {action_text(instruction)}, "
+    action = (f"A person's single right hand and forearm reaches in empty from the bottom edge, {action or action_text(instruction)}, "
               "then releases its grip and withdraws empty through the same edge.")
     visual = ("The camera remains fixed. The task uses only the objects already visible in Picture 1, with the same count, "
               "appearance and background throughout. One acting hand and forearm performs the task; the rest of that person "
@@ -69,7 +95,7 @@ def rows(tasks: list[str], episodes: list[int] | None, seed: int) -> list[tuple[
                 continue
             meta = json.loads((ep / "meta.json").read_text())
             key = f"{task}/{ep.name}"
-            row = {"key": key, "prompt": prompt(meta["instruction"]), "instruction": meta["instruction"], "aspect": "4:3",
+            row = {"key": key, "prompt": prompt(meta["instruction"], task_action(meta)), "instruction": meta["instruction"], "aspect": "4:3",
                    "start_data": data_url(ep / "first.png"), "end_data": data_url(ep / "last.png"), "seed": seed}
             out.append((row, OUT / task / ep.name / f"seed_{seed}"))
     return out
