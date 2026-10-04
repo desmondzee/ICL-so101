@@ -219,12 +219,17 @@ class PanOnStoveOracle(Oracle):
         pos[2] = z
         return pos, rot
 
-    def carry_path(self, phi1, n):
+    def carry_pose(self, phi1):
+        """u in [0, 1] -> TCP pose along the carry: pan-centre radius, azimuth and handle angle interpolated from the
+        pan's current state to the burner with final handle angle phi1."""
         r0, az0, phi0 = self.pan_state()
         rb, azb = np.linalg.norm(self.burner), np.arctan2(self.burner[1], self.burner[0])
+        return lambda s: self.pan_to_tcp(r0 + s * (rb - r0), az0 + s * (azb - az0), phi0 + s * (phi1 - phi0), PAN_CARRY_Z)
+
+    def carry_path(self, phi1, n):
+        pose = self.carry_pose(phi1)
         for i in range(1, n + 1):
-            s = min_jerk(i / n)
-            yield self.pan_to_tcp(r0 + s * (rb - r0), az0 + s * (azb - az0), phi0 + s * (phi1 - phi0), PAN_CARRY_Z)
+            yield pose(min_jerk(i / n))
 
     def check_path(self, phi1):
         """Max IK error along the carry path for final handle angle phi1 (and the final joint solution)."""
@@ -261,10 +266,9 @@ class PanOnStoveOracle(Oracle):
         phi1 = best[1]
         r0, az0, phi0 = self.pan_state()
         length = abs(np.linalg.norm(self.burner) - r0) + 0.25 * abs(azb - az0) + 0.06 * abs(phi1 - phi0)
-        n = max(int(np.ceil(max(1.0, length / CARRY_SPEED) / self.dt)), 1)
-        for pos, rot in self.carry_path(phi1, n):
-            self.q = self.ik(pos, rot)
-            yield self._target()
+        pose = self.carry_pose(phi1)
+        yield from self.follow(pose, max(1.0, length / CARRY_SPEED))      # min-jerk, slowed to the joint speed limits
+        pos, rot = pose(1.0)
         self._cmd_pos, self._cmd_rot = pos, rot
         yield from self.wait(0.3)
         if not env.is_grasping("pan"):

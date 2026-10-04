@@ -13,8 +13,9 @@ Oracle (side grasp): the jaws close horizontally and the approach axis points 35
 arm's plane. That plane turns about the shoulder-pan axis (x = 3.9 cm), and the TCP sits 1.35 cm to the side of
 it, so the approach azimuth is computed from the pan axis (`approach_azimuth`); a plain radial approach costs
 5-10 mm of IK error. Each mug is picked from behind with the handle pointing away from the robot (yaw spread
-+-15 deg), lifted, swung to a point 6 cm in front of its slot, slid in along the microwave's axis, released by
-opening the jaw a little, backed out horizontally along the approach axis (so the fixed finger clears the rim before
++-15 deg), lifted, swung to a point 6 cm in front of its slot (an arc around the pan axis), slid in along the
+microwave's axis on a slight slope (clearing the front lip), pressed onto the cavity floor, released by opening the
+jaw a little, backed out horizontally along the approach axis (so the fixed finger clears the rim before
 any sideways motion), and finally pulled out along the microwave's axis. At 35 deg pitch the wrist-camera mount
 clears the cavity's top edge by about 1 cm. Which mug goes first is random per seed (the oracle's RNG), but each mug
 has its own slot: the red one on the panel side, the white one on the hinge side.
@@ -54,6 +55,8 @@ OUT_DIST = 0.06  # pull-out distance along the microwave axis
 RELEASE_DELTA = 0.3  # rad opened from the measured grip on release
 LIFT_OFF = 0.006
 BACK_DIST = 0.035
+LIP_CLEAR = 0.006  # extra TCP height at the start of the slide-in
+SET_PRESS = 0.004  # how far the TCP goes on down once the mug touches the floor (as the original fixed set height did)
 UPRIGHT_COS = np.cos(np.radians(15))
 
 
@@ -146,6 +149,8 @@ class MugsInMicrowaveEnv(ValEnv):
 
 
 class MugsInMicrowaveOracle(Oracle):
+    rest_unwind = False  # the side-grasp fingers end 6 cm in front of the mugs: unwinding the roll there drags them out
+
     def __init__(self, env, rng=None):
         super().__init__(env)
         self.rng = rng or np.random.default_rng()
@@ -187,8 +192,15 @@ class MugsInMicrowaveOracle(Oracle):
         out = tgt - OUT_DIST * env.into_cavity()
         yield from self.move(self._cmd_pos + [0, 0, 0.05], self._cmd_rot, label="raise")
         yield from self.move(out + [0, 0, 0.035], rot, label="swing")
-        yield from self.move(out + [0, 0, 0.004], rot, speed=0.08, label="front")
+        # The mug slides a few mm down in the jaws on the way. Slide in on a slope, LIP_CLEAR higher at the front, so
+        # its bottom clears the cavity's front lip; the end height is unchanged (the wrist-camera mount clears the
+        # cavity's top edge by only about 1 cm there).
+        yield from self.move(out + [0, 0, 0.004 + LIP_CLEAR], rot, speed=0.08, label="front")
         yield from self.move(tgt + [0, 0, 0.004], rot, speed=0.06, label="in")
+        # Set the mug down on the cavity floor and press it SET_PRESS further, wherever it hangs in the jaws: a mug
+        # released above the floor, slightly tilted, tips or is pushed by the opening jaw.
+        gap = max(env.object_pos(name)[2] - env._extent[name]["bottom"] - env.floor_z(), 0.0)
+        tgt = np.array([tgt[0], tgt[1], min(tgt[2], self._cmd_pos[2] - gap - SET_PRESS)])
         yield from self.move(tgt, rot, speed=0.04, label="set")
         grip = float(env._get_current_qpos()[5])
         yield from self.gripper(grip + RELEASE_DELTA, 0.4, 0.3)

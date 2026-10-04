@@ -15,7 +15,7 @@ uv run python -m sim.val.preview --task sort_blocks --compare                # c
 |---|---|
 | `scene.py` | MJCF builder: arena (`kitchen`, `living_room`), LIBERO objects (`Obj`), primitive boxes (`Block`), flat discs (`Disc`), static fixtures (`Fixture`), distractor pool, lights, cameras. `CATALOG` lists the assets with upright rotations and densities. |
 | `env.py` | `ValEnv(SO101NexusMuJoCoBaseEnv)`: cameras, 30 fps stepping, object/fixture helpers, distractor placement, robot-free rendering, unit conversion. |
-| `oracle.py` | `Oracle`: IK and reusable skills (`move`, `transit`, `pick`, `place`, `gripper`, `wait`, `rest`). |
+| `oracle.py` | `Oracle`: IK and reusable skills (`move`, `follow`, `transit`, `pick`, `place`, `gripper`, `wait`, `rest`), arc paths and joint speed limits (see Motion). |
 | `record.py` | Records N successful episodes of a task to LeRobot v3. |
 | `preview.py` | Contact sheets, first/last-frame sheets, and the sim-vs-real front-camera comparison. |
 | `tasks/__init__.py` | Task registry (`TASKS`). |
@@ -33,6 +33,28 @@ uv run python -m sim.val.preview --task sort_blocks --compare                # c
 - **Gripper.** The oracle opens to 0.70 rad (about 45%; real data peaks at 40-50%) and closes toward -0.17 rad (0%). On a 2.8 cm block it stalls at about 15-20%.
 - **Cameras.** `front` is a fixed scene camera (`FRONT_CAM` in env.py). `wrist_cam` is the nexus wrist mount, overridden by `WRIST_CAM_*`. Both render at 640x480.
 - **Geom groups.** Group 2 holds exactly the robot's visual geoms; the env asserts this at build time. Scene visuals are group 1, and LIBERO collision boxes are moved to group 3, which is hidden. `render_scene_without_robot` turns group 2 off, which removes the robot and its shadow, because hidden geoms never enter the shadow pass.
+
+## Motion (smooth, teleop-like)
+
+- **Arcs around the pan axis.** `Oracle.move` interpolates radius, azimuth and height about the shoulder-pan axis
+  (x = 0.0388, y = 0) instead of a straight line whenever the line would dip more than 5 mm closer to that axis than its
+  end points (`tcp_path`, `ARC_SAG`). A straight carry between the two sides of the robot passes near the axis, a
+  singularity where a few mm of sideways motion needs ~100 deg of pan in a fraction of a second. Short moves (lift,
+  lower, slide-ins) stay straight; `move(..., arc=True/False)` forces either.
+- **Joint speed limits.** `VMAX` = 70 deg/s (pan, lift, elbow) and 90 deg/s (wrist flex, roll). Every Cartesian move
+  (`follow`) samples its joint path through the IK first and stretches its min-jerk duration so no joint exceeds
+  `VMAX`; `joint_move`/`transit`/`rest` do the same in joint space. Segments start and end at rest (min-jerk), so
+  velocity never steps. `actions()` keeps a last-resort guard that splits any frame-to-frame jump above `VMAX`
+  (`oracle.limited` counts the extra frames; normally 0-10 per episode, from IK settling). The gripper is not limited.
+  Result: shoulder-pan travel within any 0.5 s is <= ~35 deg (was 35-99; real teleop typically 22-32), all-joint
+  travel <= ~43 deg, per-frame arm steps typically 2.5-3 deg (at most ~5). Episodes are 10-40% longer.
+- **Rest.** `rest()` unwinds the wrist roll in place before folding (`rest_unwind`): folding with the roll far from
+  zero swings the wrist-camera mount into the shoulder, where the arm sticks and then snaps free.
+  `mugs_in_microwave` turns this off (its fingers end next to the placed mugs).
+- Task carries: `stack_bowls.arc_move` is `move(arc=True)`; `pan_on_stove` keeps its pan-centre polar carry and runs
+  it through `follow`; `mugs_in_microwave` slides in on a slope (6 mm higher at the front, for the cavity lip) and
+  presses each mug onto the cavity floor before release, because slower transport leaves the small red mug hanging
+  differently in the jaws.
 
 ## ValEnv API
 

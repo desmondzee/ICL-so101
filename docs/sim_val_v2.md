@@ -1,6 +1,6 @@
-# SO-101 simulated validation pairs (sim_val_v1)
+# SO-101 simulated validation pairs (sim_val_v2)
 
-50 human-robot pairs over 5 tasks (15 min of robot data). None of these tasks is in the training set (`curated_humangen_v1`). Each pair joins a scripted-oracle SO-101 episode recorded in MuJoCo (`sim/val`, built on so101-nexus with LIBERO assets) with a generated video of a person doing the same task in the same scene. Every scene also has 2-4 distractor objects that the oracle never touches.
+50 human-robot pairs over 5 tasks (20 min of robot data). None of these tasks is in the training set (`curated_humangen_v1`). Each pair joins a scripted-oracle SO-101 episode recorded in MuJoCo (`sim/val`, built on so101-nexus with LIBERO assets) with a generated video of a person doing the same task in the same scene. Every scene also has 2-4 distractor objects that the oracle never touches.
 
 Viewer: https://desmondzee.github.io/ICL-so101/#val/sort_blocks (grid) and https://desmondzee.github.io/ICL-so101/viewer.html#val/all/1 (one pair at a time)
 
@@ -11,6 +11,12 @@ Viewer: https://desmondzee.github.io/ICL-so101/#val/sort_blocks (grid) and https
 | `pan_on_stove` | Put the frying pan on the stove. | 10 |
 | `sort_blocks` | Put the red block on the red plate and the blue block on the blue plate. | 10 |
 | `stack_bowls` | Put the white bowl in the black bowl. | 10 |
+
+**v2 (2026-10-05):** the same 50 scenes and human demos as v1, with smoother robot motion.
+- **Arc carries:** carries now arc around the shoulder-pan axis instead of passing near it (a singularity). In v1 this made the base swing about 120 deg in under a second in some mug-on-plate episodes.
+- **Speed limits:** joint speed is capped at 70 deg/s (pan, lift, elbow) and 90 deg/s (wrist), with minimum-jerk timing. Base rotation in any 0.5 s window is now at most 35 deg (v1: up to 99 deg), close to real teleop.
+- **Wrist unwind:** the wrist roll unwinds before folding to rest, which stops the camera mount snagging on the shoulder.
+- **What did not change:** the first frames are pixel-identical to v1, and the end states match within about 1 cm and 13 deg. The human demos are unchanged.
 
 ## How it was made
 

@@ -18,6 +18,12 @@ SPEED = 0.16
 FIXED_FACE = 0.0199
 ROT_WEIGHT = 0.1
 IK_ITERS = 40
+# Motion limits, so the recorded motion looks like real SO-101 teleop rather than a fast scripted arm.
+PAN_AXIS = np.array([0.0388, 0.0])                   # shoulder-pan axis (xy) in the base frame
+VMAX = np.radians([70.0, 70.0, 70.0, 90.0, 90.0])   # peak joint speed (rad/s): pan, lift, elbow, wrist flex, roll
+MJ_PEAK = 1.875                                     # peak of d/du min_jerk(u)
+ARC_SAG = 0.005                                     # a straight TCP move dipping this much closer to the pan axis than its ends arcs
+PATH_SAMPLES = 24                                    # IK samples used to time a Cartesian path
 
 
 def top_down_mat(angle):
@@ -46,8 +52,38 @@ def min_jerk(t):
     return 10 * t**3 - 15 * t**4 + 6 * t**5
 
 
+def tcp_path(start, end, arc=None):
+    """Position path u -> xyz (u in [0, 1]) from `start` to `end`, and its length.
+
+    A straight line, unless the line would dip more than ARC_SAG closer to the shoulder-pan axis than its end points
+    (or `arc` is True): then radius, azimuth and height about the pan axis are interpolated, so the TCP stays at least
+    min(r0, r1) from it. A straight line between the two sides of the robot passes close to the pan axis, a kinematic
+    singularity where a tiny sideways step needs a huge pan rotation. Short moves (lift, lower, slide-ins) stay
+    straight."""
+    start, end = np.asarray(start, float), np.asarray(end, float)
+    d0, d1 = start[:2] - PAN_AXIS, end[:2] - PAN_AXIS
+    r0, r1 = np.hypot(*d0), np.hypot(*d1)
+    a0 = np.arctan2(d0[1], d0[0])
+    turn = np.angle(np.exp(1j * (np.arctan2(d1[1], d1[0]) - a0)))
+    if arc is None:
+        seg = d1 - d0
+        t = float(np.clip(-d0 @ seg / max(seg @ seg, 1e-12), 0.0, 1.0))
+        closest = float(np.hypot(*(d0 + t * seg)))                  # straight line's closest approach to the axis
+        arc = closest < min(r0, r1) - ARC_SAG and min(r0, r1) > 0.05
+    if not arc:
+        return (lambda u: start + u * (end - start)), float(np.linalg.norm(end - start))
+
+    def path(u):
+        r, a = r0 + u * (r1 - r0), a0 + u * turn
+        return np.array([PAN_AXIS[0] + r * np.cos(a), PAN_AXIS[1] + r * np.sin(a), start[2] + u * (end[2] - start[2])])
+
+    return path, float(np.hypot(np.hypot(r1 - r0, end[2] - start[2]), 0.5 * (r0 + r1) * abs(turn)))
+
+
 class Oracle:
     """Base scripted policy. Subclasses implement `plan()` as a generator of joint targets using the skills."""
+
+    rest_unwind = True
 
     def __init__(self, env):
         self.env = env
@@ -103,14 +139,29 @@ class Oracle:
         self.q, self.grip = qpos[:5].copy(), float(qpos[5])
         self._cmd_pos, self._cmd_rot = self.tcp(), self.tcp_rot()
 
-    def move(self, pos, rot, speed=SPEED, tol=0.004, settle=0.6, label=""):
-        """Min-jerk Cartesian move of the TCP to `pos`/`rot`, then wait (up to `settle` s) for the arm to arrive."""
-        start, rot0 = self._cmd_pos.copy(), self._cmd_rot.copy()
-        n = max(int(np.ceil(max(0.35, np.linalg.norm(pos - start) / speed) / self.dt)), 1)
+    def follow(self, pose, seconds, vmax=VMAX):
+        """Track the TCP path `pose(u) -> (pos, rot)`, u in [0, 1], with min-jerk timing over at least `seconds`,
+        stretched so that no arm joint exceeds `vmax` (the joint path is sampled through the IK first, starting from
+        the settled IK solution at u = 0, so an IK settling step does not count as path speed)."""
+        q = self.ik(*pose(0.0), seed=self.q)
+        qs = [q]
+        for i in range(1, PATH_SAMPLES + 1):
+            q = self.ik(*pose(i / PATH_SAMPLES), seed=q)
+            qs.append(q)
+        rate = np.abs(np.diff(qs, axis=0)).max(0) * PATH_SAMPLES       # max |dq/du| per joint
+        seconds = max(seconds, MJ_PEAK * float(np.max(rate / vmax)))
+        n = max(int(np.ceil(seconds / self.dt)), 1)
         for i in range(1, n + 1):
-            s = min_jerk(i / n)
-            self.q = self.ik(start + s * (pos - start), interp_rot(rot0, rot, s))
+            self.q = self.ik(*pose(min_jerk(i / n)))
             yield self._target()
+
+    def move(self, pos, rot, speed=SPEED, tol=0.004, settle=0.6, label="", arc=None, vmax=VMAX):
+        """Min-jerk Cartesian move of the TCP to `pos`/`rot`, then wait (up to `settle` s) for the arm to arrive.
+        Moves that turn about the pan axis follow an arc around it (`tcp_path`); the timing respects VMAX."""
+        start, rot0 = self._cmd_pos.copy(), self._cmd_rot.copy()
+        pos = np.asarray(pos, float)
+        path, length = tcp_path(start, pos, arc)
+        yield from self.follow(lambda u: (path(u), interp_rot(rot0, rot, u)), max(0.35, length / speed), vmax)
         self.q = self.ik(pos, rot)
         for _ in range(int(settle / self.dt)):
             if np.linalg.norm(self.tcp() - pos) < tol:
@@ -133,10 +184,12 @@ class Oracle:
             yield self._target()
 
     def joint_move(self, q_target, seconds=1.5, grip=None):
-        """Min-jerk joint-space move of the arm (and optionally the gripper)."""
+        """Min-jerk joint-space move of the arm (and optionally the gripper), slowed down if needed so no arm joint
+        exceeds VMAX."""
         q0, g0 = self.q.copy(), self.grip
         g1 = g0 if grip is None else grip
-        n = int(seconds / self.dt)
+        seconds = max(seconds, MJ_PEAK * float(np.max(np.abs(q_target - q0) / VMAX)))
+        n = max(int(np.ceil(seconds / self.dt - 1e-9)), 1)
         for i in range(1, n + 1):
             s = min_jerk(i / n)
             self.q, self.grip = q0 + s * (q_target - q0), g0 + s * (g1 - g0)
@@ -148,7 +201,14 @@ class Oracle:
         self._cmd_rot = d.site_xmat[self.env._tcp_site_id].reshape(3, 3).copy()
 
     def rest(self, seconds=1.8):
+        """Joint-space move to the rest pose. The wrist roll is unwound first, in place: folding the arm with the roll
+        far from zero swings the wrist-camera mount into the shoulder (the arm then sticks and snaps free). Oracles
+        whose last pose leaves the fingers next to placed objects set `rest_unwind = False`."""
         rest = np.radians(np.array(REST_DEG))
+        if self.rest_unwind and abs(self.q[4] - rest[4]) > np.radians(20):
+            q = self.q.copy()
+            q[4] = rest[4]
+            yield from self.joint_move(q, 0.6)
         yield from self.joint_move(rest[:5], seconds, grip=rest[5])
         yield from self.wait(0.5)
 
@@ -249,5 +309,14 @@ class Oracle:
         raise NotImplementedError
 
     def actions(self):
+        """The plan's joint targets, with a last-resort speed guard: a target further than VMAX allows in one frame
+        (e.g. an IK branch switch) is reached through linearly interpolated extra frames. `self.limited` counts them."""
         self.start()
-        yield from self.plan()
+        prev, self.limited = self._target(), 0
+        for target in self.plan():
+            k = int(np.ceil(float(np.max(np.abs(target[:5] - prev[:5]) / (VMAX * self.dt))) - 1e-9))
+            for i in range(1, k):
+                self.limited += 1
+                yield prev + (i / k) * (target - prev)
+            yield target
+            prev = target

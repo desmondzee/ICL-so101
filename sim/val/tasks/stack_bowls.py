@@ -15,7 +15,7 @@ from __future__ import annotations
 import numpy as np
 
 from sim.val.env import ValEnv
-from sim.val.oracle import CARRY_Z, OPEN, Oracle, min_jerk
+from sim.val.oracle import CARRY_Z, OPEN, Oracle
 from sim.val.scene import Obj, SceneSpec
 
 INNER, OUTER = "white_bowl", "black_bowl"
@@ -135,26 +135,11 @@ class StackBowlsOracle(Oracle):
         return False
 
     def arc_move(self, pos, speed=0.16, settle=0.6, label="arc"):
-        """Min-jerk move of the TCP to `pos` along an arc around the base (radius, azimuth and height interpolated)
-        with the orientation turned with the azimuth. A straight Cartesian carry between the left and right of the
-        table passes close to the base, where the arm sags and the hanging bowl hits whatever is below."""
-        start, rot0 = self._cmd_pos.copy(), self._cmd_rot.copy()
-        r0, a0 = np.hypot(*start[:2]), np.arctan2(start[1], start[0])
-        r1, a1 = np.hypot(*pos[:2]), np.arctan2(pos[1], pos[0])
-        length = np.hypot(np.hypot(r1 - r0, pos[2] - start[2]), 0.5 * (r0 + r1) * abs(a1 - a0))
-        n = max(int(np.ceil(max(0.35, length / speed) / self.dt)), 1)
-        for i in range(1, n + 1):
-            u = min_jerk(i / n)
-            r, a, z = r0 + u * (r1 - r0), a0 + u * (a1 - a0), start[2] + u * (pos[2] - start[2])
-            self.q = self.ik(np.array([r * np.cos(a), r * np.sin(a), z]), _rotz(a - a0) @ rot0)
-            yield self._target()
-        rot = _rotz(a1 - a0) @ rot0
-        for _ in range(int(settle / self.dt)):
-            if np.linalg.norm(self.tcp() - pos) < 0.004:
-                break
-            yield self._target()
-        self._cmd_pos, self._cmd_rot = np.asarray(pos, float).copy(), rot
-        self.log.append((label, round(float(np.linalg.norm(self.tcp() - pos)) * 1000, 1)))
+        """Move of the TCP to `pos` along an arc around the shoulder-pan axis (radius, azimuth and height
+        interpolated, `Oracle.move(arc=True)`) with the orientation turned with the azimuth. A straight Cartesian carry
+        between the left and right of the table passes close to the base, where the arm sags and the hanging bowl hits
+        whatever is below."""
+        yield from self.move(pos, self.carry_rot(pos[:2]), speed=speed, settle=settle, label=label, arc=True)
 
     def predict(self, pos, rot):
         """Where the held object's origin ends up if the TCP is commanded to `pos`/`rot`: the IK compromise tilts

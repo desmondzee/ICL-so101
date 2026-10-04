@@ -2,7 +2,7 @@
 
 Takes, per task, the first 10 recorded episodes whose human demo passed the Opus judge and verifier
 (data/so101_sim_val/verdicts/approved.json), re-records exactly those seeds into clean LeRobot datasets and writes
-data/so101_sim_val_v1/:
+data/so101_sim_val_v2/:
 
     lerobot/<task>/                     front + wrist, 30 fps, the training-data columns (episodes 0-9)
     frames/<task>/episode_XXX/          robot-free first.png / last.png and the oracle meta.json
@@ -11,7 +11,7 @@ data/so101_sim_val_v1/:
     index.json, README.md
 
     uv run python -m sim.val.package [--skip-record]
-    uv run --with huggingface_hub hf buckets sync data/so101_sim_val_v1 hf://buckets/akoniti/ICL-so101/sim_val_v1 --delete
+    uv run --with huggingface_hub hf buckets sync data/so101_sim_val_v2 hf://buckets/akoniti/ICL-so101/sim_val_v2 --delete
 """
 
 import argparse
@@ -26,8 +26,8 @@ from sim.val.record import record
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "data" / "so101_sim_val"
-OUT = ROOT / "data" / "so101_sim_val_v1"
-BUCKET = "akoniti/ICL-so101/sim_val_v1"
+OUT = ROOT / "data" / "so101_sim_val_v2"
+BUCKET = "akoniti/ICL-so101/sim_val_v2"
 PER_TASK = 10
 CAMS = ("front", "wrist")
 
@@ -93,7 +93,7 @@ def package_episode(task, i, sel, review, eps_meta, data):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--skip-record", action="store_true", help="reuse data/so101_sim_val_v1/lerobot")
+    ap.add_argument("--skip-record", action="store_true", help="reuse the lerobot/ folder already in OUT")
     a = ap.parse_args()
     sel, reviews = selection(), verdicts()
     if not a.skip_record:
@@ -114,7 +114,7 @@ def main():
         episodes += mine
         tasks.append({"task": task, "instruction": mine[0]["instruction"], "episodes": len(mine), "views": list(CAMS),
                       "instructions": sorted({e["instruction"] for e in mine})})
-    index = {"name": "SO-101 simulated validation pairs", "version": "v1",
+    index = {"name": "SO-101 simulated validation pairs", "version": "v2",
              "base_url": f"https://huggingface.co/buckets/{BUCKET.rsplit('/', 1)[0]}/resolve/{BUCKET.rsplit('/', 1)[1]}/",
              "episodes_total": len(episodes), "tasks_total": len(tasks), "tasks": tasks, "episodes": episodes}
     (OUT / "index.json").write_text(json.dumps(index, indent=1))
