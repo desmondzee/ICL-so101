@@ -113,3 +113,15 @@ low velocity, because `record.py` keeps only seeds where it holds at the end of 
 - **Distractors** must not overlap task objects. Parked distractors sit on the floor at x = 20 m, out of view. `object_poses()` reports only the active ones.
 - **Determinism.** A rollout is a pure function of the seed: the oracle's own RNG is `np.random.default_rng(seed)`, and rendering doesn't touch physics. `record.py` relies on this; it screens each seed without rendering, then re-runs only the seeds that succeed with rendering on.
 - **Rendering.** It uses the default macOS GL (no `MUJOCO_GL` needed). On Linux, set `MUJOCO_GL=egl`.
+
+## Notes from building tasks 2-5
+
+- Scripts that call `record()` need an `if __name__ == "__main__":` guard: LeRobot's video encoder starts worker processes, which re-import the script on macOS (`BrokenProcessPool` otherwise).
+- `rest()` moves in joint space and the folded gripper and wrist-camera mount sweep low near (0.15, 0) and around x 0.12-0.17, y 0.04-0.08: keep tall objects and placement targets clear of that area, or go through a raised TCP waypoint (e.g. (0.16, 0, 0.12)) first. `mug_on_plate` and `stack_bowls` do this.
+- `footprint()` is the bounding-box corner radius; for round objects the true radius is about `footprint / sqrt(2)`.
+- Per-seed instructions: a task may set `self.instruction` inside `layout()` (`mug_on_plate` picks the named plate per seed); `record.py` stores it per episode.
+- The frying pan at 0.5x is about 18 cm long including the handle (not 28 cm). The stove's origin is its knob; the burner is 7.5 cm along its local x, and the stove must sit at z = 0.01 to rest on the table.
+- The microwave opening must not face the robot (the front camera would see its back); `mugs_in_microwave` turns it sideways at 1.0x, pins the door flat behind the robot at -3.0 rad, and uses a side grasp (`side_pick`) because a top-down grasp does not fit the 14 cm cavity. The wrist-camera mount sets the minimum cavity height.
+- Rotations about the base should use the shoulder-pan axis at x = 0.0388, not the base origin.
+- `data.contact` only holds the last of the 7 physics substeps of a frame; fast collisions can be missed when debugging.
+- Tasks override `ik` for a different orientation weight (`pan_on_stove` uses 0.6 to keep the pan level) and add their own keep-outs (`stack_bowls` adds the wrist-camera mount at rest).

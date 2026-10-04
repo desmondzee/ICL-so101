@@ -50,7 +50,7 @@ def run(model, endpoint, row, token, destination=None):
     if meta['status'] == 'complete':
         return
     try:
-        payload = dict(prompt=row['prompt'], image_url=row['start_data'], end_image_url=row['end_data'], seed=0)
+        payload = dict(prompt=row['prompt'], image_url=row['start_data'], end_image_url=row['end_data'], seed=row.get('seed', 0))
         if model == 'seedance_1_5_pro':
             payload.update(resolution='480p', duration='5', generate_audio=False, camera_fixed=True, aspect_ratio=row['aspect'])
         else:

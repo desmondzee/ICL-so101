@@ -4,6 +4,10 @@ import importlib
 
 TASKS = {
     "sort_blocks": "sim.val.tasks.sort_blocks:SortBlocksEnv:SortBlocksOracle",
+    "stack_bowls": "sim.val.tasks.stack_bowls:StackBowlsEnv:StackBowlsOracle",
+    "mug_on_plate": "sim.val.tasks.mug_on_plate:MugOnPlateEnv:MugOnPlateOracle",
+    "mugs_in_microwave": "sim.val.tasks.mugs_in_microwave:MugsInMicrowaveEnv:MugsInMicrowaveOracle",
+    "pan_on_stove": "sim.val.tasks.pan_on_stove:PanOnStoveEnv:PanOnStoveOracle",
 }
 
 
