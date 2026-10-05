@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+from dataclasses import replace
 
 import mujoco
 import numpy as np
@@ -44,7 +45,8 @@ class ValEnv(SO101NexusMuJoCoBaseEnv):
     distractor_region = dict(r=(0.13, 0.34), angle=(-62, 62))
     keepout = ((np.array([0.0, 0.0]), 0.10), (np.array([0.15, 0.0]), 0.045))
 
-    def __init__(self, render_images=True, control_mode="pd_joint_pos", robot_init_qpos_noise=0.02):
+    def __init__(self, render_images=True, control_mode="pd_joint_pos", robot_init_qpos_noise=0.02,
+                 *, visual_config=None):
         config = EnvironmentConfig(
             spawn_center=(0.25, 0.0),
             spawn_max_radius=0.15,
@@ -55,8 +57,11 @@ class ValEnv(SO101NexusMuJoCoBaseEnv):
         )
         self._init_common(config=config, render_mode=None, control_mode=control_mode, robot_init_qpos_noise=robot_init_qpos_noise)
         self.scene = self.make_scene()
+        self.visual_config = visual_config
+        if visual_config is not None:
+            self.scene = replace(self.scene, arena=visual_config.arena)
         cams = [camera_xml("front", FRONT_CAM["pos"], FRONT_CAM["lookat"], FRONT_CAM["fovy"])]
-        xml = build_scene_xml(self.scene, cams)
+        xml = build_scene_xml(self.scene, cams, visual_config=visual_config)
         with tempfile.NamedTemporaryFile("w", suffix=".xml", dir=get_so101_mujoco_model_dir()) as f:
             f.write(xml)
             f.flush()

@@ -344,11 +344,12 @@ def camera_xml(name, pos, lookat, fovy):
     return f'<camera name="{name}" mode="fixed" pos="{" ".join(f"{v:.6g}" for v in pos)}" xyaxes="{xy}" fovy="{fovy}"/>'
 
 
-def build_scene_xml(spec: SceneSpec, cameras: list[str] = ()) -> str:
+def build_scene_xml(spec: SceneSpec, cameras: list[str] = (), *, visual_config=None) -> str:
     """MJCF string for `spec`; `cameras` are extra <camera> elements placed in the worldbody."""
-    cfg = ARENAS[spec.arena]
-    arena = _arena(spec.arena)
-    mj = ET.Element("mujoco", model=f"so101_val_{spec.arena}")
+    arena_name = spec.arena if visual_config is None else visual_config.arena
+    cfg = ARENAS[arena_name]
+    arena = _arena(arena_name)
+    mj = ET.Element("mujoco", model=f"so101_val_{arena_name}")
     ET.SubElement(mj, "include", file=str(get_so101_mujoco_model_path()))
     mj.extend(_fragment(MUJOCO_SCENE_OPTION_XML + VISUAL_XML))
     asset = ET.SubElement(mj, "asset")
@@ -357,10 +358,26 @@ def build_scene_xml(spec: SceneSpec, cameras: list[str] = ()) -> str:
         '<material name="val_fabric" specular="0.02" shininess="0.0" reflectance="0"/>'))
     worldbody = ET.SubElement(mj, "worldbody")
     world = ET.SubElement(worldbody, "body", name="arena")
-    _set(world, "pos", [-cfg["robot_xy"][0], -cfg["robot_xy"][1], -table_top_z(spec.arena)])
+    _set(world, "pos", [-cfg["robot_xy"][0], -cfg["robot_xy"][1], -table_top_z(arena_name)])
+    if visual_config is not None:
+        for texture in arena.find("asset").iter("texture"):
+            if texture.get("type") == "skybox":
+                _set(texture, "rgb1", visual_config.background.skybox_top)
+                _set(texture, "rgb2", visual_config.background.skybox_bottom)
     asset.extend(arena.find("asset"))
     world.extend(el for el in arena.find("worldbody") if el.tag not in ("camera", "light"))
     worldbody.extend(_fragment(LIGHTS_XML + "".join(cameras)))
+    if visual_config is not None:
+        for camera in list(worldbody.findall("camera")):
+            if camera.get("name") == "front":
+                worldbody.remove(camera)
+        front = visual_config.front_camera
+        worldbody.extend(_fragment(camera_xml("front", front.pos, front.lookat, front.fovy)))
+        for sampled in visual_config.lights:
+            light = worldbody.find(f"light[@name='{sampled.name}']")
+            _set(light, "pos", sampled.pos)
+            _set(light, "dir", np.array([0.18, 0.0, 0.0]) - sampled.pos)
+            _set(light, "diffuse", np.array(sampled.color) * sampled.intensity)
     for spec_obj in spec.free_bodies:
         _free_body(mj, asset, worldbody, spec_obj)
     for fx in spec.fixtures:
