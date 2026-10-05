@@ -27,4 +27,7 @@ schema = [
 ]
 
 [dependency-groups]
-dev = []
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
