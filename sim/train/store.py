@@ -52,6 +52,13 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(_json_bytes(value)).hexdigest()
 
 
+def _normalize_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
+    """Snapshot the JSON value that will be persisted, including tuple arrays."""
+    if not isinstance(evidence, dict) or any(not isinstance(key, str) for key in evidence):
+        raise ValueError("evidence must be a JSON object with string keys")
+    return json.loads(_json_bytes(evidence))
+
+
 def _evidence_hashes(evidence: dict[str, Any]) -> dict[str, str]:
     if not isinstance(evidence, dict) or any(not isinstance(key, str) for key in evidence):
         raise ValueError("evidence must be a JSON object with string keys")
@@ -64,6 +71,15 @@ def _timestamp() -> str:
 
 def _valid_hash(value: Any) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
+def _control_path(relative: Path) -> bool:
+    """Workflow records, locks and unfinished outputs are never source artifacts."""
+    return (
+        relative in (Path("state.json"), Path("manifest.json"))
+        or relative.parts[0] == "human_attempts"
+        or any(part.endswith((".lock", ".tmp")) for part in relative.parts)
+    )
 
 
 @contextmanager
@@ -160,13 +176,23 @@ class EpisodeStore:
         if not isinstance(hashes, dict):
             raise EvidenceMismatch("artifact_hashes must map relative paths to SHA-256 hashes")
         directory = self.episode_dir(key).resolve()
+        controls = {
+            (directory / name).resolve()
+            for name in ("state.json", "manifest.json", ".state.json.lock", ".manifest.json.lock")
+        }
+        attempts = (directory / "human_attempts").resolve()
         for name, expected in hashes.items():
             if not isinstance(name, str) or not name or not _valid_hash(expected):
                 raise EvidenceMismatch("invalid artifact path/hash")
             relative = Path(name)
             artifact = directory / relative
-            if relative.is_absolute() or ".." in relative.parts or not artifact.resolve().is_relative_to(directory):
+            resolved = artifact.resolve()
+            if relative.is_absolute() or ".." in relative.parts or not resolved.is_relative_to(directory):
                 raise EvidenceMismatch(f"artifact escapes episode directory: {name}")
+            if (resolved == directory or _control_path(relative)
+                    or _control_path(resolved.relative_to(directory))
+                    or resolved in controls or resolved.is_relative_to(attempts)):
+                raise EvidenceMismatch(f"workflow/control file cannot be artifact evidence: {name}")
             try:
                 actual = sha256_file(artifact)
             except OSError as exc:
@@ -259,13 +285,14 @@ class EpisodeStore:
     def transition(self, key: EpisodeKey, expected: EpisodeState, target: EpisodeState,
                    evidence: dict[str, Any]) -> EpisodeRecord:
         expected, target = EpisodeState(expected), EpisodeState(target)
+        evidence = _normalize_evidence(evidence)
         with self._locked():
             record = self._load(key)
             hashes = self._check_evidence(key, evidence)
             # A completed edge may be replayed even after later gates advanced.
             for entry in record.history:
                 if entry["old_state"] == expected.value and entry["new_state"] == target.value:
-                    if entry["evidence"] != evidence or entry["evidence_hashes"] != hashes:
+                    if _json_bytes(entry["evidence"]) != _json_bytes(evidence) or entry["evidence_hashes"] != hashes:
                         raise EvidenceMismatch("completed transition has different evidence")
                     return record
             if record.state is not expected or not _legal(expected, target):
@@ -288,13 +315,14 @@ class EpisodeStore:
         """
         if not isinstance(attempt_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", attempt_id):
             raise ValueError("attempt_id must be a filesystem-safe identifier")
+        evidence = _normalize_evidence(evidence)
         with self._locked():
             record = self._load(key)
             hashes = self._check_evidence(key, evidence)
             path = self.episode_dir(key) / "human_attempts" / f"{attempt_id}.json"
             if path.exists():
                 previous = _read_json(path)
-                if previous["evidence"] != evidence or previous["evidence_hashes"] != hashes:
+                if _json_bytes(previous["evidence"]) != _json_bytes(evidence) or previous["evidence_hashes"] != hashes:
                     raise EvidenceMismatch("human attempt already has different evidence")
                 return record
             if record.state not in _PATH[3:8]:

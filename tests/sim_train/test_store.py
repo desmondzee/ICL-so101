@@ -275,3 +275,74 @@ def test_candidate_resume_requires_identical_json_types(tmp_path):
     with pytest.raises(ManifestConflict):
         store.create_candidate(EpisodeManifest(key, "a" * 64, metadata={"variant": True}))
     assert store.manifest_path(key).read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["transition", "human_attempt"])
+def test_tuple_evidence_has_idempotent_json_replay(candidate, operation):
+    store, key = candidate
+    evidence = {"inspected_frames": (0, 10, 20), "review": {"issues": ()}}
+    normalized = {"inspected_frames": [0, 10, 20], "review": {"issues": []}}
+    if operation == "transition":
+        def persist(value):
+            return store.transition(key, EpisodeState.CANDIDATE, EpisodeState.RECORDED, value)
+
+        path = store.state_path(key)
+    else:
+        for old, new in [
+            (EpisodeState.CANDIDATE, EpisodeState.RECORDED),
+            (EpisodeState.RECORDED, EpisodeState.PHYSICS_APPROVED),
+            (EpisodeState.PHYSICS_APPROVED, EpisodeState.ROBOT_APPROVED),
+        ]:
+            store.transition(key, old, new, {})
+
+        def persist(value):
+            return store.record_human_attempt(key, "attempt-tuple", value)
+
+        path = store.episode_dir(key) / "human_attempts" / "attempt-tuple.json"
+    persist(evidence)
+    before = path.read_bytes()
+    persist(evidence)
+    persist(normalized)
+    assert path.read_bytes() == before
+    with pytest.raises(EvidenceMismatch):
+        persist({"inspected_frames": (0, 10, 21), "review": {"issues": ()}})
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["transition", "human_attempt"])
+@pytest.mark.parametrize("alias", [False, True], ids=["direct", "symlink"])
+@pytest.mark.parametrize("control", [
+    "state.json", "manifest.json", ".state.json.lock", "scratch.tmp", "human_attempts/existing.json",
+])
+def test_workflow_files_cannot_be_artifact_evidence(candidate, operation, alias, control):
+    store, key = candidate
+    for old, new in [
+        (EpisodeState.CANDIDATE, EpisodeState.RECORDED),
+        (EpisodeState.RECORDED, EpisodeState.PHYSICS_APPROVED),
+        (EpisodeState.PHYSICS_APPROVED, EpisodeState.ROBOT_APPROVED),
+    ]:
+        store.transition(key, old, new, {})
+    store.record_human_attempt(key, "existing", {"status": "failed"})
+    directory = store.episode_dir(key)
+    target = directory / control
+    if not target.exists():
+        target.write_bytes(b"temporary workflow data")
+    name = control
+    if alias:
+        link = directory / "evidence-alias.json"
+        link.symlink_to(target)
+        name = link.name
+    evidence = {"artifact_hashes": {name: sha256_file(target)}}
+    before_state = store.state_path(key).read_bytes()
+    before_manifest = store.manifest_path(key).read_bytes()
+    before_attempt = (directory / "human_attempts" / "existing.json").read_bytes()
+    with pytest.raises(EvidenceMismatch):
+        if operation == "transition":
+            store.transition(key, EpisodeState.ROBOT_APPROVED, EpisodeState.HUMAN_SUBMITTED, evidence)
+        else:
+            store.record_human_attempt(key, "new", evidence)
+    assert store.state_path(key).read_bytes() == before_state
+    assert store.manifest_path(key).read_bytes() == before_manifest
+    assert (directory / "human_attempts" / "existing.json").read_bytes() == before_attempt
+    assert not (directory / "human_attempts" / "new.json").exists()
+    assert store.load(key).state is EpisodeState.ROBOT_APPROVED
