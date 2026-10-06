@@ -37,6 +37,7 @@ from .store import EpisodeStore, EvidenceMismatch, StoreError, atomic_write_json
 REQUEST_NAME = "robot_review_request.json"
 SHEET_DIR = "review"
 THUMB = (320, 240)
+SELECT_CHUNK = 40
 COLUMNS, ROWS = 6, 4
 FILLER_S = 1.0
 FINAL_S = 1.0
@@ -97,6 +98,8 @@ def extract_frames(video: Path, frames: list[int], size=THUMB) -> list[Image.Ima
     """Decode exactly the requested frame indices (one ffmpeg pass, frame-accurate select)."""
     if not frames:
         return []
+    if len(frames) > SELECT_CHUNK:
+        return [im for i in range(0, len(frames), SELECT_CHUNK) for im in extract_frames(video, frames[i:i + SELECT_CHUNK], size)]
     expr = "+".join(f"eq(n\\,{f})" for f in frames)
     raw = subprocess.run(
         ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", str(video), "-vf",
