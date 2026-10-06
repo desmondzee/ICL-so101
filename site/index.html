@@ -49,6 +49,19 @@
       <div class="more" id="val-more"></div>
     </section>
 
+    <section id="simtrain">
+      <h2><span class="sq"></span>Training (simulation).</h2>
+      <p>Simulated training data, separate from the real training pairs above and from the held-out simulated validation set.
+        Scripted SO-101 episodes recorded in MuJoCo over many task definitions, with lighting, background and front-camera pose
+        varied per episode. Every robot episode passed a physics check and a two-stage robot-video review before its human video
+        was generated; every human video then passed a judge and an independent verifier. The set grows as review batches finish.</p>
+      <p class="stats" id="sim-stats"></p>
+      <div class="tabs" id="sim-tabs" role="tablist"></div>
+      <div class="task-head" id="sim-head"></div>
+      <div class="pairs" id="sim-pairs"></div>
+      <div class="more" id="sim-more"></div>
+    </section>
+
     <section>
       <h2><span class="sq"></span>How pairs were selected.</h2>
       <p>Every accepted robot episode has one generated demo. For each task, candidates were drawn from across the episodes and

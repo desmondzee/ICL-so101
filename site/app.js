@@ -1,6 +1,7 @@
-// One-page viewer for the SO-101 HumanGen pairs: the real training set and the simulated validation set. The indexes ship
+// One-page viewer for the SO-101 HumanGen pairs: the real training set, the simulated validation set and the simulated
+// training set. The indexes ship
 // with the site; videos and thumbnails stream from the public HF bucket (each index's base_url). The selected task of
-// each gallery is kept in the URL hash (#<task> for training, #val/<task> for validation).
+// each gallery is kept in the URL hash (#<task> for training, #val/<task> for validation, #sim/<task> for simulated training).
 
 const PAGE = 6  // pairs shown before "Show more" (three rows of two)
 
@@ -24,7 +25,8 @@ const LABELS = {
 }
 const short = (task) => LABELS[task] || task.replace(/^[^_]+__/, '').replace(/[_-]+/g, ' ')
 
-// A gallery: task tabs, a heading and the pairs of the selected task. prefix is '' (training) or 'val/' (validation).
+// A gallery: task tabs, a heading and the pairs of the selected task. prefix is '' (training), 'val/' (validation) or
+// 'sim/' (simulated training).
 function gallery(data, ids, prefix) {
   let shown = PAGE
   const url = (ep, file) => `${data.base_url}episodes/${ep.id}/${file}`
@@ -57,7 +59,7 @@ function gallery(data, ids, prefix) {
     const sel = $(ids.tabs).querySelector('[aria-selected="true"]')  // keep it in view when the row scrolls (phones)
     if (sel) $(ids.tabs).scrollLeft = sel.offsetLeft - $(ids.tabs).offsetLeft - 16
     const instr = t.instructions && t.instructions.length > 1 ? `${t.instruction} (the plate varies per episode)` : t.instruction
-    $(ids.head).innerHTML = `<h3>${esc(cap(instr))}</h3><span class="meta">${eps.length} pairs · robot views: ${esc(t.views.join(', '))}</span>`
+    $(ids.head).innerHTML = `<h3>${esc(cap(instr))}</h3><span class="meta">${t.family ? `${esc(t.family.replace(/_/g, ' '))} · ` : ''}${eps.length} pairs · robot views: ${esc(t.views.join(', '))}</span>`
     $(ids.pairs).innerHTML = eps.slice(0, shown).map(pairHTML).join('')
     $(ids.more).innerHTML = eps.length > shown ? `<button>Show ${eps.length - shown} more</button>` : ''
     if (eps.length > shown) $(ids.more).querySelector('button').addEventListener('click', () => { shown = eps.length; show(t.task) })
@@ -75,11 +77,19 @@ function gallery(data, ids, prefix) {
   return { show, reset: () => { shown = PAGE } }
 }
 
-function stats(train, val) {
+function simStats(sim) {
+  const mins = sim.episodes.reduce((s, e) => s + e.robot_duration_s, 0) / 60
+  const fams = new Set(sim.episodes.map((e) => e.family)).size
+  $('sim-stats').textContent = `${sim.episodes_total} simulated training pairs · ${sim.tasks_total} tasks · ${fams} task families · ` +
+    `${Math.round(mins)} min of robot data · front and wrist camera on every pair` + (sim.updated ? ` · updated ${sim.updated.slice(0, 10)}` : '')
+}
+
+function stats(train, val, sim) {
   const mins = train.episodes.reduce((s, e) => s + e.robot_duration_s, 0) / 60
   const wrist = train.episodes.filter((e) => e.views.wrist).length
   $('stats').textContent = `${train.episodes_total} training pairs · ${train.tasks_total} tasks · ${Math.round(mins)} min of robot data · ` +
-    `front camera on every pair, wrist camera on ${wrist}` + (val ? ` · ${val.episodes_total} validation pairs over ${val.tasks_total} simulated tasks` : '')
+    `front camera on every pair, wrist camera on ${wrist}` + (val ? ` · ${val.episodes_total} validation pairs over ${val.tasks_total} simulated tasks` : '') +
+    (sim && sim.episodes_total ? ` · ${sim.episodes_total} simulated training pairs over ${sim.tasks_total} tasks` : '')
 }
 
 function table(data) {
@@ -91,18 +101,24 @@ function table(data) {
 
 const load = (path) => fetch(path).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
-Promise.all([load('data/index.json'), load('data/val_index.json')]).then(([train, val]) => {
+Promise.all([load('data/index.json'), load('data/val_index.json'), load('data/sim_index.json')]).then(([train, val, sim]) => {
   if (!train) { $('pairs').innerHTML = '<p>Could not load the dataset index.</p>'; return }
   const g = gallery(train, { tabs: 'tabs', head: 'task-head', pairs: 'pairs', more: 'more' }, '')
   const v = val ? gallery(val, { tabs: 'val-tabs', head: 'val-head', pairs: 'val-pairs', more: 'val-more' }, 'val/') : null
   if (!val) $('validation').hidden = true
-  stats(train, val); table(train)
+  const hasSim = sim && sim.episodes && sim.episodes.length > 0
+  const s = hasSim ? gallery(sim, { tabs: 'sim-tabs', head: 'sim-head', pairs: 'sim-pairs', more: 'sim-more' }, 'sim/') : null
+  if (hasSim) simStats(sim); else $('simtrain').hidden = true
+  stats(train, val, sim); table(train)
   const route = () => {
     const h = decodeURIComponent(location.hash.slice(1))
-    g.reset(); if (v) v.reset()
-    g.show(h.startsWith('val/') ? '' : h)
-    if (v) v.show(h.startsWith('val/') ? h.slice(4) : '')
-    if (h.startsWith('val/')) $('validation').scrollIntoView()
+    const set = h.startsWith('val/') ? 'val' : h.startsWith('sim/') || h === 'sim' ? 'sim' : 'train'
+    g.reset(); if (v) v.reset(); if (s) s.reset()
+    g.show(set === 'train' ? h : '')
+    if (v) v.show(set === 'val' ? h.slice(4) : '')
+    if (s) s.show(set === 'sim' ? h.slice(4) : '')
+    if (set === 'val') $('validation').scrollIntoView()
+    if (set === 'sim' && s) $('simtrain').scrollIntoView()
   }
   route()
   window.addEventListener('hashchange', route)
