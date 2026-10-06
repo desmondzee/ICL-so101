@@ -71,20 +71,21 @@ class FakeBackend:
         return rec.Rollout(_h(f"c{seed}"), _h(f"v{seed}"), N, W, H, {"arena": "kitchen"})
 
 
-def fabricate_qualification(root: Path, name=TASK) -> Path:
+def fabricate_qualification(root: Path, name=TASK, failures=0) -> Path:
     """Evidence shaped exactly as qualify.py writes it, so the real admission check runs."""
     from sim.train.tasks.qualify import implementation_hash
     task, source = TRAIN_TASKS[name], implementation_hash(name)
     rows = []
-    for seed in task.qualification_seeds:
+    for i, seed in enumerate(task.qualification_seeds):
+        ok = i >= failures
         directory = root / name / f"seed_{seed}"
         directory.mkdir(parents=True)
         identity = _h(f"q{seed}")
         (directory / "telemetry.npz").write_bytes(b"fake")
-        for file, value in (("physics.json", {"accepted": True, "checks": {"finite": True}, "config_hash": identity}),
+        for file, value in (("physics.json", {"accepted": ok, "checks": {"finite": ok}, "config_hash": identity}),
                             ("policy.json", {}), ("episode.json", {"seed": seed})):
             (directory / file).write_text(json.dumps(value))
-        row = {"seed": seed, "source_hash": source, "accepted": True, "reasons": [], "config_hash": identity,
+        row = {"seed": seed, "source_hash": source, "accepted": ok, "reasons": [] if ok else ["finite"], "config_hash": identity,
                "artifacts": {f: sha256_file(directory / f) for f in
                              ("telemetry.npz", "physics.json", "policy.json", "episode.json")}}
         (directory / "result.json").write_text(json.dumps(row))
@@ -134,6 +135,12 @@ def test_unqualified_tasks_are_never_recorded(tmp_path, admission):
     with pytest.raises(ValueError, match="qualification"):
         rec.admit(TASK, stale)
     assert admission.task is TRAIN_TASKS[TASK] and len(admission.report_sha256) == 64
+
+
+def test_admission_rate_admits_43_of_50_and_refuses_42(tmp_path):
+    assert rec.admit(TASK, fabricate_qualification(tmp_path / "a", failures=7)).task is TRAIN_TASKS[TASK]
+    with pytest.raises(ValueError, match="qualification"):
+        rec.admit(TASK, fabricate_qualification(tmp_path / "b", failures=8))
 
 
 # ----- recording ------------------------------------------------------------------------------------------------

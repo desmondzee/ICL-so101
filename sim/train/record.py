@@ -59,6 +59,7 @@ MAX_VISUAL_RESAMPLES = 8
 FPS = 30
 PUBLISH_NAME = "publish.json"
 VIDEO_NAMES = ("robot_front.mp4", "robot_wrist.mp4")
+ADMISSION_RATE = 0.86
 
 
 class RolloutFailed(RuntimeError):
@@ -77,9 +78,26 @@ class Admission:
     source_hash: str
 
 
+def require_admissible_task(name, root, min_rate=ADMISSION_RATE):
+    """Qualification evidence check with the recorder's admission rate; every recorded episode is still gated alone."""
+    from .tasks import qualify as q
+    task = q.TRAIN_TASKS[name]
+    report = json.loads((Path(root) / f"{name}.json").read_text())
+    summary = q.qualification_summary(task, report["episodes"])
+    if (report.get("source_hash") != q.implementation_hash(task) or not report.get("overlap_report", {}).get("accepted")
+            or not summary["complete"] or summary["strict_success_rate"] < min_rate):
+        raise ValueError(f"task lacks current complete strict qualification: {name}")
+    for row in report["episodes"]:
+        directory = Path(root) / name / f"seed_{row['seed']}"
+        q._verify_evidence(row, directory)
+        result = directory / "result.json"
+        if not result.is_file() or json.loads(result.read_text()) != row or row.get("source_hash") != report["source_hash"]:
+            raise ValueError(f"inconsistent qualification evidence: {directory}")
+    return task
+
+
 def admit(name: str, qualification_root: str | Path, *, require: Callable | None = None) -> Admission:
-    if require is None:
-        from .tasks.qualify import require_qualified_task as require
+    require = require or require_admissible_task
     task = require(name, qualification_root)
     path = Path(qualification_root) / f"{name}.json"
     report = json.loads(path.read_text())

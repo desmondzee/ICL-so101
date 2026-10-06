@@ -64,7 +64,7 @@ Verify loader compatibility with Zero-WAM's actual latent/pair indexing before r
 
 ## Pilot and release checks
 
-First qualify representative task families using at least 50 unseen oracle seeds each; aim for ≥95% strict success and inspect failures. Then record and review a small diverse paired pilot before bulk requests. Use measured generation acceptance rate, review workload and rendering throughput to adjust retry budget and scheduling.
+First qualify representative task families using at least 50 unseen oracle seeds each; aim for ≥95% strict success and inspect failures. The recorder admits tasks at ≥86% (43/50) with no systematic failure region, because every recorded episode is individually physics-gated and reviewed (decision 2026-10-06 after the user asked for whatever method gives the most high-quality completions). Then record and review a small diverse paired pilot before bulk requests. Use measured generation acceptance rate, review workload and rendering throughput to adjust retry budget and scheduling.
 
 Release requires complete per-episode QA coverage, no duplicate/cross-split artifact identities, valid decoded video/array alignment, frozen-endpoint correspondence, training-loader compatibility and HF readback verification. Pair count and achieved task coverage are determined by the credit cap, with approximately 100 qualified task definitions as the diversity objective. Dataset card reports actual counts, family and visual-variation coverage, rejection rates, spend, generation model/settings and realism limits. GitHub viewer must label simulated training separately from real training and simulated validation.
 

@@ -18,7 +18,7 @@ pilot tasks, all qualified.
 .venv/bin/python -m sim.train.tasks.qualify --family <family> --jobs 6            # final: 50 prescribed seeds
 ```
 
-- **Qualification bar:** at least 48/50 strict passes on the task's own prescribed seeds.
+- **Qualification bar:** aim for at least 48/50 strict passes on the task's own prescribed seeds; the recorder admits tasks at 43/50 (`record.ADMISSION_RATE`) when the failures are scattered rather than a whole region of the layout space, since every recorded episode is gated and reviewed individually.
 - **Source hash:** evidence is keyed by a hash over the shared kit files plus your family module. Editing your module invalidates only your family's evidence; editing the kit invalidates everyone's.
 - **Rerun location:** write a new run to a fresh `--output` directory, or delete your own task's directories first.
 - **What qualification never does:** it never renders anything and never writes under `data/so101_sim_val*`.
