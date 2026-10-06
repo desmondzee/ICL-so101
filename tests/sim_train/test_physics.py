@@ -184,6 +184,63 @@ def test_finite_values_that_overflow_speed_computation_fail_closed():
     json.loads(report.to_json())
 
 
+def test_int64_min_joint_velocity_cannot_bypass_speed_bound():
+    telemetry, policy = fixture()
+    telemetry.arrays["joint_qvel"] = np.full((218, 2), np.iinfo(np.int64).min, dtype=np.int64)
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["telemetry_integrity"]
+    assert json.loads(report.to_json())["accepted"] is False
+
+
+def test_uint64_contact_offsets_return_rejection_without_crashing():
+    telemetry, policy = fixture()
+    telemetry.arrays["contact_offsets"] = telemetry.arrays["contact_offsets"].astype(np.uint64)
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["telemetry_integrity"]
+    assert json.loads(report.to_json())["accepted"] is False
+
+
+def test_string_joint_ranges_return_rejection_without_crashing():
+    telemetry, policy = fixture()
+    telemetry.manifest["joint_ranges"] = [["-1", "1"], ["-1", "1"]]
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["telemetry_integrity"]
+    assert json.loads(report.to_json())["accepted"] is False
+
+
+@pytest.mark.parametrize("field,dtype", [
+    ("joint_qpos", np.int64), ("joint_target", np.uint64),
+    ("body_velocity", np.int64), ("contact_force", np.bool_),
+    ("contact_geom", np.uint64), ("warnings", np.uint64),
+])
+def test_unsupported_field_representations_fail_closed(field, dtype):
+    telemetry, policy = fixture()
+    telemetry.arrays[field] = telemetry.arrays[field].astype(dtype)
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["telemetry_integrity"]
+    assert json.loads(report.to_json())["accepted"] is False
+
+
+@pytest.mark.parametrize("field", ["joint_qpos", "joint_target"])
+def test_overflowing_joint_range_excess_is_rejected_and_serializable(field):
+    telemetry, policy = fixture()
+    telemetry.manifest["joint_ranges"][0] = [1e308, 1.1e308]
+    telemetry.arrays["joint_qpos"][:, 0] = 1e308
+    telemetry.arrays["joint_target"][:, 0] = 1e308
+    telemetry.arrays[field][17, 0] = -1e308
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["joint_ranges"]
+    assert report.maxima["joint_range_excess"] is None
+    assert any(v["check"] == "joint_ranges" and v["timestamp"] == 17 / 210
+               and v["reason"] == "nonfinite derived joint range excess" for v in report.violations)
+    assert json.loads(report.to_json())["maxima"]["joint_range_excess"] is None
+
+
 def test_contact_evidence_requires_unit_normals():
     telemetry, policy = fixture()
     telemetry.arrays["contact_normal"][17] = 0

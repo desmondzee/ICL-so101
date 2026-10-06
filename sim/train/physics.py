@@ -89,10 +89,34 @@ class PhysicsReport:
 
 
 def _integrity(telemetry, policy):
-    """Validate cardinality, indexing and sampling before interpreting numbers."""
+    """Validate and return safe arithmetic views without altering evidence.
+
+    Continuous fields use IEEE float32/float64; counters and indices use
+    signed integers; flags use bool. Unsigned or integer physical values are
+    unsupported, rather than relying on NumPy's potentially wrapping math.
+    """
     a, m = telemetry.arrays, telemetry.manifest
     if set(a) != ARRAY_FIELDS:
         raise ValueError("missing or unknown schema arrays")
+    flags = {"success", "grasp", "frame_end"}
+    integers = {"frame", "warnings", "contact_offsets", "contact_geom"}
+    normalized = {}
+    for key, value in a.items():
+        if not isinstance(value, np.ndarray):
+            raise ValueError(f"invalid {key} array")
+        if key in flags:
+            if value.dtype != np.dtype(bool):
+                raise ValueError(f"invalid {key} flag")
+            normalized[key] = value
+        elif key in integers:
+            if value.dtype.kind != "i" or value.dtype.itemsize > 8:
+                raise ValueError(f"invalid {key} type: signed integer required")
+            normalized[key] = value.astype(np.int64, copy=False)
+        else:
+            if value.dtype.kind != "f" or value.dtype.itemsize not in (4, 8):
+                raise ValueError(f"invalid {key} type: float32/float64 required")
+            normalized[key] = value.astype(np.float64, copy=False)
+    a = normalized
     if m["schema_version"] != SCHEMA_VERSION or not all(_valid_hash(m[key]) for key in ("config_hash", "visual_config_hash")):
         raise ValueError("unknown schema or missing episode/visual identity")
     bodies, geoms, joints = m["body_names"], m["geom_bodies"], m["joint_names"]
@@ -119,14 +143,8 @@ def _integrity(telemetry, policy):
             raise ValueError(f"invalid {key} shape")
     if a["qacc"].shape != a["qvel"].shape:
         raise ValueError("qacc/qvel mismatch")
-    for key in ("frame", "warnings", "contact_offsets", "contact_geom"):
-        if not np.issubdtype(a[key].dtype, np.integer):
-            raise ValueError(f"invalid {key} type")
     if np.any(a["warnings"] < 0):
         raise ValueError("negative warning counters")
-    for key in ("success", "grasp", "frame_end"):
-        if a[key].dtype != np.dtype(bool):
-            raise ValueError(f"invalid {key} flag")
     steps, dt = m["substeps"], m["timestep"]
     if type(steps) is not int or steps < 1 or not np.isfinite(dt) or dt <= 0:
         raise ValueError("invalid sampling declaration")
@@ -139,7 +157,8 @@ def _integrity(telemetry, policy):
     if not np.array_equal(a["frame_end"], (np.arange(n) % steps == 0) & (np.arange(n) > 0)):
         raise ValueError("incorrect frame boundaries")
     offsets = a["contact_offsets"]
-    if offsets.shape != (n + 1,) or offsets[0] != 0 or np.any(np.diff(offsets) < 0):
+    if (offsets.shape != (n + 1,) or offsets[0] != 0 or np.any(offsets < 0)
+            or np.any(offsets[1:] < offsets[:-1])):
         raise ValueError("invalid contact offsets")
     c = int(offsets[-1])
     for key, shape in (("contact_geom", (c, 2)), ("contact_distance", (c,)), ("contact_force", (c, 6)),
@@ -148,7 +167,10 @@ def _integrity(telemetry, policy):
             raise ValueError(f"invalid {key} shape")
     if np.any(a["contact_geom"] < 0) or np.any(a["contact_geom"] >= len(geoms)):
         raise ValueError("contact references absent geom")
-    ranges = np.asarray(m["joint_ranges"], float)
+    ranges = np.asarray(m["joint_ranges"])
+    if ranges.dtype.kind not in "if" or ranges.dtype.itemsize > 8:
+        raise ValueError("joint ranges must contain numeric values")
+    ranges = ranges.astype(np.float64)
     if ranges.shape != (j, 2) or not np.isfinite(ranges).all() or np.any(ranges[:, 0] >= ranges[:, 1]):
         raise ValueError("invalid joint ranges")
     norms = np.hypot.reduce(a["body_pose"][:, :, 3:], axis=2)
@@ -157,8 +179,7 @@ def _integrity(telemetry, policy):
     normals = np.hypot.reduce(a["contact_normal"], axis=1)
     if np.any(~np.isfinite(normals) | (np.abs(normals - 1) > 1e-6)):
         raise ValueError("invalid contact normal")
-    if any(not isinstance(v, np.ndarray) or v.dtype.kind not in "biuf" for v in a.values()):
-        raise ValueError("nonnumeric telemetry")
+    return a, ranges
 
 
 @np.errstate(over="ignore", invalid="ignore", divide="ignore")
@@ -178,13 +199,13 @@ def audit_trajectory(telemetry: Telemetry, policy: PhysicsPolicy) -> PhysicsRepo
         return PhysicsReport(bool(checks) and all(checks.values()), checks, maxima, tuple(violations), config_hash)
 
     try:
-        _integrity(telemetry, policy)
+        a, ranges = _integrity(telemetry, policy)
     except (KeyError, TypeError, ValueError, IndexError, AttributeError, OverflowError) as exc:
         checks["telemetry_integrity"] = False
         violations.append(dict(check="telemetry_integrity", timestamp=None, reason=str(exc)))
         return finish()
     checks["telemetry_integrity"] = True
-    a, m = telemetry.arrays, telemetry.manifest
+    m = telemetry.manifest
     n = len(a["time"])
     contact_rows = np.repeat(np.arange(n), np.diff(a["contact_offsets"]))
 
@@ -213,15 +234,19 @@ def audit_trajectory(telemetry: Telemetry, policy: PhysicsPolicy) -> PhysicsRepo
                 detail["solver_timestamp"] = float(a["contact_time"][row])
             fail(check, row, **detail)
 
-    ranges = np.asarray(m["joint_ranges"])
     checks["joint_ranges"] = True
     maxima["joint_range_excess"] = 0.0
     for field in ("joint_qpos", "joint_target"):
         excess = np.maximum(ranges[:, 0] - a[field], a[field] - ranges[:, 1])
-        maxima["joint_range_excess"] = max(maxima["joint_range_excess"], float(max(0, excess.max())))
-        for row, joint in np.argwhere(excess > policy.joint_tolerance):
+        nonfinite = ~np.isfinite(excess)
+        if nonfinite.any():
+            maxima["joint_range_excess"] = None
+        elif maxima["joint_range_excess"] is not None:
+            maxima["joint_range_excess"] = max(maxima["joint_range_excess"], float(max(0, excess.max())))
+        for row, joint in np.argwhere((excess > policy.joint_tolerance) | nonfinite):
+            detail = {"reason": "nonfinite derived joint range excess"} if nonfinite[row, joint] else {}
             fail("joint_ranges", row, field=field, joint=m["joint_names"][joint], measured=float(a[field][row, joint]),
-                 range=ranges[joint].tolist(), tolerance=policy.joint_tolerance)
+                 range=ranges[joint].tolist(), tolerance=policy.joint_tolerance, **detail)
 
     velocity = a["body_velocity"]
     linear, angular = np.linalg.norm(velocity[:, :, :3], axis=2), np.linalg.norm(velocity[:, :, 3:], axis=2)
