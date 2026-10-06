@@ -9,10 +9,11 @@ export const meta = {
   ],
 }
 
-// args: {root, items: [{key, dir, request_sha256}]} from `python -m sim.train.review queue`.
+// args: {root, items: [{key, dir, request_sha256}]} from `python -m sim.train.review queue`, or the compact {root, pairs: [[key, request_sha256]]}.
 // Optional: judgeBatch (5), verifyBatch (3), judgeEffort ('low'), verifyEffort ('low').
 const ROOT = args.root
-const ITEMS = args.items || []
+const ITEMS = (args.items || (args.pairs || []).map(([key, request_sha256]) => ({ key, request_sha256 })))
+  .map(it => ({ ...it, dir: it.dir || `${args.root}/candidates/${it.key}` }))
 const SCRATCH = `${ROOT}/review_scratch`
 const byKey = Object.fromEntries(ITEMS.map(it => [it.key, it]))
 
