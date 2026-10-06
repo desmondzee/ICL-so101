@@ -292,3 +292,98 @@ def test_observer_captures_all_substeps_without_changing_validation_state():
                                       env.data.qpos[env._qadr[MUG]:env._qadr[MUG] + 7])
     finally:
         env.close()
+
+
+# ----- bounded grasp/place contact between jaw geoms and support surfaces -----
+
+def contact_fixture(rows=range(20, 41), bodies=("gripper", "table"), force=2.0, distance=-0.0005,
+                    position=(0.2, 0.0, 0.0)):
+    """Add one jaw/surface contact on each of `rows`, keeping the fixture's support contact."""
+    from sim.train.physics import GraspContactAllowance
+    telemetry, policy = fixture()
+    m, a = telemetry.manifest, telemetry.arrays
+    m["geom_names"] += ["table_geom", "wrist_geom", "shoulder_geom", "moving_jaw_geom"]
+    m["geom_bodies"] += ["table", "wrist", "shoulder", "moving_jaw_so101_v1"]
+    index = {body: m["geom_bodies"].index(body) for body in m["geom_bodies"]}
+    rows = set(rows)
+    keys = ("contact_geom", "contact_distance", "contact_force", "contact_normal", "contact_position")
+    extra = dict(contact_geom=[index[bodies[0]], index[bodies[1]]], contact_distance=distance,
+                 contact_force=[force, 0, 0, 0, 0, 0], contact_normal=[0, 0, 1], contact_position=position)
+    out = {key: [] for key in keys}
+    offsets = a["contact_offsets"]
+    for row in range(len(a["time"])):
+        for c in range(offsets[row], offsets[row + 1]):
+            for key in keys:
+                out[key].append(a[key][c])
+        if row in rows:
+            for key in keys:
+                out[key].append(np.asarray(extra[key], dtype=a[key].dtype))
+    counts = np.diff(offsets) + np.isin(np.arange(len(a["time"])), list(rows))
+    for key in keys:
+        a[key] = np.asarray(out[key], dtype=a[key].dtype)
+    a["contact_offsets"] = np.r_[0, np.cumsum(counts)].astype(offsets.dtype)
+    allowance = GraspContactAllowance(robot_bodies=("gripper", "moving_jaw_so101_v1"), surfaces=("table",),
+                                      max_normal_force=5.0, max_penetration=0.001,
+                                      max_contact_seconds=0.5, proximity=0.04)
+    return telemetry, replace(policy, grasp_contact=allowance)
+
+
+def test_jaw_table_contact_is_rejected_without_a_declared_allowance():
+    telemetry, policy = contact_fixture()
+    report = audit_trajectory(telemetry, replace(policy, grasp_contact=None))
+    assert not report.accepted and not report.checks["allowed_contacts"]
+
+
+@pytest.mark.parametrize("bodies", [("gripper", "table"), ("table", "moving_jaw_so101_v1")])
+def test_measured_jaw_table_contact_within_limits_is_accepted(bodies):
+    telemetry, policy = contact_fixture(bodies=bodies)
+    report = audit_trajectory(telemetry, policy)
+    assert report.accepted, report.violations[:3]
+    assert report.checks["grasp_contact"]
+    assert report.maxima["grasp_contact_samples"] == 21
+    assert report.maxima["grasp_contact_force"] == pytest.approx(2.0)
+    assert report.maxima["grasp_contact_penetration"] == pytest.approx(0.0005)
+    assert report.maxima["grasp_contact_seconds"] == pytest.approx(21 / 210)
+
+
+@pytest.mark.parametrize("kwargs", [dict(force=5.5), dict(distance=-0.0015),
+                                    dict(position=(0.3, 0.1, 0.0)),  # far from every task object
+                                    dict(rows=range(20, 140))])      # 0.57 s continuous contact
+def test_jaw_table_contact_beyond_limits_is_rejected(kwargs):
+    telemetry, policy = contact_fixture(**kwargs)
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted
+    assert not report.checks["grasp_contact"]
+    assert report.checks["allowed_contacts"]
+    assert any(v["check"] == "grasp_contact" and v["timestamp"] == 20 / 210 for v in report.violations)
+
+
+@pytest.mark.parametrize("bodies", [("wrist", "table"), ("shoulder", "gripper"), ("shoulder", "table")])
+def test_arm_link_and_self_contacts_still_fail_with_allowance(bodies):
+    telemetry, policy = contact_fixture(bodies=bodies)
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted and not report.checks["allowed_contacts"]
+
+
+@pytest.mark.parametrize("field,value", [("max_normal_force", -1.0), ("max_penetration", float("nan")),
+                                         ("robot_bodies", ()), ("surfaces", ()), ("proximity", 0.0)])
+def test_invalid_allowance_is_rejected(field, value):
+    from sim.train.physics import GraspContactAllowance
+    kwargs = dict(robot_bodies=("gripper",), surfaces=("table",), max_normal_force=5.0,
+                  max_penetration=0.001, max_contact_seconds=0.5, proximity=0.04)
+    kwargs[field] = value
+    with pytest.raises(ValueError):
+        GraspContactAllowance(**kwargs)
+
+
+def test_allowance_naming_absent_surface_fails_closed():
+    telemetry, policy = contact_fixture()
+    policy = replace(policy, grasp_contact=replace(policy.grasp_contact, surfaces=("no_such_table",)))
+    report = audit_trajectory(telemetry, policy)
+    assert not report.accepted and not report.checks["telemetry_integrity"]
+
+
+def test_allowance_round_trips_through_policy_dict():
+    from sim.train.physics import PhysicsPolicy
+    _, policy = contact_fixture()
+    assert PhysicsPolicy.from_dict(json.loads(json.dumps(policy.to_dict()))) == policy

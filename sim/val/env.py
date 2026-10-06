@@ -44,6 +44,9 @@ class ValEnv(SO101NexusMuJoCoBaseEnv):
     n_distractors = (2, 3)
     distractor_region = dict(r=(0.13, 0.34), angle=(-62, 62))
     keepout = ((np.array([0.0, 0.0]), 0.10), (np.array([0.15, 0.0]), 0.045))
+    # Reset/rest joint pose (deg). Validation keeps REST_DEG; training subclasses
+    # may override it (sim.train.tasks.base uses a table-clear variant).
+    rest_deg = REST_DEG
 
     def __init__(self, render_images=True, control_mode="pd_joint_pos", robot_init_qpos_noise=0.02,
                  *, visual_config=None):
@@ -52,7 +55,7 @@ class ValEnv(SO101NexusMuJoCoBaseEnv):
             spawn_max_radius=0.15,
             reset_settle_frames=20,
             terminate_on_success=False,
-            robot=RobotConfig(rest_qpos_deg=REST_DEG),
+            robot=RobotConfig(rest_qpos_deg=self.rest_deg),
             observations=[JointPositions()],
         )
         self._init_common(config=config, render_mode=None, control_mode=control_mode, robot_init_qpos_noise=robot_init_qpos_noise)

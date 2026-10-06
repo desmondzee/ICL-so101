@@ -1,30 +1,62 @@
-"""Five candidate pilots; admission additionally requires qualification evidence."""
+"""Auto-discovered training task catalog; admission additionally requires qualification evidence.
 
-from .schema import SemanticSignature, TaskDefinition
+Every module in ``sim/train/tasks/families/`` (except names starting with ``_``) must export
+``TASKS``: a list of ``TaskDefinition``. Family authors never edit a shared registry. A module
+that fails to import is skipped and reported in ``DISCOVERY_ERRORS`` (the catalog test fails on
+any error), so one family's work in progress cannot break every other family's qualification.
+"""
+
+import importlib
+import pkgutil
+import traceback
+
+from . import families
+from .schema import TaskDefinition
+
+DISCOVERY_ERRORS: dict[str, str] = {}
+FAMILY_MODULES: dict[str, str] = {}          # task name -> family module name
 
 
-def _task(name, instruction, family, objects, relation, goal, order, descriptions, env):
-    return TaskDefinition(name, instruction, family,
-        SemanticSignature(family, tuple("rectangular block" if n == "bar" else "block" for n in objects),
-                          relation, goal, order), objects, order, descriptions,
-        f"sim.train.tasks.pilots:{env}", "sim.train.tasks.pilots:PilotOracle")
+def discover():
+    tasks = {}
+    seeds = {}
+    DISCOVERY_ERRORS.clear()
+    FAMILY_MODULES.clear()
+    for info in sorted(pkgutil.iter_modules(families.__path__), key=lambda i: i.name):
+        if info.name.startswith("_"):
+            continue
+        module_name = f"{families.__name__}.{info.name}"
+        try:
+            module = importlib.import_module(module_name)
+            exported = list(getattr(module, "TASKS"))
+            if not all(isinstance(t, TaskDefinition) for t in exported):
+                raise TypeError("TASKS must contain only TaskDefinition instances")
+        except Exception:
+            DISCOVERY_ERRORS[info.name] = traceback.format_exc(limit=3)
+            continue
+        for task in exported:
+            if task.name in tasks:
+                DISCOVERY_ERRORS[info.name] = f"duplicate task name {task.name} (also in {FAMILY_MODULES[task.name]})"
+                continue
+            clash = set(task.qualification_seeds) & set(seeds)
+            if clash:
+                other = seeds[min(clash)]
+                DISCOVERY_ERRORS[info.name] = (f"qualification seeds of {task.name} collide with {other}; pass "
+                                               "qualification_seeds=qualification_seeds_for(name, salt=1)")
+                continue
+            tasks[task.name] = task
+            FAMILY_MODULES[task.name] = info.name
+            seeds.update(dict.fromkeys(task.qualification_seeds, task.name))
+    return tasks
 
 
-TRAIN_TASKS = {task.name: task for task in (
-    _task("block_in_basket", "Put the block inside the basket.", "container_insertion", ("block",),
-          "inside", "basket", ("block",), ("Pick up the block and lower it into the basket.",), "InsertEnv"),
-    _task("block_out_of_basket", "Take the block out of the basket and put it on the mat.", "container_removal", ("block",),
-          "out of basket onto", "mat", ("block",), ("Lift the block out of the basket and place it on the mat.",), "RemoveEnv"),
-    _task("block_beside_bowl", "Place the block to the right of the bowl, leaving a gap.", "spatial_arrangement", ("block",),
-          "right of separated", "bowl", ("block",), ("Pick up the block and place it to the right of the bowl.",), "BesideEnv"),
-    _task("blocks_row_in_order", "Move the red block to the near mat, then the blue block to the far mat.", "ordered_relocation", ("red_block", "blue_block"),
-          "on in temporal order", "near mat then far mat", ("red_block", "blue_block"),
-          ("Move the red block onto the near mat.", "Then move the blue block onto the far mat."), "OrderedEnv"),
-    _task("bar_crosswise_on_mat", "Place the long block on the mat with its long side running left to right.", "orientation_sensitive_placement", ("bar",),
-          "on crosswise", "mat with long axis along table y", ("bar",),
-          ("Pick up the long block, turn it crosswise, and place it on the mat.",), "OrientationEnv"),
-)}
+TRAIN_TASKS = discover()
 
 
 def load_train_task(name):
     return TRAIN_TASKS[name]
+
+
+def family_tasks(module):
+    """Task names exported by one family module (e.g. ``pilot_blocks``)."""
+    return tuple(name for name, owner in FAMILY_MODULES.items() if owner == module)

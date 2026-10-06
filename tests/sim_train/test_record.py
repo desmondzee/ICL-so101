@@ -17,7 +17,7 @@ from sim.train.model import EpisodeKey, EpisodeState
 from sim.train.store import EpisodeStore, EvidenceMismatch, atomic_write_json, sha256_file
 from sim.train.tasks import TRAIN_TASKS
 
-TASK = "block_in_basket"
+TASK = "block_in_bowl"
 W, H, N = 64, 48, 40
 
 
@@ -74,7 +74,7 @@ class FakeBackend:
 def fabricate_qualification(root: Path, name=TASK) -> Path:
     """Evidence shaped exactly as qualify.py writes it, so the real admission check runs."""
     from sim.train.tasks.qualify import implementation_hash
-    task, source = TRAIN_TASKS[name], implementation_hash()
+    task, source = TRAIN_TASKS[name], implementation_hash(name)
     rows = []
     for seed in task.qualification_seeds:
         directory = root / name / f"seed_{seed}"
@@ -108,7 +108,7 @@ def verdicts(store, seed, *, judge="accept", confirmed=True, same_reviewer=False
     key = EpisodeKey(TASK, seed)
     sha = request_sha or store.load(key).manifest.artifacts[review.REQUEST_NAME]
     entry = {"key": review.key_name(key), "request_sha256": sha,
-             "judge": {"verdict": judge, "reasons": ["block lands inside basket and settles"],
+             "judge": {"verdict": judge, "reasons": ["block lands inside bowl and settles"],
                        "inspected_evidence": ["review/front_01.jpg", "review/wrist_01.jpg"],
                        "reviewer": {"label": "robot-judge:0", "model": "opus", "role": "judge"}}}
     if confirmed is not None:
@@ -124,7 +124,7 @@ def verdicts(store, seed, *, judge="accept", confirmed=True, same_reviewer=False
 # ----- admission ------------------------------------------------------------------------------------------------
 def test_unqualified_tasks_are_never_recorded(tmp_path, admission):
     with pytest.raises(FileNotFoundError):
-        rec.admit("block_out_of_basket", tmp_path)
+        rec.admit("block_out_of_bowl", tmp_path)
     with pytest.raises(TypeError):
         rec.record_episode(EpisodeStore(tmp_path), admission.task, 1, FakeBackend())
     stale = fabricate_qualification(tmp_path / "q")

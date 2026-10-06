@@ -1,21 +1,42 @@
 # Training-task qualification
 
-The five registry entries are candidates. No completed 50-seed qualification report exists yet, so none is admitted. Test passes and original task success are not strict physics acceptance.
+Each task is admitted only after a complete strict screen of its 50 prescribed seeds, with at least 48/50 strict physics passes. The recorder enforces this through `sim.train.tasks.qualify.require_qualified_task(name, root)`, which checks all of the following:
+- every prescribed seed is present;
+- the source hash matches (shared kit files plus the task's family module);
+- the retained per-seed rows are consistent;
+- the hashes of all accepted evidence files match.
 
-Run calibration first, with seeds disjoint from both validation and the fixed qualification set:
-
-```sh
-.venv/bin/python -m sim.train.tasks.qualify --validation-index /Users/desmondzee/Hardware/ICL-so101/data/so101_sim_val_v2/index.json --output /tmp/icl_task4_calibration --seed-start 9000 --count 3
-```
-
-Inspect each seed's `physics.json`, `policy.json`, `telemetry.npz`, `episode.json` and `result.json`. Repair unsafe trajectories; add contact exceptions only with measured, explained calibration evidence. Never relax the physics gate to obtain a target pass rate. A code change invalidates all previous evidence by source hash; preserve old attempts and select a new output directory.
-
-After calibration and repair, run all 50 unseen seeds per task:
+Original task success is not physics acceptance.
 
 ```sh
-.venv/bin/python -m sim.train.tasks.qualify --validation-index /Users/desmondzee/Hardware/ICL-so101/data/so101_sim_val_v2/index.json --output data/so101_sim_train_v1/qualification
+# calibration (seeds 9000+, separate output, never qualifies)
+.venv/bin/python -m sim.train.tasks.qualify --family <family> --seed-start 9000 --count 10 --output /tmp/<family>_cal --jobs 6
+# qualification (validation index found automatically; --validation-index to override)
+.venv/bin/python -m sim.train.tasks.qualify --family <family> --jobs 6
 ```
 
-The CLI uses seeded layout and visual variation but does not render frames. The existing base environment still initializes a graphics context, so macOS may require CoreGraphics access. The command returns nonzero if any requested task lacks complete >=95% strict success. It resumes identical retained results; stale/conflicting results require a new output directory. All reported failures count toward the rate. `--tasks` permits screening a subset.
+`<task>.json` is the machine-readable summary. `<task>/seed_<n>/` keeps every rollout:
+- `result.json`
+- `physics.json` (with every violation)
+- `policy.json`
+- `episode.json`
+- `telemetry.npz` (about 39 MB)
 
-`<task>.json` is the machine-readable summary. Task/seed subdirectories retain every attempted rollout and all violations. Only candidate discovery should use `TRAIN_TASKS` or `load_train_task`; recording admission must call `require_qualified_task(name, qualification_root)` from `sim.train.tasks.qualify`. Admission verifies all 50 prescribed seeds, source identity, retained result rows and the hashes and consistency of accepted evidence. No task below the threshold may enter production.
+Never relax a gate to reach the target. Any code change produces a new source hash; stale evidence is refused, so rerun into a fresh directory. See `sim/train/README.md`.
+
+## Status 2026-10-06 (pilot family `pilot_blocks`, kit frozen at the qualifying source hashes)
+
+| task | family | strict passes | failures |
+|---|---|---|---|
+| block_in_bowl | container_insertion | 49/50 | 1 release angular-acceleration spike (1030 vs 1000 rad/s^2) |
+| block_out_of_bowl | container_removal | 50/50 | none |
+| block_beside_bowl | spatial_arrangement | 48/50 | 1 angular spike (1062); 1 camera-mount/shoulder self-contact (close place target r=0.152 m, -45 deg) |
+| blocks_onto_mats_in_order | ordered_relocation | 50/50 | none |
+| bar_crosswise_on_mat | orientation_sensitive_placement | 48/50 | 2 release angular spikes (1042, 1113) |
+
+All five are admitted. Across the 250 episodes:
+- maximum joint acceleration was 140 rad/s² (limit 150);
+- the grasp-contact allowance was used 0 times;
+- no oracle speed-guard frames were inserted.
+
+Evidence totals 9.7 GB and is git-ignored.

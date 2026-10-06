@@ -5,7 +5,9 @@ English. Semantic annotations are part of the reviewed task contract.
 """
 
 from dataclasses import dataclass
+import hashlib
 import importlib
+import importlib.util
 import re
 import unicodedata
 
@@ -40,6 +42,21 @@ class SemanticSignature:
                 _semantic_text(self.relation), _semantic_text(self.goal), tuple(map(_semantic_text, self.order)))
 
 
+QUALIFICATION_SEED_BASE = 1_000_000
+QUALIFICATION_SLOTS = 1_000_000
+QUALIFICATION_COUNT = 50
+
+
+def qualification_seeds_for(name: str, salt: int = 0) -> tuple[int, ...]:
+    """Deterministic, name-derived block of 50 seeds in [1e6, 5.1e7): disjoint from validation seeds
+    (< 1e6) and calibration seeds (9000+). Collisions between tasks are detected by catalog
+    validation; resolve one by passing a different ``salt``."""
+    digest = hashlib.sha256(f"{name}:{salt}".encode()).digest()
+    slot = int.from_bytes(digest[:8], "big") % QUALIFICATION_SLOTS
+    start = QUALIFICATION_SEED_BASE + slot * QUALIFICATION_COUNT
+    return tuple(range(start, start + QUALIFICATION_COUNT))
+
+
 @dataclass(frozen=True)
 class TaskDefinition:
     name: str
@@ -51,10 +68,17 @@ class TaskDefinition:
     action_text: tuple[str, ...]
     env_class: str
     oracle_class: str
-    qualification_seeds: tuple[int, ...] = tuple(range(10000, 10050))
+    qualification_seeds: tuple[int, ...] | None = None
+    arenas: tuple[str, ...] = ("living_room", "kitchen")  # DEFAULT_POLICY order
 
     def __post_init__(self):
         EpisodeKey(self.name, 0)
+        if self.qualification_seeds is None:
+            object.__setattr__(self, "qualification_seeds", qualification_seeds_for(self.name))
+        object.__setattr__(self, "qualification_seeds", tuple(self.qualification_seeds))
+        object.__setattr__(self, "arenas", tuple(self.arenas))
+        from sim.train.variation import VariationPolicy
+        VariationPolicy(arenas=self.arenas)  # fails on an unqualified arena
         if not normalize(self.instruction) or not normalize(self.family):
             raise ValueError("instruction and family are required")
         if (not self.task_objects or len(set(self.task_objects)) != len(self.task_objects)
@@ -81,6 +105,23 @@ class TaskDefinition:
 
     def action_descriptions(self):
         return self.action_text
+
+    def variation_policy(self):
+        """Visual variation policy for this task's episodes (arena choice restricted to ``arenas``)."""
+        from sim.train.variation import VariationPolicy
+        return VariationPolicy(arenas=self.arenas)
+
+    def sample_visual_config(self, seed, *, resample_index=0):
+        from sim.train.variation import sample_visual_config
+        return sample_visual_config(self.name, seed, self.variation_policy(), resample_index=resample_index)
+
+    def source_files(self):
+        """Module files defining this task's env and oracle (part of its qualification source hash)."""
+        files = set()
+        for path in (self.env_class, self.oracle_class):
+            spec = importlib.util.find_spec(path.split(":")[0])
+            files.add(spec.origin)
+        return tuple(sorted(files))
 
     def physics_policy(self, env):
         if tuple(env.task_objects) != self.task_objects:
@@ -143,7 +184,7 @@ def validate_catalog(definitions, validation_index):
         if row.get("instruction"):
             instructions.add(normalize(row["instruction"]))
     violations, overlaps = [], []
-    seen_names, seen_instructions, seen_semantics = set(), set(), set()
+    seen_names, seen_instructions, seen_semantics, seen_seeds = set(), set(), set(), set()
     for task in definitions:
         name, instruction, semantic = normalize(task.name), normalize(task.instruction), task.semantic_signature.normalized()
         for kind, test in (("duplicate_name", name in seen_names), ("duplicate_instruction", instruction in seen_instructions),
@@ -154,6 +195,10 @@ def validate_catalog(definitions, validation_index):
         overlap_seeds = sorted(set(task.qualification_seeds) & seeds)
         if overlap_seeds:
             violations.append({"task": task.name, "kind": "validation_seed", "seeds": overlap_seeds})
+        shared = sorted(set(task.qualification_seeds) & seen_seeds)
+        if shared:
+            violations.append({"task": task.name, "kind": "duplicate_qualification_seed", "seeds": shared[:5]})
+        seen_seeds.update(task.qualification_seeds)
         if task.family in families:
             overlaps.append({"task": task.name, "family": task.family})
         seen_names.add(name)

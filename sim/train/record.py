@@ -3,7 +3,7 @@
 Record N automated-QA-approved episodes per qualified task (resumable; reruns skip
 published seeds and never touch their bytes):
 
-    python -m sim.train.record --tasks block_in_basket --episodes 10 \\
+    python -m sim.train.record --tasks block_in_bowl --episodes 10 \\
         [--root data/so101_sim_train_v1] [--qualification ROOT/qualification] \\
         [--seed-start 100000] [--max-attempts 40] [--validation-index .../index.json]
     python -m sim.train.record --verify-all [--root ...]     # re-hash + decode every candidate

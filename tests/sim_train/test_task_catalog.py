@@ -14,11 +14,17 @@ def validation_index():
             "episodes": [{"task": "sort_blocks", "seed": 3}]}
 
 
+PILOTS = ("block_in_bowl", "block_out_of_bowl", "block_beside_bowl", "blocks_onto_mats_in_order",
+          "bar_crosswise_on_mat")
+
+
 def test_pilots_have_distinct_semantics_and_required_execution_contracts():
+    from sim.train.tasks.catalog import DISCOVERY_ERRORS, family_tasks
+    assert not DISCOVERY_ERRORS, DISCOVERY_ERRORS
     report = validate_catalog(TRAIN_TASKS.values(), validation_index())
     assert report["accepted"], report
-    assert len(TRAIN_TASKS) == 5
-    assert {d.family for d in TRAIN_TASKS.values()} == {
+    assert set(family_tasks("pilot_blocks")) == set(PILOTS)
+    assert {TRAIN_TASKS[n].family for n in PILOTS} == {
         "container_insertion", "container_removal", "spatial_arrangement",
         "ordered_relocation", "orientation_sensitive_placement"}
     for name, task in TRAIN_TASKS.items():
@@ -104,11 +110,21 @@ def test_order_rejects_second_pick_before_first_placement():
 
 
 def test_crosswise_orientation_rejects_upright_but_wrong_yaw():
+    import mujoco
     import numpy as np
-    from sim.train.tasks.pilots import crosswise_orientation
-    assert not crosswise_orientation(np.eye(3))
-    assert crosswise_orientation(np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]))
-    assert not crosswise_orientation(np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]))
+    from sim.train.tasks.families.pilot_blocks import OrientationEnv, crosswise
+    env = OrientationEnv(render_images=False)
+    try:
+        env.reset(seed=9000)
+        xy = env.object_pos("bar")[:2]
+        for quat, expected in (((1, 0, 0, 0), False),                                   # lengthwise (x)
+                               ((np.cos(np.pi / 4), 0, 0, np.sin(np.pi / 4)), True),    # crosswise (y)
+                               ((np.cos(np.pi / 4), np.sin(np.pi / 4), 0, 0), False)):  # on its side
+            env.set_object_pose("bar", xy, quat=np.asarray(quat))
+            mujoco.mj_forward(env.model, env.data)
+            assert crosswise(env, "bar") is expected
+    finally:
+        env.close()
 
 
 def test_qualification_requires_fifty_prespecified_seeds_and_95_percent():
@@ -131,7 +147,7 @@ def test_qualification_requires_fifty_prespecified_seeds_and_95_percent():
 def test_missing_stale_or_partial_qualification_cannot_admit_task(tmp_path):
     import json
     from sim.train.tasks.qualify import implementation_hash, require_qualified_task
-    task = next(iter(TRAIN_TASKS.values()))
+    task = TRAIN_TASKS[PILOTS[0]]
     with pytest.raises(FileNotFoundError):
         require_qualified_task(task.name, tmp_path)
     rows = [{"seed": seed, "accepted": True, "reasons": []} for seed in task.qualification_seeds]
@@ -140,7 +156,7 @@ def test_missing_stale_or_partial_qualification_cannot_admit_task(tmp_path):
     path.write_text(json.dumps(report))
     with pytest.raises(ValueError, match="qualification"):
         require_qualified_task(task.name, tmp_path)
-    report["source_hash"] = implementation_hash()
+    report["source_hash"] = implementation_hash(task)
     report["episodes"] = rows[:49]
     path.write_text(json.dumps(report))
     with pytest.raises(ValueError, match="qualification"):
@@ -170,7 +186,8 @@ def test_real_pilot_reset_policy_and_goals_are_consistent(name):
         assert not env.success()
         policy = task.physics_policy(env)
         assert policy.settled_frames >= 30
-        assert len(policy.goals) == len(task.task_objects)
+        assert sorted(g.obj for g in env.goals) == sorted(task.task_objects)
+        assert policy.grasp_contact is not None
         assert env.goal_regions()
         owners = {env.model.body(int(b)).name for b in env.model.geom_bodyid}
         assert all(s in owners or s in env._body for _, supports in policy.support_bodies for s in supports)

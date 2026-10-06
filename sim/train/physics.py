@@ -22,6 +22,40 @@ class GoalRule:
 
 
 @dataclass(frozen=True)
+class GraspContactAllowance:
+    """Bounded jaw/fingertip contact with a support surface during grasp and place.
+
+    Only contacts between one of ``robot_bodies`` (the two jaw bodies) and one of
+    ``surfaces`` qualify, and each sample must satisfy every limit: normal force,
+    penetration depth, a contact point within ``proximity`` (xy, m) of some task
+    object at that substep (that is, while grasping or placing it), and no
+    continuous run of such contact longer than ``max_contact_seconds``. A sample
+    outside a limit fails the ``grasp_contact`` check; every other robot contact
+    (arm links, wrist, camera mount, self-contact) still fails ``allowed_contacts``.
+    Limits are calibrated from measured trajectories; see sim/train/README.md.
+    """
+    robot_bodies: tuple[str, ...]
+    surfaces: tuple[str, ...]
+    max_normal_force: float
+    max_penetration: float
+    max_contact_seconds: float
+    proximity: float
+
+    def __post_init__(self):
+        for name in ("robot_bodies", "surfaces"):
+            names = tuple(getattr(self, name))
+            object.__setattr__(self, name, names)
+            if not names or len(set(names)) != len(names) or not all(isinstance(n, str) and n for n in names):
+                raise ValueError(f"{name} must be distinct nonempty body names")
+        if set(self.robot_bodies) & set(self.surfaces):
+            raise ValueError("a body cannot be both a jaw and a surface")
+        for name in ("max_normal_force", "max_penetration", "max_contact_seconds", "proximity"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value) or value <= 0:
+                raise ValueError(f"invalid grasp contact limit: {name}")
+
+
+@dataclass(frozen=True)
 class PhysicsPolicy:
     task_objects: tuple[str, ...]
     support_bodies: tuple[tuple[str, tuple[str, ...]], ...]
@@ -44,6 +78,7 @@ class PhysicsPolicy:
     min_support_upward_cos: float = 0.5
     settled_linear_speed: float = 0.03
     settled_angular_speed: float = 0.5
+    grasp_contact: GraspContactAllowance | None = None
 
     def __post_init__(self):
         if type(self.settled_frames) is not int or self.settled_frames < 30:
@@ -72,8 +107,26 @@ class PhysicsPolicy:
         if any(len(pair) != 2 or not all(isinstance(n, str) and n for n in pair) for pair in self.allowed_contacts):
             raise ValueError("allowed_contacts must contain named body pairs")
 
+        if self.grasp_contact is not None and not isinstance(self.grasp_contact, GraspContactAllowance):
+            raise ValueError("grasp_contact must be a GraspContactAllowance")
+
     def to_dict(self):
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, value: dict) -> "PhysicsPolicy":
+        """Inverse of ``to_dict`` (for re-auditing persisted ``policy.json``)."""
+        value = dict(value)
+        tuples = lambda items: tuple(tuple(x) if isinstance(x, list) else x for x in items)
+        value["task_objects"] = tuple(value["task_objects"])
+        value["distractors"] = tuple(value.get("distractors", ()))
+        value["support_bodies"] = tuple((body, tuple(names)) for body, names in value["support_bodies"])
+        value["allowed_contacts"] = tuples(value["allowed_contacts"])
+        value["goals"] = tuple(GoalRule(**{k: tuple(v) if isinstance(v, list) else v for k, v in goal.items()})
+                               for goal in value.get("goals", ()))
+        if value.get("grasp_contact") is not None:
+            value["grasp_contact"] = GraspContactAllowance(**value["grasp_contact"])
+        return cls(**value)
 
 
 @dataclass(frozen=True)
@@ -129,6 +182,9 @@ def _integrity(telemetry, policy):
     supports = {name for _, names in policy.support_bodies for name in names}
     if not declared <= set(bodies) or not supports <= set(bodies) | set(geoms):
         raise ValueError("policy references missing body")
+    allowance = policy.grasp_contact
+    if allowance is not None and not set(allowance.robot_bodies) | set(allowance.surfaces) <= set(geoms):
+        raise ValueError("grasp contact allowance references missing body")
     n, b, j = len(a["time"]), len(bodies), len(joints)
     if n < 2 or not j or not b:
         raise ValueError("empty trajectory")
@@ -276,18 +332,52 @@ def audit_trajectory(telemetry: Telemetry, policy: PhysicsPolicy) -> PhysicsRepo
     checks["allowed_contacts"] = True
     supported = np.zeros((n, len(policy.task_objects)), dtype=bool)
     support_rules = dict(policy.support_bodies)
+    allowance = policy.grasp_contact
+    task_xy = a["body_pose"][:, [body_index[b] for b in policy.task_objects], :2]
+    if allowance is not None:
+        checks["grasp_contact"] = True
+        jaws, surfaces = set(allowance.robot_bodies), set(allowance.surfaces)
+        grasp_rows = np.zeros(n, dtype=bool)
+        grasp_force, grasp_depth, grasp_samples = 0.0, 0.0, 0
     for contact, (g1, g2) in enumerate(a["contact_geom"]):
         pair = (m["geom_bodies"][g1], m["geom_bodies"][g2])
         row = int(contact_rows[contact])
-        if frozenset(pair) not in allowed:
-            fail("allowed_contacts", row, bodies=list(pair), geoms=[m["geom_names"][g1], m["geom_names"][g2]],
-                 solver_timestamp=float(a["contact_time"][row]), distance=float(a["contact_distance"][contact]),
-                 force=a["contact_force"][contact].tolist())
+        detail = dict(bodies=list(pair), geoms=[m["geom_names"][g1], m["geom_names"][g2]],
+                      solver_timestamp=float(a["contact_time"][row]), distance=float(a["contact_distance"][contact]),
+                      force=a["contact_force"][contact].tolist())
+        if (frozenset(pair) not in allowed and allowance is not None
+                and len(set(pair) & jaws) == 1 and len(set(pair) & surfaces) == 1):
+            force, depth = float(a["contact_force"][contact, 0]), float(max(0.0, -a["contact_distance"][contact]))
+            nearest = float(np.min(np.linalg.norm(task_xy[row] - a["contact_position"][contact, :2], axis=1)))
+            grasp_rows[row] = True
+            grasp_samples += 1
+            grasp_force, grasp_depth = max(grasp_force, force), max(grasp_depth, depth)
+            reasons = [reason for reason, bad in (
+                ("normal_force", not force <= allowance.max_normal_force),
+                ("penetration", not depth <= allowance.max_penetration),
+                ("task_object_distance", not nearest <= allowance.proximity)) if bad]
+            if reasons:
+                fail("grasp_contact", row, reasons=reasons, nearest_task_object=nearest, **detail)
+        elif frozenset(pair) not in allowed:
+            fail("allowed_contacts", row, **detail)
         if a["contact_distance"][contact] <= policy.support_distance_tolerance and a["contact_force"][contact, 0] > policy.min_support_force:
             for k, body in enumerate(policy.task_objects):
                 upward_cos = a["contact_normal"][contact, 2] * (-1 if pair[0] == body else 1)
                 if upward_cos >= policy.min_support_upward_cos and any(frozenset(pair) == frozenset((body, support)) for support in support_rules[body]):
                     supported[row, k] = True
+
+    if allowance is not None:
+        # Continuous runs of allowed jaw/surface contact, measured in substeps.
+        longest, start = 0, None
+        edges = np.diff(np.r_[0, grasp_rows.astype(np.int8), 0])
+        for begin, end in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)):
+            seconds = (end - begin) * float(m["timestep"])
+            longest = max(longest, seconds)
+            if seconds > allowance.max_contact_seconds + 1e-12:
+                fail("grasp_contact", int(begin), reasons=["duration"], measured=seconds,
+                     limit=allowance.max_contact_seconds)
+        maxima.update(grasp_contact_force=grasp_force, grasp_contact_penetration=grasp_depth,
+                      grasp_contact_seconds=longest, grasp_contact_samples=grasp_samples)
 
     task_indices = [body_index[body] for body in policy.task_objects]
     released = ~a["grasp"][:, task_indices].any(axis=1)

@@ -255,6 +255,9 @@ def _merge_defaults(mj, obj_root):
 
 
 def _free_body(mj, asset_el, worldbody, spec):
+    if hasattr(spec, "build_mjcf"):  # extension point (sim.train.tasks.assets.Scanned); unused by validation
+        spec.build_mjcf(mj, asset_el, worldbody)
+        return
     if isinstance(spec, Block):
         body = ET.SubElement(worldbody, "body", name=spec.name, pos="0 0 -1")
         ET.SubElement(body, "freejoint", name=f"{spec.name}_joint")
