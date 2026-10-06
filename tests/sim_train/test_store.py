@@ -22,8 +22,31 @@ from sim.train.store import (
 def candidate(tmp_path):
     store = EpisodeStore(tmp_path)
     key = EpisodeKey("put_can_in_basket", 7)
-    store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64))
+    store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64, visual_config_hash="a" * 64))
     return store, key
+
+
+@pytest.mark.parametrize("visual_hash", [None, "", "not-a-hash", "A" * 64])
+def test_candidate_requires_a_valid_explicit_visual_hash(tmp_path, visual_hash):
+    store = EpisodeStore(tmp_path)
+    key = EpisodeKey("put_can_in_basket", 7)
+    with pytest.raises(ValueError, match="visual_config_hash"):
+        store.create_candidate(EpisodeManifest(key, "a" * 64, visual_config_hash=visual_hash))
+    assert not store.manifest_path(key).exists()
+
+
+def test_manifest_without_persisted_visual_hash_fails_closed(candidate):
+    store, key = candidate
+    manifest_path = store.manifest_path(key)
+    manifest = json.loads(manifest_path.read_text())
+    manifest.pop("visual_config_hash", None)
+    manifest_path.write_text(json.dumps(manifest))
+    state_path = store.state_path(key)
+    state = json.loads(state_path.read_text())
+    state["manifest_hash"] = sha256_file(manifest_path)
+    state_path.write_text(json.dumps(state))
+    with pytest.raises(StoreCorruption, match="visual_config_hash"):
+        store.load(key)
 
 
 def test_cannot_skip_robot_review(candidate):
@@ -125,11 +148,12 @@ def test_failed_human_attempt_preserves_robot_approved_source(candidate):
 def test_duplicate_candidate_must_match_original_manifest(candidate):
     store, key = candidate
     before = store.manifest_path(key).read_bytes()
-    store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64))
+    store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64, visual_config_hash="a" * 64))
     with pytest.raises(ManifestConflict):
-        store.create_candidate(EpisodeManifest(key=key, config_hash="b" * 64))
+        store.create_candidate(EpisodeManifest(key=key, config_hash="b" * 64, visual_config_hash="a" * 64))
     with pytest.raises(ManifestConflict):
-        store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64, metadata={"x": 1}))
+        store.create_candidate(EpisodeManifest(key=key, config_hash="a" * 64, metadata={"x": 1},
+                                               visual_config_hash="a" * 64))
     assert store.manifest_path(key).read_bytes() == before
 
 
@@ -189,7 +213,8 @@ def test_sha256_file_uses_content(tmp_path):
 @pytest.mark.parametrize("task", ["../outside", "/absolute", "a/b", ""])
 def test_episode_task_cannot_escape_store(tmp_path, task):
     with pytest.raises(ValueError):
-        EpisodeStore(tmp_path).create_candidate(EpisodeManifest(EpisodeKey(task, 7), "a" * 64))
+        EpisodeStore(tmp_path).create_candidate(EpisodeManifest(EpisodeKey(task, 7), "a" * 64,
+                                                               visual_config_hash="a" * 64))
 
 
 def test_concurrent_identical_transitions_append_only_once(candidate):
@@ -221,7 +246,7 @@ def test_corrupt_history_or_manifest_cannot_resume(candidate, mutation):
     path.write_text(json.dumps(data))
     before = path.read_bytes()
     with pytest.raises(StoreCorruption):
-        store.create_candidate(EpisodeManifest(key, "a" * 64))
+        store.create_candidate(EpisodeManifest(key, "a" * 64, visual_config_hash="a" * 64))
     assert path.read_bytes() == before
 
 
@@ -254,7 +279,7 @@ def test_missing_state_is_corruption_not_permission_to_reset(candidate):
     store.state_path(key).unlink()
     before = store.manifest_path(key).read_bytes()
     with pytest.raises(StoreCorruption):
-        store.create_candidate(EpisodeManifest(key, "a" * 64))
+        store.create_candidate(EpisodeManifest(key, "a" * 64, visual_config_hash="a" * 64))
     assert not store.state_path(key).exists()
     assert store.manifest_path(key).read_bytes() == before
 
@@ -270,10 +295,11 @@ def test_final_json_dangling_symlink_is_not_overwritten(tmp_path):
 def test_candidate_resume_requires_identical_json_types(tmp_path):
     store = EpisodeStore(tmp_path)
     key = EpisodeKey("put_can_in_basket", 7)
-    store.create_candidate(EpisodeManifest(key, "a" * 64, metadata={"variant": 1}))
+    store.create_candidate(EpisodeManifest(key, "a" * 64, metadata={"variant": 1}, visual_config_hash="a" * 64))
     before = store.manifest_path(key).read_bytes()
     with pytest.raises(ManifestConflict):
-        store.create_candidate(EpisodeManifest(key, "a" * 64, metadata={"variant": True}))
+        store.create_candidate(EpisodeManifest(key, "a" * 64, metadata={"variant": True},
+                                               visual_config_hash="a" * 64))
     assert store.manifest_path(key).read_bytes() == before
 
 

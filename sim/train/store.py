@@ -208,6 +208,8 @@ class EpisodeStore:
     def create_candidate(self, manifest: EpisodeManifest) -> EpisodeRecord:
         if not _valid_hash(manifest.config_hash):
             raise ValueError("config_hash must be a lowercase SHA-256 hex digest")
+        if not _valid_hash(manifest.visual_config_hash):
+            raise ValueError("visual_config_hash must be a lowercase SHA-256 hex digest")
         if not isinstance(manifest.metadata, dict):
             raise ValueError("metadata must be a JSON object")
         document = json.loads(_json_bytes({"schema_version": 1, **asdict(manifest)}))
@@ -245,9 +247,12 @@ class EpisodeStore:
                 raise ValueError("episode key mismatch")
             if not _valid_hash(document["config_hash"]) or not isinstance(document["metadata"], dict):
                 raise ValueError("invalid manifest metadata/config hash")
+            if not _valid_hash(document.get("visual_config_hash")):
+                raise ValueError("missing or invalid visual_config_hash")
             if state["manifest_hash"] != sha256_file(self.manifest_path(key)):
                 raise ValueError("immutable manifest hash mismatch")
-            manifest = EpisodeManifest(key, document["config_hash"], document["metadata"], document["artifacts"])
+            manifest = EpisodeManifest(key, document["config_hash"], document["metadata"], document["artifacts"],
+                                       visual_config_hash=document["visual_config_hash"])
             self._check_artifacts(key, manifest.artifacts)
             current = EpisodeState.CANDIDATE
             history = state["history"]

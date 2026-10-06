@@ -33,8 +33,15 @@ class EpisodeKey:
 
 @dataclass(frozen=True)
 class EpisodeManifest:
+    """Separate full episode identity from the visual identity used for screening.
+
+    The recorder supplies config_hash for visuals plus task-owned layout and
+    visual_config_hash for visuals alone. A composite digest cannot reveal
+    its visual component, so the latter is required rather than inferred.
+    """
     key: EpisodeKey
     config_hash: str
+    visual_config_hash: str = field(kw_only=True)
     metadata: dict[str, Any] = field(default_factory=dict)
     artifacts: dict[str, str] = field(default_factory=dict)
 

@@ -296,10 +296,7 @@ def _duplicate_in_store(store, config_hash):
         # Store.load validates immutable bytes and fails closed on corruption.
         value = json.loads(path.read_text())
         record = store.load(EpisodeKey(**value["key"]))
-        if record.manifest.config_hash == config_hash:
-            return True
-        visual = record.manifest.metadata.get("visual_config", {})
-        if visual.get("config_hash") == config_hash:
+        if record.manifest.visual_config_hash == config_hash:
             return True
     return False
 

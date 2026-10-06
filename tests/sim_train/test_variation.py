@@ -148,6 +148,35 @@ def test_episode_identity_includes_task_owned_layout():
     assert a != episode_config_hash(config, {"can": [0.21, 0.1, 0.02, 1, 0, 0, 0]})
 
 
+def test_layout_inclusive_manifest_cannot_omit_visual_identity(tmp_path):
+    config = sample_visual_config("put_can_in_basket", 11)
+    poses = {"can": [0.2, 0.1, 0.02, 1, 0, 0, 0]}
+    store = EpisodeStore(tmp_path)
+    key = EpisodeKey("put_can_in_basket", 11)
+    # This exact previously legal call silently bypassed duplicate screening.
+    with pytest.raises(TypeError, match="visual_config_hash"):
+        store.create_candidate(EpisodeManifest(key=key, config_hash=episode_config_hash(config, poses), metadata={}))
+    assert not store.manifest_path(key).exists()
+
+
+def test_duplicate_visual_identity_survives_layout_inclusive_manifest(env, tmp_path):
+    config = env.visual_config
+    store = EpisodeStore(tmp_path)
+    key = EpisodeKey("put_can_in_basket", 11)
+    full_hash = episode_config_hash(config, env.object_poses())
+    assert full_hash != config.config_hash
+    store.create_candidate(EpisodeManifest(key, full_hash, metadata={},
+                                           visual_config_hash=config.config_hash))
+    persisted = json.loads(store.manifest_path(key).read_text())
+    assert persisted["visual_config_hash"] == config.config_hash
+    record = EpisodeStore(tmp_path).load(key)
+    assert record.manifest.config_hash == full_hash
+    assert record.manifest.visual_config_hash == config.config_hash
+    result = screen_visual_config(config, env, ("target", "goal"), (goal_region(env),), store=store)
+    assert not result.accepted
+    assert "duplicate_config" in result.reasons
+
+
 def test_visibility_accepts_clear_calibration_scene_and_restores_renderer(env):
     config = sample_visual_config("put_can_in_basket", 11)
     result = screen_visual_config(config, env, ("target", "goal"), (goal_region(env),))
@@ -203,7 +232,7 @@ def test_duplicate_store_screen_and_persisted_rejection_resume(env, tmp_path):
     store = EpisodeStore(tmp_path)
     config = sample_visual_config("put_can_in_basket", 11)
     key = EpisodeKey("put_can_in_basket", 11)
-    store.create_candidate(EpisodeManifest(key, config.config_hash))
+    store.create_candidate(EpisodeManifest(key, config.config_hash, visual_config_hash=config.config_hash))
     result = screen_visual_config(config, env, ("target", "goal"), (goal_region(env),), store=store)
     assert not result.accepted
     assert "duplicate_config" in result.reasons
