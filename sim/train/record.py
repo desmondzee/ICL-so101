@@ -150,7 +150,8 @@ def verify_media(directory: Path, frames: int, width: int, height: int, fps: int
     import pandas as pd
 
     report = {"frames": frames, "width": width, "height": height, "fps": fps, "videos": {}, "tables": {}}
-    videos = sorted(p for p in directory.rglob("*.mp4"))
+    # human/ holds generated human videos (sim.train.generate); they are checked there, not as robot streams.
+    videos = sorted(p for p in directory.rglob("*.mp4") if p.relative_to(directory).parts[0] != "human")
     if not {v.name for v in videos} >= set(VIDEO_NAMES):
         raise ValueError("missing robot videos")
     for video in videos:
