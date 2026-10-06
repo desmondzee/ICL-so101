@@ -239,6 +239,28 @@ class ValEnv(SO101NexusMuJoCoBaseEnv):
         self.model.cam_fovy[self._wrist_cam_id] = WRIST_CAM_FOVY
 
     # ----- gym plumbing ---------------------------------------------------------------------------------------
+    def step(self, action, *, substep_observer=None):
+        """Optionally observe each solver substep as ``observer(env, index)``.
+
+        The upstream step still owns action conversion, observation, reward and
+        termination. Observers must be read-only; exceptions propagate and the
+        hook is cleared in all cases. Reset settling is never observed.
+        """
+        previous = getattr(self, "_substep_observer", None)
+        self._substep_observer = substep_observer
+        try:
+            return super().step(action)
+        finally:
+            self._substep_observer = previous
+
+    def _advance_physics(self):
+        observer = getattr(self, "_substep_observer", None)
+        if observer is None:
+            return super()._advance_physics()
+        for substep in range(self._N_SUBSTEPS):
+            mujoco.mj_step(self.model, self.data)
+            observer(self, substep)
+
     def _task_reset(self):
         for _ in range(50):
             self.active_distractors = []
