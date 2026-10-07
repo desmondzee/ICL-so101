@@ -1,6 +1,6 @@
 # SO-101 simulated training dataset tracker
 
-Updated: 2026-10-06
+Updated: 2026-10-07
 
 ## Requested outcome
 
@@ -8,7 +8,7 @@ Produce as many high-quality simulated SO-101 robot/human pairs as approximately
 
 ## Current status
 
-Approved design and implementation underway. Tasks 1–3 provide immutable episode state, procedural visual variation and complete substep physics QA. Task 4 now has five distinct candidate training tasks, structured held-out checks, a strict qualification CLI and an evidence-checked admission boundary. Their deterministic real MuJoCo resets and policy contracts pass tests; the 50 unseen-seed oracle screens and measured contact/motion-policy qualification are still pending. None is admitted for recording or generation yet. No paid generation requests, uploads, or website publication have been performed in this session.
+Complete (2026-10-07). Released 1,109 accepted robot/human pairs over 61 tasks in 29 families (434 robot minutes). 617 of them use the diversified scenes, lighting and cameras; 492 are earlier episodes in the original 2 arenas. The release is on HF at `hf://buckets/akoniti/ICL-so101/sim_train_v1` with readback verified, and on the GitHub Pages "Training (simulation)" section (commit 6b9f3ac on main). fal spend was $96.32 of the $120 cap, $23.68 unused, by decision on 2026-10-07. Recording has stopped. Left in the store, not released: 109 robot-approved episodes without human video, and 499 physics-approved episodes not yet robot-reviewed. The Zero-WAM loader smoke test (plan Task 8) is still open.
 
 ## Decisions 2026-10-06 (handover to a new session)
 
@@ -41,16 +41,16 @@ Independent local audit confirms 50 indexed pairs, all 50 `review.final` values 
 - [x] Audit local validation manifests, provenance and review artifacts against documentation.
 - [x] Audit simulation assets, oracle skills, success predicates and physics quality gaps.
 - [x] Audit fal generation/retries, per-pair review evidence, HF destination and viewer integration.
-- [ ] Define genuine task diversity, split policy, episode quotas and generation cost limits.
+- [x] Define genuine task diversity, split policy, episode quotas and generation cost limits.
 - [x] Write the approved design and robot-corpus implementation plan grounded in the audit.
-- [ ] Implement task registry, recording and reproducible per-episode quality evidence.
-- [ ] Validate a small pilot before large-scale human generation.
-- [ ] Generate and review a credit-limited set of accepted pairs; retain rejected attempts and reasons outside the release.
-- [ ] Independently verify every proposed human-pair acceptance after generation; generation completion alone cannot count as acceptance.
+- [x] Implement task registry, recording and reproducible per-episode quality evidence.
+- [x] Validate a small pilot before large-scale human generation.
+- [x] Generate and review a credit-limited set of accepted pairs; retain rejected attempts and reasons outside the release.
+- [x] Independently verify every proposed human-pair acceptance after generation; generation completion alone cannot count as acceptance.
 - [ ] Verify packaged training compatibility and held-out evaluation isolation.
-- [ ] Publish the release card, provenance and measured results in HF and repository documentation.
-- [ ] Upload accepted data to HF and verify remote inventory/readback.
-- [ ] Push scoped code/docs/viewer updates to GitHub and verify Pages deployment.
+- [x] Publish the release card, provenance and measured results in HF and repository documentation.
+- [x] Upload accepted data to HF and verify remote inventory/readback.
+- [x] Push scoped code/docs/viewer updates to GitHub and verify Pages deployment.
 - [ ] Verify the live simulated-training gallery, pair routes and video playback plus existing real/validation views.
 
 ## Required acceptance evidence
@@ -186,3 +186,11 @@ Proposed release gates: final settled task success; reproducible reset and rollo
   - **Memory:** a worker uses about 2 GB per scene build, the same as the previous code (measured at HEAD: 2.5 GB, peak 3.7 GB). Qualify now recycles workers every 2 seeds (`multiprocessing.Pool(maxtasksperchild=2)`; concurrent.futures' `max_tasks_per_child` hung). With this, worker peak RSS is 1.9-2.3 GB, not under 1 GB, because of the 1M+ backdrop/object mesh vertices.
   - **Known issue (not caused by this change):** golf_ball_in_ramekin, swap_*, lay_*/turn_ketchup and cover_* often exhaust visual screening because their initial goal regions are occluded at start (goal fraction 0 for every camera, also with the old ranges).
   - **Preview:** /tmp/diversity_preview.png.
+
+- 2026-10-07: Final rounds and wrap-up.
+  - **Rounds 5-9:** generation rounds 5-9 ran in the robot review → fal → human review → publish loop. Publications went 432 → 554 → 656 → 880 → 1002 → 1109 pairs.
+  - **Review rates:** robot review accepted about 67-81% per batch. Most rejections were real faults: the front view occluded the grasp or release, objects moved after release, or a sweep hit placed objects. Human review accepted about 89-95%.
+  - **Diverse-only from round 7:** robot review skipped the remaining original-arena episodes (old kitchen/living_room configs), so from round 7 onward only diversified episodes were sent to fal.
+  - **Recorder memory leak:** a `sim.train.record` process grew about 0.3 GB per attempt; one long run reached 10 GB, the cause being envs rebuilt for each visual resample. Fix: the wrapper runs targets 8/16/24/32 in fresh processes (recording resumes from where it stopped) and a 7 GB guard restarts any recorder above that. Killing a recorder child also made `xargs` stop queueing, so the wrapper now always exits 0.
+  - **Per-run cap:** `generate run` stops after 120 requests per run, whatever budget is passed.
+  - **Not done:** the Zero-WAM loader smoke test (plan Task 8). The unreleased store backlog listed under Current status is kept for any later top-up.
