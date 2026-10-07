@@ -470,7 +470,7 @@ TASKS = [
                 relation="upright in slot", goal="dish rack",
                 steps=("Pick up the cutting board, turn it parallel to the slots and stand it upright in a slot of "
                        "the dish rack.",)),
-    define_task(name="book_rack_right_to_left_slot", instruction=BookSlotMoveEnv.instruction, family=FAMILY,
+    define_task(name="book_rack_right_to_left_slot", view_aligned=True, instruction=BookSlotMoveEnv.instruction, family=FAMILY,
                 env=BookSlotMoveEnv, oracle=RackOracle, objects=("book",), object_kinds=("book",),
                 relation="from right slot to left slot", goal="book rack",
                 steps=("Lift the book out of the right slot of the book rack and stand it upright in the left "

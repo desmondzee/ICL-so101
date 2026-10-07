@@ -403,7 +403,8 @@ class BarFrontOfMugEnv(FrontBehindEnv):
 
 
 def _task(name, env, oracle, kind, relation, goal, obj_text, ref_text):
-    return define_task(name=name, instruction=env.instruction, family=FAMILY, env=env, oracle=oracle,
+    return define_task(name=name, view_aligned=True, instruction=env.instruction, family=FAMILY, env=env,
+                       oracle=oracle,
                        objects=(env.obj,), object_kinds=(kind,), relation=relation, goal=goal,
                        steps=(step_text("put", obj_text, relation, ref_text),))
 

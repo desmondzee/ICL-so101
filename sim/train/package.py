@@ -320,8 +320,12 @@ def readme(index: dict, stats: dict) -> str:
         "Each recorded episode then passed a substep physics audit (finite state, simulator warnings, joint ranges, "
         "penetration, allowed contacts with bounded fingertip-table grasp contact, distractor displacement, released grasp, "
         "support, and the goal holding for a settled interval); see `physics.json` / `policy.json` per pair.",
-        "2. **Visual variation.** Per episode, deterministic and frozen before review: arena/background, key/fill light "
-        f"colour, intensity and direction, and front-camera pose/FOV. Released coverage: arenas {dict(arenas)}; key-light "
+        "2. **Visual variation.** Per episode, deterministic and frozen before review: room (floor/wall textures and "
+        "backdrop props over the two qualified table geometries), table-top surface and table/wall/floor tints, key/fill/"
+        "ceiling (and optional rim) light colour temperature, intensity, direction and shadows, ambient level, and "
+        "front-camera pose/FOV/roll; a robot-free exposure check resamples dark or blown-out views (the first "
+        "~650 recorded episodes used the narrower original ranges: 2 arenas, near-white light)."
+        f" Released coverage: arenas {dict(arenas)}; key-light "
         f"intensity {_rng(lights)}; front-camera fovy {_rng(fovy)} deg. The wrist camera keeps the physical mount.",
         f"3. **Robot-video review** before any paid generation: an Opus judge and an adversarial Opus verifier per episode. "
         f"Store-wide: {rr.get('approved', 0)} approved / {robot_n} reviewed ({pct(rr.get('approved', 0), robot_n)}); "

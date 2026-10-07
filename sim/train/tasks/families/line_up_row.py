@@ -474,7 +474,7 @@ class RowBehindCubeEnv(RowEnv):
 
 
 TASKS = [
-    define_task(name="line_up_three_blocks_on_mat", instruction=BlocksOnMatEnv.instruction, family=FAMILY,
+    define_task(name="line_up_three_blocks_on_mat", view_aligned=True, instruction=BlocksOnMatEnv.instruction, family=FAMILY,
                 env=BlocksOnMatEnv, oracle=RowOracle, objects=BlocksOnMatEnv.task_objects,
                 object_kinds=("block", "block", "block"), relation="in a row left to right in stated order on",
                 goal="long mat",
@@ -482,13 +482,13 @@ TASKS = [
                        then("Pick up the green block and put it on the mat just to the right of the red block."),
                        then("Pick up the blue block and put it on the mat just to the right of the green block, "
                             "completing the row."))),
-    define_task(name="line_up_cans_behind_plate", instruction=CansBehindPlateEnv.instruction, family=FAMILY,
+    define_task(name="line_up_cans_behind_plate", view_aligned=True, instruction=CansBehindPlateEnv.instruction, family=FAMILY,
                 env=CansBehindPlateEnv, oracle=CanRowOracle, objects=CansBehindPlateEnv.task_objects,
                 object_kinds=("can", "can"), relation="in a row left to right behind", goal="plate",
                 steps=("Pick up the soup can and stand it on the table just behind the plate, on the left.",
                        then("Pick up the tomato sauce can and stand it behind the plate to the right of the soup "
                             "can, in a row with it."))),
-    define_task(name="line_up_row_behind_cube", instruction=RowBehindCubeEnv.instruction, family=FAMILY,
+    define_task(name="line_up_row_behind_cube", view_aligned=True, instruction=RowBehindCubeEnv.instruction, family=FAMILY,
                 env=RowBehindCubeEnv, oracle=RowOracle, objects=RowBehindCubeEnv.task_objects,
                 object_kinds=("can", "rectangular block"), relation="in a straight row going back from",
                 goal="cube",

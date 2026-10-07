@@ -15,6 +15,7 @@ for the 3-12 mm approach margins). Regenerate with ``python -m sim.train.tasks.a
 from __future__ import annotations
 
 from dataclasses import dataclass
+import functools
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -63,7 +64,7 @@ class Scanned:
             if self.rgba is not None:
                 attrs["rgba"] = " ".join(map(str, self.rgba))
             ET.SubElement(asset_el, "material", **attrs)
-        quat = get_mujoco_ycb_rest_pose(self._body_verts(coll, self.scale), model_id=self.model_id)[0]
+        quat = self._rest(coll)[0]
         body = ET.SubElement(worldbody, "body", name=self.name, pos="0 0 -1")
         ET.SubElement(body, "freejoint", name=f"{self.name}_joint")
         upright = ET.SubElement(body, "body", name=f"{self.name}_upright", quat=" ".join(f"{q:.6g}" for q in quat))
@@ -75,6 +76,10 @@ class Scanned:
         if material:
             vis["material"] = material
         ET.SubElement(upright, "geom", **vis)
+
+    def _rest(self, coll):
+        """(rest quaternion, rest-frame AABB low, high) of the collision parts; cached per model and scale."""
+        return _rest_geometry(self.source, self.model_id, float(self.scale), tuple((m, str(p.path)) for m, p in coll))
 
     @staticmethod
     def _body_verts(coll, scale=1.0):
@@ -97,6 +102,64 @@ class Scanned:
         if not np.isfinite(verts).all():
             raise ValueError("non-finite scanned collision vertices")
         return verts
+
+
+@dataclass
+class ScannedBox(Scanned):
+    """A scanned object whose collision is one box fitted to its rest-pose extents (visual: the scan).
+
+    For distractors that are never grasped: convex-hull scans rock and creep millimetres per second on the
+    table (measured 2026-10-07: gelatin box 17 mm, sponge 11 mm in 6 s), while a box settles exactly like
+    the LIBERO grocery boxes. The mesh rests on the box bottom, so it looks as if it lies on the table."""
+
+    def build_mjcf(self, mj, asset_el, worldbody):
+        from so101_nexus.ycb_geometry import get_mujoco_ycb_rest_pose
+        obj, acc = self._accessors()
+        acc.ensure_assets(self.model_id)
+        parts = acc.collision_parts(self.model_id)
+        mass = self.mass if self.mass is not None else acc.default_mass(self.model_id) * self.scale ** 3
+        prefix = f"{self.name}_scan"
+        coll = [(f"{prefix}_coll_{k}", part) for k, part in enumerate(parts)]
+        quat, lo, hi = self._rest(coll)
+        scale = " ".join([f"{self.scale:.6g}"] * 3)
+        ET.SubElement(asset_el, "mesh", name=f"{prefix}_vis", file=acc.visual_mesh(self.model_id).as_posix(),
+                      scale=scale)
+        material = None
+        texture = acc.texture_file(self.model_id)
+        if texture.exists():
+            ET.SubElement(asset_el, "texture", name=f"{prefix}_tex", type="2d", file=texture.as_posix())
+            material = f"{prefix}_mat"
+            attrs = dict(name=material, texture=f"{prefix}_tex", texuniform="false", specular="0.1", reflectance="0")
+            if self.rgba is not None:
+                attrs["rgba"] = " ".join(map(str, self.rgba))
+            ET.SubElement(asset_el, "material", **attrs)
+        body = ET.SubElement(worldbody, "body", name=self.name, pos="0 0 -1")
+        ET.SubElement(body, "freejoint", name=f"{self.name}_joint")
+        ET.SubElement(body, "geom", name=f"{prefix}_box", type="box", group="3", condim="4",
+                      pos=" ".join(f"{x:.6g}" for x in (lo + hi) / 2),
+                      size=" ".join(f"{x:.6g}" for x in (hi - lo) / 2), mass=repr(float(mass)),
+                      friction=f"{self.friction} 0.02 0.001")
+        upright = ET.SubElement(body, "body", name=f"{self.name}_upright", quat=" ".join(f"{q:.6g}" for q in quat))
+        vis = dict(name=f"{prefix}_visual", type="mesh", mesh=f"{prefix}_vis", group="1", contype="0",
+                   conaffinity="0", mass="0")
+        if material:
+            vis["material"] = material
+        ET.SubElement(upright, "geom", **vis)
+
+
+@functools.lru_cache(maxsize=None)
+def _rest_geometry(source, model_id, scale, parts):
+    """Rest pose and rest-frame extents of a scan's collision parts (pure function of the files; cached so an
+    environment build does not recompile every scan's hull)."""
+    from types import SimpleNamespace
+    from so101_nexus.ycb_geometry import get_mujoco_ycb_rest_pose
+    coll = [(mesh, SimpleNamespace(path=Path(path))) for mesh, path in parts]
+    verts = Scanned._body_verts(coll, scale)
+    quat = np.asarray(get_mujoco_ycb_rest_pose(verts, model_id=model_id)[0], dtype=np.float64)
+    rot = np.zeros(9)
+    mujoco.mju_quat2Mat(rot, quat)
+    rested = np.einsum("ij,nj->ni", rot.reshape(3, 3), verts)
+    return tuple(float(q) for q in quat), rested.min(axis=0), rested.max(axis=0)
 
 
 GSO_IDS = ("Pony_C_Clamp_1440", "Cole_Hardware_Mini_Honey_Dipper", "OXO_Soft_Works_Can_Opener_SnapLock",
@@ -171,3 +234,78 @@ if __name__ == "__main__":
         except Exception as exc:  # report, never hide, an asset that fails to load
             result[f"{spec.source}:{spec.model_id}@{spec.scale}"] = {"error": f"{type(exc).__name__}: {exc}"[:200]}
     print(json.dumps(result, indent=1))
+
+
+# ----- extra distractors ---------------------------------------------------------------------------------------
+# Low (<= 3.1 cm), never-grasped clutter added per episode on top of each family's distractor pool (selected by
+# the episode's visual configuration). Measured 2026-10-07 with 5 yaws on both table geometries: after the reset
+# settle, 0.00 mm drift, 0 rad rotation and no penetration beyond the contact margin over 6 s (scans use
+# ``ScannedBox``: hull-collision scans crept up to 17 mm). Footprint radius <= 7.6 cm.
+# name -> (spec factory, guard words). An extra is never used when a guard word appears in the task's
+# instruction, steps, object names/kinds or goal, so it cannot duplicate a task object's kind or make the
+# instruction ambiguous.
+def _libero(name, asset, rgba=None):
+    from sim.val.scene import Obj
+    return lambda: Obj(name, asset, rgba=rgba)
+
+
+def _scan(name, source, model_id, mass):
+    return lambda: ScannedBox(name, source, model_id, scale=0.5, mass=mass)
+
+
+# name -> (spec factory, guard words, settled height cm, LOW_DISTRACTORS look-alike or None).
+EXTRA_DISTRACTORS = {
+    "cookies": (_libero("cookies", "cookies"), ("cookie", "box", "package"), 0.9, "cream_cheese"),
+    "macaroni_and_cheese": (_libero("macaroni_and_cheese", "macaroni_and_cheese"), ("macaroni", "cheese", "box"),
+                            1.3, "cream_cheese"),
+    "salad_dressing": (_libero("salad_dressing", "salad_dressing"), ("dressing", "bottle", "sauce"), 1.8, None),
+    "new_salad_dressing": (_libero("new_salad_dressing", "new_salad_dressing"), ("dressing", "bottle", "sauce"),
+                           1.8, None),
+    "black_book_flat": (_libero("black_book_flat", "black_book_flat"), ("book",), 1.4, None),
+    "yellow_book_flat": (_libero("yellow_book_flat", "yellow_book_flat"), ("book",), 1.2, None),
+    "blue_plate": (_libero("blue_plate", "plate", (0.45, 0.6, 1.0, 1.0)), ("plate", "dish"), 0.9, "plate"),
+    "green_bowl": (_libero("green_bowl", "white_bowl", (0.5, 0.9, 0.55, 1.0)), ("bowl",), 1.7, "white_bowl"),
+    "yellow_ramekin": (_libero("yellow_ramekin", "ramekin", (1.0, 0.85, 0.4, 1.0)), ("ramekin", "bowl", "cup"),
+                       2.1, "ramekin"),
+    "coq10_bottle": (_scan("coq10_bottle", "gso", "CoQ10", 0.03), ("bottle",), 2.4, None),
+    "sprinkles": (_scan("sprinkles", "gso", "Wilton_Pearlized_Sugar_Sprinkles_525_oz_Gold", 0.03),
+                  ("sprinkle", "canister", "can"), 2.3, "alphabet_soup"),
+    "raisinets": (_scan("raisinets", "gso", "Nestle_Raisinets_Milk_Chocolate_35_oz_992_g", 0.03),
+                  ("raisinet", "chocolate", "box", "package"), 1.1, "cream_cheese"),
+    "gelatin_box": (_scan("gelatin_box", "ycb", "009_gelatin_box", 0.025), ("gelatin", "box", "jello"), 1.5,
+                    "cream_cheese"),
+    "banana": (_scan("banana", "ycb", "011_banana", 0.03), ("banana", "fruit"), 1.8, None),
+    "vinyl_tape": (_scan("vinyl_tape", "gso", "3M_Vinyl_Tape_Green_1_x_36_yd", 0.02), ("tape", "roll"), 1.3, None),
+    "sponge_pad": (_scan("sponge_pad", "gso", "Big_O_Sponges_Assorted_Cellulose_12_pack", 0.01), ("sponge",), 0.9,
+                   None),
+    "glazed_cup": (_scan("glazed_cup", "gso", "BIA_Porcelain_Ramekin_With_Glazed_Rim_35_45_oz_cup", 0.03),
+                   ("cup", "ramekin", "bowl"), 2.2, "ramekin"),
+    "fork": (_scan("fork", "ycb", "030_fork", 0.02), ("fork", "utensil", "cutlery"), 0.8, None),
+    "spoon": (_scan("spoon", "ycb", "031_spoon", 0.02), ("spoon", "utensil", "cutlery"), 1.0, None),
+    "marker": (_scan("marker", "ycb", "040_large_marker", 0.01), ("marker", "pen"), 0.9, None),
+    "screwdriver": (_scan("screwdriver", "ycb", "043_phillips_screwdriver", 0.02), ("screwdriver", "tool"), 1.8,
+                    None),
+}
+
+
+def eligible_extra_distractors(texts, pool) -> tuple[str, ...]:
+    """Extras allowed beside a family distractor ``pool`` for a task described by ``texts``.
+
+    Dropped when a guard word appears in the instruction, steps, object names/kinds or goal; when the family
+    pool deliberately leaves out the extra's LOW_DISTRACTORS look-alike (e.g. no plate where a plate reads as a
+    round target); or when the extra is taller than every item of the family pool (short-only pools).
+    """
+    import re
+    from .base import LOW_DISTRACTORS
+    words = set(re.findall(r"[a-z0-9]+", " ".join(str(t) for t in texts).lower().replace("_", " ")))
+    words |= {w[:-1] for w in words if w.endswith("s") and len(w) > 3}
+    heights = [INVENTORY[f"libero:{n}"]["dims_cm"][2] for n in pool if f"libero:{n}" in INVENTORY]
+    tallest = max(heights, default=0.0)
+    out = []
+    for name, (_, guards, height, analog) in EXTRA_DISTRACTORS.items():
+        if any(g in words for g in guards) or name in words or height > tallest + 1e-9:
+            continue
+        if analog is not None and analog in LOW_DISTRACTORS and analog not in pool:
+            continue
+        out.append(name)
+    return tuple(out)

@@ -14,7 +14,8 @@ overrides class attributes/hooks of ``ValEnv``; ``TrainOracle`` overrides
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import re
 
 import mujoco
 import numpy as np
@@ -23,10 +24,10 @@ from scipy.ndimage import gaussian_filter1d
 
 from sim.train.physics import GoalRule, GraspContactAllowance, PhysicsPolicy
 from sim.train.variation import GoalRegion
-from sim.val.env import ValEnv
+from sim.val.env import PARK_X, ValEnv
 from sim.val.oracle import (CARRY_Z, CLOSED, FIXED_FACE, MJ_PEAK, OPEN, RELEASE, Oracle, interp_rot, min_jerk,
                             tcp_path, top_down_mat)
-from sim.val.scene import CATALOG, Block, Disc, Fixture, Obj, SceneSpec  # noqa: F401  (re-exported for families)
+from sim.val.scene import CATALOG, Block, Disc, Fixture, Obj, SceneSpec, arena_base  # noqa: F401  (re-exported for families)
 from .assets import INVENTORY, Scanned  # noqa: F401  (re-exported for families)
 from .schema import OrderedCompletion
 
@@ -63,6 +64,12 @@ VIEW = {"right": np.array([0.0, 1.0]), "left": np.array([0.0, -1.0]),
 # them at the default carry height, so they are safe distractors anywhere on the table.
 LOW_DISTRACTORS = ("alphabet_soup", "tomato_sauce", "cream_cheese", "butter", "chocolate_pudding",
                    "popcorn", "ramekin", "white_bowl", "red_bowl", "akita_black_bowl", "plate")
+
+
+# Colour words: an instruction naming any of them keeps every primitive's authored colour.
+COLOUR_WORDS = frozenset(("red", "green", "blue", "yellow", "orange", "purple", "violet", "pink", "black", "white",
+                          "brown", "grey", "gray", "silver", "gold", "golden", "cyan", "teal", "beige", "tan",
+                          "magenta", "maroon", "navy", "turquoise", "colour", "color", "coloured", "colored"))
 
 
 def mat(name, half=(0.035, 0.035), thickness=0.006, rgba=(0.45, 0.45, 0.5, 1.0), mass=0.05):
@@ -121,16 +128,71 @@ class TrainEnv(ValEnv):
     def scene_fixtures(self) -> list:
         return []
 
+    def __init__(self, *args, visual_config=None, **kwargs):
+        # make_scene() runs inside ValEnv.__init__ and needs the episode's visual configuration (extra
+        # distractors, primitive colours) before ValEnv stores it.
+        self._scene_visual_config = visual_config
+        super().__init__(*args, visual_config=visual_config, **kwargs)
+
     def make_scene(self) -> SceneSpec:
-        objects = list(self.scene_objects())
+        from .assets import EXTRA_DISTRACTORS
+        config = getattr(self, "_scene_visual_config", None)
+        objects = self._recolour_primitives(list(self.scene_objects()), config)
         fixtures = list(self.scene_fixtures())
         used = {o.name for o in objects} | {f.name for f in fixtures}
-        return SceneSpec(arena=self.arena, objects=objects, fixtures=fixtures,
-                         distractors=[Obj(n, n) for n in self.distractor_pool if n not in used])
+        distractors = [Obj(n, n) for n in self.distractor_pool if n not in used]
+        if config is not None and config.distractor_extras and max(self.n_distractors) > 0:
+            distractors += [EXTRA_DISTRACTORS[n][0]() for n in config.distractor_extras
+                            if n not in used and n not in self.distractor_pool]
+        self.extra_distractor_names = tuple(d.name for d in distractors if d.name not in self.distractor_pool)
+        return SceneSpec(arena=self.arena, objects=objects, fixtures=fixtures, distractors=distractors)
+
+    def _recolour_primitives(self, objects, config):
+        """Per-episode colours for primitive blocks/mats when nothing in the task names a colour.
+
+        Only ``Block``/``Disc`` specs whose own name carries no colour word are recoloured (palette colours in
+        object order); scanned and LIBERO meshes keep their textures."""
+        if config is None or not config.primitive_palette:
+            return objects
+        words = set(re.findall(r"[a-z]+", self.instruction.lower()))
+        if words & COLOUR_WORDS:   # a named colour pins every primitive's colour
+            return objects
+        out, k = [], 0
+        for spec in objects:
+            if (isinstance(spec, (Block, Disc))
+                    and not set(spec.name.lower().split("_")) & COLOUR_WORDS):
+                colour = config.primitive_palette[k % len(config.primitive_palette)]
+                spec = replace(spec, rgba=(*colour, spec.rgba[3]))
+                k += 1
+            out.append(spec)
+        return out
+
+    def place_distractors(self, placed):
+        """As ValEnv, but per-episode extra distractors come first three times as often as the family pool, so
+        the added clutter actually shows up (2-4 active distractors per episode)."""
+        k = int(self.np_random.integers(self.n_distractors[0], self.n_distractors[1] + 1))
+        pool = list(self.distractor_names)
+        extras = set(getattr(self, "extra_distractor_names", ()))
+        keys = self.np_random.random(len(pool)) ** np.array([1 / 3 if n in extras else 1.0 for n in pool])
+        self.active_distractors = []
+        for i in np.argsort(-keys, kind="stable"):
+            n = pool[i]
+            if len(self.active_distractors) < k:
+                try:
+                    xy = self.sample_xy(self.footprint(n), placed, **self.distractor_region, clearance=0.03, tries=200)
+                except RuntimeError:
+                    xy = None
+                if xy is not None:
+                    placed.append((xy, self.footprint(n)))
+                    self.set_object_pose(n, xy, yaw=self.np_random.uniform(-np.pi, np.pi))
+                    self.active_distractors.append(n)
+                    continue
+            self.set_object_pose(n, (PARK_X + i, 0.0), z=self._floor_z)
+        return placed
 
     @property
     def table_body(self) -> str:
-        return TABLE_BODIES[self.scene.arena]
+        return TABLE_BODIES[arena_base(self.scene.arena)]
 
     @property
     def floor_body(self) -> str:

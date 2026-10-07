@@ -15,6 +15,8 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from sim.val.scene import ARENAS, TABLE_SURFACES, arenas_with_base
+
 from .model import EpisodeKey
 from .store import EpisodeStore, atomic_write_json
 
@@ -24,10 +26,33 @@ def _hash(value) -> str:
                                      allow_nan=False).encode()).hexdigest()
 
 
+BASE_ARENAS = ("living_room", "kitchen")
+
+
 def _tuple3(value):
     value = tuple(float(x) for x in value)
     if len(value) != 3 or not all(np.isfinite(value)):
         raise ValueError("expected three finite values")
+    return value
+
+
+LIGHT_NAMES = ("key", "fill", "ceiling", "rim")
+MAX_LIGHT_INTENSITY = 1.5
+
+
+def _strip_none(value):
+    """Drop optional (None) fields so configurations recorded before they existed keep their hashes."""
+    if isinstance(value, dict):
+        return {k: _strip_none(v) for k, v in value.items() if v is not None}
+    if isinstance(value, (list, tuple)):
+        return [_strip_none(v) for v in value]
+    return value
+
+
+def _unit3(value, name):
+    value = _tuple3(value)
+    if not all(0 <= x <= 1 for x in value):
+        raise ValueError(f"{name} must be in [0, 1]")
     return value
 
 
@@ -36,12 +61,15 @@ class FrontCamera:
     pos: tuple[float, float, float]
     lookat: tuple[float, float, float]
     fovy: float
+    roll: float | None = None  # degrees about the viewing axis; None = level (legacy)
 
     def __post_init__(self):
         object.__setattr__(self, "pos", _tuple3(self.pos))
         object.__setattr__(self, "lookat", _tuple3(self.lookat))
         if not np.isfinite(self.fovy) or not 0 < self.fovy < 180:
             raise ValueError("front fovy must be between 0 and 180 degrees")
+        if self.roll is not None and (not np.isfinite(self.roll) or abs(self.roll) > 30):
+            raise ValueError("front roll must be within 30 degrees")
         direction = np.subtract(self.lookat, self.pos)
         if np.linalg.norm(direction[:2]) < 1e-9:
             raise ValueError("front camera cannot look straight vertically")
@@ -53,14 +81,18 @@ class Light:
     pos: tuple[float, float, float]
     intensity: float
     color: tuple[float, float, float]
+    castshadow: bool | None = None  # None keeps the scene default (legacy)
 
     def __post_init__(self):
         object.__setattr__(self, "pos", _tuple3(self.pos))
         object.__setattr__(self, "color", _tuple3(self.color))
-        if self.name not in ("key", "fill") or not np.isfinite(self.intensity) or not 0 < self.intensity <= 1:
-            raise ValueError("invalid key/fill light")
+        if (self.name not in LIGHT_NAMES or not np.isfinite(self.intensity)
+                or not 0 < self.intensity <= MAX_LIGHT_INTENSITY):
+            raise ValueError("invalid light")
         if not all(0 <= x <= 1 for x in self.color):
             raise ValueError("light color must be in [0, 1]")
+        if self.castshadow is not None and type(self.castshadow) is not bool:
+            raise ValueError("castshadow must be a boolean")
 
 
 @dataclass(frozen=True)
@@ -70,9 +102,7 @@ class Background:
 
     def __post_init__(self):
         for name in ("skybox_top", "skybox_bottom"):
-            object.__setattr__(self, name, _tuple3(getattr(self, name)))
-            if not all(0 <= x <= 1 for x in getattr(self, name)):
-                raise ValueError("background color must be in [0, 1]")
+            object.__setattr__(self, name, _unit3(getattr(self, name), "background color"))
 
 
 @dataclass(frozen=True)
@@ -83,17 +113,44 @@ class VisualConfig:
     background: Background
     variation_seed: int
     resample_index: int = 0
+    # Optional dimensions (None = scene default; omitted from the hash so legacy configs keep theirs).
+    ambient: float | None = None
+    table_surface: str | None = None
+    table_tint: tuple[float, float, float] | None = None
+    wall_tint: tuple[float, float, float] | None = None
+    floor_tint: tuple[float, float, float] | None = None
+    # Extra low clutter (names in sim.train.tasks.assets.EXTRA_DISTRACTORS) added to the family's pool, and
+    # colours for unnamed-colour primitive task objects/mats (applied only when the instruction names no colour).
+    distractor_extras: tuple[str, ...] | None = None
+    primitive_palette: tuple[tuple[float, float, float], ...] | None = None
 
     def __post_init__(self):
-        if self.arena not in ("living_room", "kitchen"):
+        if self.arena not in ARENAS:
             raise ValueError("arena is not qualified")
         object.__setattr__(self, "lights", tuple(self.lights))
-        if tuple(light.name for light in self.lights) != ("key", "fill"):
+        names = tuple(light.name for light in self.lights)
+        if names[:2] != ("key", "fill") or len(set(names)) != len(names) or any(
+                LIGHT_NAMES.index(a) > LIGHT_NAMES.index(b) for a, b in zip(names, names[1:])):
             raise ValueError("configuration requires key and fill lights in order")
         if type(self.variation_seed) is not int or self.variation_seed < 0:
             raise ValueError("variation_seed must be a nonnegative integer")
         if type(self.resample_index) is not int or self.resample_index < 0:
             raise ValueError("resample_index must be a nonnegative integer")
+        if self.ambient is not None and (not np.isfinite(self.ambient) or not 0 <= self.ambient <= 0.6):
+            raise ValueError("ambient must be in [0, 0.6]")
+        if self.table_surface is not None and self.table_surface not in TABLE_SURFACES:
+            raise ValueError("unknown table surface")
+        for name in ("table_tint", "wall_tint", "floor_tint"):
+            if getattr(self, name) is not None:
+                object.__setattr__(self, name, _unit3(getattr(self, name), name))
+        if self.distractor_extras is not None:
+            object.__setattr__(self, "distractor_extras", tuple(self.distractor_extras))
+            if (len(set(self.distractor_extras)) != len(self.distractor_extras)
+                    or not all(isinstance(n, str) and n.replace("_", "").isalnum() for n in self.distractor_extras)):
+                raise ValueError("distractor_extras must be distinct asset names")
+        if self.primitive_palette is not None:
+            object.__setattr__(self, "primitive_palette",
+                               tuple(_unit3(c, "primitive colour") for c in self.primitive_palette))
 
     @property
     def config_hash(self) -> str:
@@ -101,7 +158,7 @@ class VisualConfig:
         value = asdict(self)
         value.pop("variation_seed")
         value.pop("resample_index")
-        return _hash(value)
+        return _hash(_strip_none(value))
 
     def to_dict(self) -> dict:
         return json.loads(json.dumps({**asdict(self), "config_hash": self.config_hash}))
@@ -110,6 +167,9 @@ class VisualConfig:
     def from_dict(cls, value: dict) -> VisualConfig:
         value = dict(value)
         expected = value.pop("config_hash")
+        for name in ("distractor_extras", "primitive_palette"):
+            if value.get(name) is not None:
+                value[name] = tuple(tuple(x) if isinstance(x, list) else x for x in value[name])
         config = cls(**{**value, "front_camera": FrontCamera(**value["front_camera"]),
                         "lights": tuple(Light(**light) for light in value["lights"]),
                         "background": Background(**value["background"])})
@@ -118,57 +178,168 @@ class VisualConfig:
         return config
 
 
+def kelvin_rgb(kelvin: float) -> tuple[float, float, float]:
+    """Approximate black-body colour (Tanner Helland fit), normalised so the brightest channel is 1."""
+    t = float(kelvin) / 100.0
+    r = 255.0 if t <= 66 else 329.698727446 * (t - 60) ** -0.1332047592
+    g = 99.4708025861 * np.log(t) - 161.1195681661 if t <= 66 else 288.1221695283 * (t - 60) ** -0.0755148492
+    b = 255.0 if t >= 66 else (0.0 if t <= 19 else 138.5177312231 * np.log(t - 10) - 305.0447927307)
+    rgb = np.clip([r, g, b], 0, 255)
+    return tuple(float(x) for x in rgb / rgb.max())
+
+
+# The rooms' walls (world frame, robot base at the origin): rear wall x ~ -0.7, side walls y = +-1.5, front
+# wall x ~ +1.8, wall tops z ~ +1.1. Lights stay inside so no wall shadows the workspace.
+LIGHT_BOX = ((-0.55, 1.6), (-1.3, 1.3), (0.45, 2.0))
+LIGHT_TARGET = (0.18, 0.0, 0.0)  # scene.py aims every spot light here
+
+
+def _pair(value):
+    value = tuple(float(x) for x in value)
+    if len(value) != 2 or not all(np.isfinite(value)) or value[0] > value[1]:
+        raise ValueError("invalid bounds")
+    return value
+
+
 @dataclass(frozen=True)
 class VariationPolicy:
+    # Arena names; a base geometry name ("kitchen", "living_room") expands to every room built on that table.
     arenas: tuple[str, ...] = ("living_room", "kitchen")
-    front_pos: tuple = ((0.43, 0.53), (-0.19, -0.07), (0.34, 0.44))
-    front_lookat: tuple = ((0.13, 0.19), (-0.035, 0.015), (-0.01, 0.025))
-    front_fovy: tuple = (44.0, 54.0)
-    key_pos: tuple = ((0.55, 0.85), (0.55, 1.05), (1.4, 1.9))
-    fill_pos: tuple = ((-0.6, -0.2), (-1.4, -0.9), (1.1, 1.6))
-    key_intensity: tuple = (0.48, 0.72)
-    fill_intensity: tuple = (0.23, 0.36)
-    warmth: tuple = (0.0, 0.22)
-    background_brightness: tuple = (0.88, 1.0)
+    table_surfaces: tuple[str, ...] = tuple(TABLE_SURFACES)
+    # Front camera: spherical about a sampled look-at point. Azimuth 0 = camera on +x looking back at the
+    # robot; the half-width of the view at the look-at point fixes distance = half_width / tan(fovy / 2).
+    front_lookat: tuple = ((0.12, 0.20), (-0.045, 0.035), (-0.01, 0.03))
+    front_azimuth: tuple = (-62.0, 28.0)
+    front_elevation: tuple = (28.0, 62.0)
+    front_half_width: tuple = (0.22, 0.32)
+    front_fovy: tuple = (40.0, 60.0)
+    front_roll: tuple = (-6.0, 6.0)
+    # Lights: key spot from any azimuth above the table, colour temperature in kelvin.
+    key_azimuth: tuple = (-180.0, 180.0)
+    key_elevation: tuple = (30.0, 80.0)
+    key_distance: tuple = (1.0, 1.9)
+    key_intensity: tuple = (0.3, 1.1)
+    key_kelvin: tuple = (2700.0, 7500.0)
+    key_shadow_probability: float = 0.8
+    fill_azimuth_offset: tuple = (120.0, 240.0)  # relative to the key
+    fill_elevation: tuple = (20.0, 60.0)
+    fill_intensity: tuple = (0.08, 0.45)
+    fill_kelvin: tuple = (3000.0, 9000.0)
+    ceiling_intensity: tuple = (0.05, 0.35)
+    ceiling_kelvin: tuple = (3500.0, 6500.0)
+    rim_probability: float = 0.45
+    rim_intensity: tuple = (0.15, 0.55)
+    rim_kelvin: tuple = (2700.0, 8000.0)
+    ambient: tuple = (0.08, 0.30)
+    background_brightness: tuple = (0.5, 1.0)
+    table_tint: tuple = (0.65, 1.0)   # brightness; hue jitter +-0.08 per channel
+    wall_tint: tuple = (0.6, 1.0)
+    floor_tint: tuple = (0.6, 1.0)
+    # Extra distractors eligible for this task (TaskDefinition.variation_policy fills it) and how many of them
+    # join the scene's pool per episode; palette size for primitive recolouring.
+    extra_distractors: tuple[str, ...] = ()
+    n_extra_distractors: int = 6
+    palette_size: int = 6
     # Initial calibration: 100 pixels per 2.8-cm block at 640x480; pilot
     # qualification must tune this policy for smaller task-specific objects.
     min_object_pixels: int = 100
     min_goal_visible_fraction: float = 0.6
     frame_margin_pixels: int = 2
+    # Exposure of the robot-free first frame (Rec. 601 luma, 0-255).
+    exposure_mean_luma: tuple = (60.0, 190.0)
+    max_clipped_fraction: float = 0.03   # luma >= 250
+    max_dark_fraction: float = 0.25      # luma < 20
 
     def __post_init__(self):
-        object.__setattr__(self, "arenas", tuple(self.arenas))
-        if not self.arenas or any(name not in ("living_room", "kitchen") for name in self.arenas):
-            raise ValueError("policy contains an unqualified arena")
-        for name in ("front_pos", "front_lookat", "key_pos", "fill_pos"):
-            values = tuple(tuple(float(x) for x in pair) for pair in getattr(self, name))
-            if len(values) != 3:
-                raise ValueError("position policy requires three bounds")
-            object.__setattr__(self, name, values)
-        for name in ("front_fovy", "key_intensity", "fill_intensity", "warmth", "background_brightness"):
-            object.__setattr__(self, name, tuple(getattr(self, name)))
-        for name in ("front_pos", "front_lookat", "key_pos", "fill_pos", "front_fovy",
-                     "key_intensity", "fill_intensity", "warmth", "background_brightness"):
-            value = getattr(self, name)
-            pairs = value if name.endswith("pos") or name == "front_lookat" else (value,)
-            for pair in pairs:
-                if len(pair) != 2 or not all(np.isfinite(pair)) or pair[0] > pair[1]:
-                    raise ValueError(f"invalid bounds: {name}")
+        object.__setattr__(self, "arenas", expand_arenas(self.arenas))
+        object.__setattr__(self, "table_surfaces", tuple(self.table_surfaces))
+        object.__setattr__(self, "extra_distractors", tuple(self.extra_distractors))
+        if len(set(self.extra_distractors)) != len(self.extra_distractors) or self.n_extra_distractors < 0 \
+                or self.palette_size < 0:
+            raise ValueError("invalid distractor/palette policy")
+        if not self.table_surfaces or any(name not in TABLE_SURFACES for name in self.table_surfaces):
+            raise ValueError("policy contains an unknown table surface")
+        object.__setattr__(self, "front_lookat", tuple(_pair(p) for p in self.front_lookat))
+        if len(self.front_lookat) != 3:
+            raise ValueError("position policy requires three bounds")
+        for name in ("front_azimuth", "front_elevation", "front_half_width", "front_fovy", "front_roll",
+                     "key_azimuth", "key_elevation", "key_distance", "key_intensity", "key_kelvin",
+                     "fill_azimuth_offset", "fill_elevation", "fill_intensity", "fill_kelvin", "ceiling_intensity",
+                     "ceiling_kelvin", "rim_intensity", "rim_kelvin", "ambient", "background_brightness",
+                     "table_tint", "wall_tint", "floor_tint", "exposure_mean_luma"):
+            try:
+                object.__setattr__(self, name, _pair(getattr(self, name)))
+            except ValueError:
+                raise ValueError(f"invalid bounds: {name}") from None
         if not 0 < self.front_fovy[0] <= self.front_fovy[1] < 180:
             raise ValueError("invalid fovy bounds")
-        if not 0 <= self.warmth[0] <= self.warmth[1] <= 0.22:
-            raise ValueError("light warmth must be neutral to warm")
-        for name in ("key_intensity", "fill_intensity", "background_brightness"):
+        if not 5 <= self.front_elevation[0] <= self.front_elevation[1] <= 85:
+            raise ValueError("invalid elevation bounds")
+        if self.front_half_width[0] <= 0 or abs(self.front_roll[0]) > 30 or abs(self.front_roll[1]) > 30:
+            raise ValueError("invalid camera bounds")
+        if not 5 <= self.key_elevation[0] <= self.key_elevation[1] <= 90 or self.key_distance[0] <= 0:
+            raise ValueError("invalid key light bounds")
+        for name in ("key_kelvin", "fill_kelvin", "ceiling_kelvin", "rim_kelvin"):
+            if not 1500 <= getattr(self, name)[0] <= getattr(self, name)[1] <= 12000:
+                raise ValueError(f"invalid bounds: {name}")
+        for name in ("key_intensity", "fill_intensity", "ceiling_intensity", "rim_intensity"):
+            low, high = getattr(self, name)
+            if not 0 < low <= high <= MAX_LIGHT_INTENSITY:
+                raise ValueError(f"invalid bounds: {name}")
+        for name in ("background_brightness", "table_tint", "wall_tint", "floor_tint"):
             low, high = getattr(self, name)
             if not 0 < low <= high <= 1:
                 raise ValueError(f"invalid bounds: {name}")
+        if not 0 <= self.ambient[0] <= self.ambient[1] <= 0.6:
+            raise ValueError("invalid bounds: ambient")
+        if not (0 <= self.key_shadow_probability <= 1 and 0 <= self.rim_probability <= 1):
+            raise ValueError("probabilities must be in [0, 1]")
         if type(self.min_object_pixels) is not int or self.min_object_pixels < 1:
             raise ValueError("min_object_pixels must be positive")
         if not 0 < self.min_goal_visible_fraction <= 1 or self.frame_margin_pixels < 0:
             raise ValueError("invalid visibility thresholds")
+        if not (0 <= self.exposure_mean_luma[0] < self.exposure_mean_luma[1] <= 255
+                and 0 <= self.max_clipped_fraction <= 1 and 0 <= self.max_dark_fraction <= 1):
+            raise ValueError("invalid exposure thresholds")
+
+
+def expand_arenas(names) -> tuple[str, ...]:
+    """Arena names with base geometries ("kitchen", "living_room") expanded to all rooms on that table."""
+    names = tuple(names)
+    if not names or any(name not in ARENAS for name in names):
+        raise ValueError("policy contains an unqualified arena")
+    out = []
+    for name in names:
+        for arena in (arenas_with_base(name) if name in BASE_ARENAS else (name,)):
+            if arena not in out:
+                out.append(arena)
+    return tuple(out)
 
 
 DEFAULT_POLICY = VariationPolicy()
+# Tasks whose instruction is phrased in world axes as seen by the viewer (left = -y, front = +x, "faces the
+# camera" = along x) keep the front camera near the original band (azimuth -36..-7, elevation 39..58 deg) and nearly
+# level; a low camera also hides a goal spot "behind" its reference.
+VIEW_ALIGNED = dict(front_azimuth=(-36.0, 12.0), front_elevation=(38.0, 62.0), front_roll=(-3.0, 3.0))
+
+
+def _spherical(center, azimuth, elevation, distance):
+    a, e = np.radians(azimuth), np.radians(elevation)
+    return np.asarray(center, float) + distance * np.array([np.cos(e) * np.cos(a), np.cos(e) * np.sin(a), np.sin(e)])
+
+
+def _light_pos(rng, azimuth, elevation, distance):
+    """Spot position toward (azimuth, elevation) from the light target, pulled inside LIGHT_BOX."""
+    direction = _spherical((0, 0, 0), azimuth, elevation, 1.0)
+    target = np.asarray(LIGHT_TARGET)
+    limit = distance
+    for axis, (low, high) in enumerate(LIGHT_BOX):
+        if direction[axis] > 1e-9:
+            limit = min(limit, (high - target[axis]) / direction[axis])
+        elif direction[axis] < -1e-9:
+            limit = min(limit, (low - target[axis]) / direction[axis])
+    pos = target + direction * max(limit, 0.5)
+    return tuple(float(x) for x in np.clip(pos, [b[0] for b in LIGHT_BOX], [b[1] for b in LIGHT_BOX]))
 
 
 def sample_visual_config(task: str, seed: int, policy: VariationPolicy = DEFAULT_POLICY,
@@ -179,24 +350,53 @@ def sample_visual_config(task: str, seed: int, policy: VariationPolicy = DEFAULT
     digest = _hash({"task": task, "episode_seed": seed, "resample_index": resample_index})
     variation_seed = int(digest, 16)
     rng = np.random.default_rng(variation_seed)
+    u = lambda bounds: float(rng.uniform(*bounds))
 
-    def position(bounds):
-        return tuple(float(rng.uniform(low, high)) for low, high in bounds)
+    def tint(bounds, jitter=0.08):  # brightness times per-channel hue jitter, never clipped
+        level = u(bounds) / (1 + jitter)
+        return tuple(float(level * (1 + rng.uniform(-jitter, jitter))) for _ in range(3))
+
+    def kelvin(bounds):  # uniform in mired (perceptually even between warm and cool)
+        return kelvin_rgb(1e6 / rng.uniform(1e6 / bounds[1], 1e6 / bounds[0]))
 
     arena = policy.arenas[int(rng.integers(len(policy.arenas)))]
-    camera = FrontCamera(position(policy.front_pos), position(policy.front_lookat),
-                         float(rng.uniform(*policy.front_fovy)))
-    lights = []
-    for name, bounds, intensity in (("key", policy.key_pos, policy.key_intensity),
-                                    ("fill", policy.fill_pos, policy.fill_intensity)):
-        pos = position(bounds)
-        level = float(rng.uniform(*intensity))
-        warmth = float(rng.uniform(*policy.warmth))
-        lights.append(Light(name, pos, level, (1.0, 1 - 0.15 * warmth, 1 - 0.35 * warmth)))
-    brightness = float(rng.uniform(*policy.background_brightness))
+    surface = policy.table_surfaces[int(rng.integers(len(policy.table_surfaces)))]
+    lookat = tuple(u(b) for b in policy.front_lookat)
+    fovy = u(policy.front_fovy)
+    distance = u(policy.front_half_width) / np.tan(np.radians(fovy) / 2)
+    pos = _spherical(lookat, u(policy.front_azimuth), u(policy.front_elevation), distance)
+    camera = FrontCamera(tuple(float(x) for x in pos), lookat, fovy, u(policy.front_roll))
+    key_azimuth = u(policy.key_azimuth)
+    lights = [Light("key", _light_pos(rng, key_azimuth, u(policy.key_elevation), u(policy.key_distance)),
+                    u(policy.key_intensity), kelvin(policy.key_kelvin),
+                    bool(rng.random() < policy.key_shadow_probability)),
+              Light("fill", _light_pos(rng, key_azimuth + u(policy.fill_azimuth_offset), u(policy.fill_elevation),
+                                       1.5), u(policy.fill_intensity), kelvin(policy.fill_kelvin), False),
+              Light("ceiling", _light_pos(rng, u((-180, 180)), u((60, 90)), 1.5), u(policy.ceiling_intensity),
+                    kelvin(policy.ceiling_kelvin), False)]
+    if rng.random() < policy.rim_probability:
+        lights.append(Light("rim", _light_pos(rng, u((-180, 180)), u((25, 70)), 1.4), u(policy.rim_intensity),
+                            kelvin(policy.rim_kelvin), bool(rng.random() < 0.3)))
+    brightness = u(policy.background_brightness)
     background = Background(tuple(brightness * x for x in (0.9, 0.9, 1.0)),
                             tuple(brightness * x for x in (0.2, 0.3, 0.4)))
-    return VisualConfig(arena, camera, tuple(lights), background, variation_seed, resample_index)
+    extras = None
+    if policy.extra_distractors and policy.n_extra_distractors:
+        count = min(policy.n_extra_distractors, len(policy.extra_distractors))
+        extras = tuple(policy.extra_distractors[i] for i in rng.choice(len(policy.extra_distractors), count,
+                                                                         replace=False))
+    palette = tuple(_primitive_colour(rng) for _ in range(policy.palette_size)) or None
+    return VisualConfig(arena, camera, tuple(lights), background, variation_seed, resample_index,
+                        ambient=u(policy.ambient), table_surface=surface, table_tint=tint(policy.table_tint),
+                        wall_tint=tint(policy.wall_tint, 0.12), floor_tint=tint(policy.floor_tint),
+                        distractor_extras=extras, primitive_palette=palette)
+
+
+def _primitive_colour(rng):
+    """A saturated, mid-to-bright colour (HSV) for a primitive block/mat."""
+    import colorsys
+    return tuple(float(x) for x in colorsys.hsv_to_rgb(rng.uniform(0, 1), rng.uniform(0.45, 0.95),
+                                                        rng.uniform(0.45, 0.95)))
 
 
 def episode_config_hash(config: VisualConfig, object_poses: dict) -> str:
@@ -229,9 +429,29 @@ class ScreeningReport:
     object_pixels: tuple[tuple[str, int], ...]
     goal_visible_fraction: float
     next_resample_index: int
+    exposure: dict | None = None  # robot-free first-frame luma statistics
 
     def to_dict(self):
         return json.loads(json.dumps(asdict(self)))
+
+
+def exposure_stats(rgb) -> dict:
+    """Rec. 601 luma statistics of an RGB frame: mean, clipped (>= 250) and dark (< 20) pixel fractions."""
+    rgb = np.asarray(rgb, dtype=np.float64)
+    luma = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]  # no BLAS matmul (spurious FP warnings)
+    return {"mean_luma": round(float(luma.mean()), 3), "clipped_fraction": round(float((luma >= 250).mean()), 5),
+            "dark_fraction": round(float((luma < 20).mean()), 5)}
+
+
+def exposure_reasons(stats: dict, policy) -> list[str]:
+    reasons = []
+    low, high = policy.exposure_mean_luma
+    if stats["mean_luma"] < low or stats["dark_fraction"] > policy.max_dark_fraction:
+        reasons.append("underexposed")
+    if stats["mean_luma"] > high or stats["clipped_fraction"] > policy.max_clipped_fraction:
+        reasons.append("overexposed")
+    return reasons
+
 
 
 def _visual_geoms(env, name):
@@ -321,6 +541,8 @@ def screen_visual_config(config: VisualConfig, env, task_objects: tuple[str, ...
             or not np.allclose(env.model.cam_pos[camera], front.pos, rtol=1e-5, atol=1e-6)
             or not np.isclose(env.model.cam_fovy[camera], front.fovy)):
         reasons.append("config_mismatch")
+    exposure = exposure_stats(env.render_scene_without_robot("front"))
+    reasons += exposure_reasons(exposure, policy)
     areas = []
     renderer.enable_segmentation_rendering()
     try:
@@ -347,7 +569,7 @@ def screen_visual_config(config: VisualConfig, env, task_objects: tuple[str, ...
         reasons.append("goal_occluded")
     if store is not None and _duplicate_in_store(store, config.config_hash):
         reasons.append("duplicate_config")
-    return ScreeningReport(not reasons, tuple(reasons), tuple(areas), fraction, config.resample_index + 1)
+    return ScreeningReport(not reasons, tuple(reasons), tuple(areas), fraction, config.resample_index + 1, exposure)
 
 
 def save_screening_report(store: EpisodeStore, key: EpisodeKey, config: VisualConfig,

@@ -513,7 +513,7 @@ TASKS = [
                 relation="lying along in cradle", goal="wine cradle",
                 steps=("Pick up the wine bottle, turn it to line up with the cradle and lay it in the wine "
                        "cradle.",)),
-    define_task(name="bottle_in_cradle_neck_right", instruction=CradleNeckRightEnv.instruction, family=FAMILY,
+    define_task(name="bottle_in_cradle_neck_right", view_aligned=True, instruction=CradleNeckRightEnv.instruction, family=FAMILY,
                 env=CradleNeckRightEnv, oracle=CradleOracle, objects=("bottle",), object_kinds=("wine bottle",),
                 relation="lying in cradle with neck pointing right", goal="wine cradle",
                 steps=("Pick up the wine bottle, turn it so its neck points to the right and lay it in the wine "

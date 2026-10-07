@@ -11,7 +11,7 @@ so editing one family never invalidates another family's qualification (editing 
 
 import argparse
 from collections import Counter
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 from dataclasses import asdict
 import hashlib
 import json
@@ -250,8 +250,11 @@ def main(argv=None):
 
     reports = {}
     if args.jobs > 1:
-        with ProcessPoolExecutor(args.jobs) as pool:
-            for job, row in zip(jobs, pool.map(_screen_job, jobs)):
+        # Recycle workers every 2 seeds: a scene build (1M+ mesh vertices) leaves ~2 GB of allocator high-water
+        # memory that otherwise creeps per worker. (multiprocessing.Pool: concurrent.futures' max_tasks_per_child
+        # hung here with Python 3.12.)
+        with multiprocessing.get_context("spawn").Pool(args.jobs, maxtasksperchild=2) as pool:
+            for job, row in zip(jobs, pool.imap(_screen_job, jobs, chunksize=1)):
                 reports[job[0]] = record(job, row)
     else:
         for job in jobs:

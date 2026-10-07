@@ -339,19 +339,19 @@ class MokaRightOfPlateOracle(RelativeOracle):
 
 
 TASKS = [
-    define_task(name="milk_left_of_bowl", instruction=MilkLeftOfBowlEnv.instruction, family=FAMILY,
+    define_task(name="milk_left_of_bowl", view_aligned=True, instruction=MilkLeftOfBowlEnv.instruction, family=FAMILY,
                 env=MilkLeftOfBowlEnv, oracle=RelativeOracle, objects=("milk",),
                 object_kinds=("milk carton",), relation="left of separated", goal="bowl",
                 steps=(step_text("put", "milk carton", "down to the left of", "bowl, leaving a gap"),)),
-    define_task(name="can_right_of_mug", instruction=CanRightOfMugEnv.instruction, family=FAMILY,
+    define_task(name="can_right_of_mug", view_aligned=True, instruction=CanRightOfMugEnv.instruction, family=FAMILY,
                 env=CanRightOfMugEnv, oracle=CanRightOfMugOracle, objects=("can",),
                 object_kinds=("can",), relation="right of separated", goal="mug",
                 steps=(step_text("put", "soup can", "down to the right of", "mug, leaving a gap"),)),
-    define_task(name="juice_left_of_basket", instruction=JuiceLeftOfBasketEnv.instruction, family=FAMILY,
+    define_task(name="juice_left_of_basket", view_aligned=True, instruction=JuiceLeftOfBasketEnv.instruction, family=FAMILY,
                 env=JuiceLeftOfBasketEnv, oracle=RelativeOracle, objects=("juice",),
                 object_kinds=("juice carton",), relation="left of separated", goal="basket",
                 steps=(step_text("put", "orange juice carton", "down to the left of", "basket, leaving a gap"),)),
-    define_task(name="moka_pot_right_of_plate", instruction=MokaRightOfPlateEnv.instruction, family=FAMILY,
+    define_task(name="moka_pot_right_of_plate", view_aligned=True, instruction=MokaRightOfPlateEnv.instruction, family=FAMILY,
                 env=MokaRightOfPlateEnv, oracle=MokaRightOfPlateOracle, objects=("moka",),
                 object_kinds=("moka pot",), relation="right of separated", goal="plate",
                 steps=(step_text("put", "moka pot", "down to the right of", "plate, leaving a gap"),)),

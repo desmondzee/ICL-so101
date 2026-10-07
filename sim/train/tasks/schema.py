@@ -70,6 +70,9 @@ class TaskDefinition:
     oracle_class: str
     qualification_seeds: tuple[int, ...] | None = None
     arenas: tuple[str, ...] = ("living_room", "kitchen")  # DEFAULT_POLICY order
+    # True when the instruction's meaning depends on the viewpoint (left/right/front/behind/"faces the camera",
+    # defined in world axes): the front camera then stays near its original azimuth band (variation.VIEW_ALIGNED).
+    view_aligned: bool = False
 
     def __post_init__(self):
         EpisodeKey(self.name, 0)
@@ -79,6 +82,8 @@ class TaskDefinition:
         object.__setattr__(self, "arenas", tuple(self.arenas))
         from sim.train.variation import VariationPolicy
         VariationPolicy(arenas=self.arenas)  # fails on an unqualified arena
+        if type(self.view_aligned) is not bool:
+            raise ValueError("view_aligned must be a boolean")
         if not normalize(self.instruction) or not normalize(self.family):
             raise ValueError("instruction and family are required")
         if (not self.task_objects or len(set(self.task_objects)) != len(self.task_objects)
@@ -108,8 +113,16 @@ class TaskDefinition:
 
     def variation_policy(self):
         """Visual variation policy for this task's episodes (arena choice restricted to ``arenas``)."""
-        from sim.train.variation import VariationPolicy
-        return VariationPolicy(arenas=self.arenas)
+        from sim.train.variation import VIEW_ALIGNED, VariationPolicy
+        from .assets import eligible_extra_distractors
+        env_class, _ = self.load_classes()
+        extras = ()
+        if max(getattr(env_class, "n_distractors", (0, 0))) > 0:
+            texts = (self.instruction, *self.action_text, *self.task_objects, *self.semantic_signature.manipulated_objects,
+                     self.semantic_signature.goal, self.semantic_signature.relation)
+            extras = eligible_extra_distractors(texts, tuple(getattr(env_class, "distractor_pool", ())))
+        return VariationPolicy(arenas=self.arenas, extra_distractors=extras,
+                               **(VIEW_ALIGNED if self.view_aligned else {}))
 
     def sample_visual_config(self, seed, *, resample_index=0):
         from sim.train.variation import sample_visual_config

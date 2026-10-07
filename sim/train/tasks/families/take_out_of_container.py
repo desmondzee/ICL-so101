@@ -418,7 +418,7 @@ TASKS = [
                 env=BallEnv, oracle=BallOracle, objects=("golf_ball",), object_kinds=("golf ball",),
                 relation="out of ramekin onto", goal="coaster",
                 steps=("Lift the golf ball out of the ramekin and put it on the brown coaster.",)),
-    define_task(name="pudding_out_of_bowl_left_of_bowl", instruction=PuddingLeftEnv.instruction, family=FAMILY,
+    define_task(name="pudding_out_of_bowl_left_of_bowl", view_aligned=True, instruction=PuddingLeftEnv.instruction, family=FAMILY,
                 env=PuddingLeftEnv, oracle=OutOfContainerOracle, objects=("chocolate_pudding",),
                 object_kinds=("pudding box",), relation="out of bowl onto table left of", goal="bowl",
                 steps=("Lift the chocolate pudding out of the bowl and set it on the table to the left of "

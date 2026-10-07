@@ -55,7 +55,7 @@ from .store import (EpisodeStore, StoreCorruption, _control_path, _lock, atomic_
 ROOT = Path(__file__).resolve().parents[2] / "data" / "so101_sim_train_v1"
 DEFAULT_SEED_START = 100_000
 MAX_FRAMES = 3600
-MAX_VISUAL_RESAMPLES = 8
+MAX_VISUAL_RESAMPLES = 12  # wider camera/lighting ranges; exposure screening also resamples
 FPS = 30
 PUBLISH_NAME = "publish.json"
 VIDEO_NAMES = ("robot_front.mp4", "robot_wrist.mp4")
@@ -503,7 +503,8 @@ class SimBackend:
                                               policy=policy)
                 if config.config_hash in known:
                     report = ScreeningReport(False, (*report.reasons, "duplicate_config"), report.object_pixels,
-                                             report.goal_visible_fraction, report.next_resample_index)
+                                             report.goal_visible_fraction, report.next_resample_index,
+                                             report.exposure)
                 save_screening_report(store, key, config, report)
                 attempts.append({"resample_index": index, **report.to_dict()})
                 if report.accepted:

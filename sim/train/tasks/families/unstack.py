@@ -428,7 +428,7 @@ TASKS = [
                 env=BlockIntoBowlEnv, oracle=BlockIntoBowlOracle, objects=("green_block",),
                 object_kinds=("block",), relation="off book into", goal="bowl",
                 steps=("Pick up the green block from the top of the book and put it in the bowl.",)),
-    define_task(name="unstack_can_left_of_book", instruction=SauceLeftOfBookEnv.instruction, family="unstack",
+    define_task(name="unstack_can_left_of_book", view_aligned=True, instruction=SauceLeftOfBookEnv.instruction, family="unstack",
                 env=SauceLeftOfBookEnv, oracle=SauceLeftOfBookOracle, objects=("sauce_can",),
                 object_kinds=("can",), relation="off book onto table left of", goal="book",
                 steps=("Pick up the tomato sauce can from the top of the book and set it on the table to the left "

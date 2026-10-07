@@ -247,7 +247,7 @@ class KetchupOracle(YawOracle):
 
 
 TASKS = [
-    define_task(name="turn_book_cover_to_camera", instruction=BookEnv.instruction, family=FAMILY, env=BookEnv,
+    define_task(name="turn_book_cover_to_camera", view_aligned=True, instruction=BookEnv.instruction, family=FAMILY, env=BookEnv,
                 oracle=BookOracle, objects=("book",), object_kinds=("book",),
                 relation="turned in place to face", goal="viewer camera",
                 steps=("Pick up the standing book, turn it so its cover faces the camera, and stand it back down.",)),
@@ -255,7 +255,7 @@ TASKS = [
                 env=BlockTrayEnv, oracle=BlockTrayOracle, objects=("block",), object_kinds=("long block",),
                 relation="on aligned lengthwise with", goal="rectangular tray",
                 steps=("Pick up the long block, turn it to match the tray's length, and set it on the tray.",)),
-    define_task(name="turn_ketchup_label_to_camera", instruction=KetchupEnv.instruction, family=FAMILY, env=KetchupEnv,
+    define_task(name="turn_ketchup_label_to_camera", view_aligned=True, instruction=KetchupEnv.instruction, family=FAMILY, env=KetchupEnv,
                 oracle=KetchupOracle, objects=("ketchup",), object_kinds=("ketchup bottle",),
                 relation="turned in place so its label faces", goal="viewer camera",
                 steps=("Pick up the ketchup bottle, turn it so the label faces the camera, and stand it back down.",)),
