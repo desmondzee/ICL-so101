@@ -3,18 +3,18 @@
  "version": "v1",
  "split": "train",
  "simulated": true,
- "updated": "2026-10-06T22:26:36Z",
+ "updated": "2026-10-07T00:38:13Z",
  "base_url": "https://huggingface.co/buckets/akoniti/ICL-so101/resolve/sim_train_v1/",
- "episodes_total": 372,
- "tasks_total": 36,
- "families_total": 18,
- "robot_minutes": 152.2,
+ "episodes_total": 432,
+ "tasks_total": 40,
+ "families_total": 20,
+ "robot_minutes": 173.9,
  "tasks": [
   {
    "task": "ball_between_cans",
    "family": "place_between",
    "instruction": "Put the orange ball between the soup can and the tomato sauce can.",
-   "episodes": 14,
+   "episodes": 18,
    "views": [
     "front",
     "wrist"
@@ -40,7 +40,7 @@
    "task": "block_behind_bowl",
    "family": "relative_front_behind",
    "instruction": "Put the red block behind the bowl.",
-   "episodes": 14,
+   "episodes": 15,
    "views": [
     "front",
     "wrist"
@@ -79,7 +79,7 @@
    "task": "block_bowl_to_ramekin",
    "family": "transfer_between_containers",
    "instruction": "Move the block from the bowl into the ramekin.",
-   "episodes": 6,
+   "episodes": 9,
    "views": [
     "front",
     "wrist"
@@ -118,7 +118,7 @@
    "task": "block_on_box_then_milk_on_book",
    "family": "place_on_elevated",
    "instruction": "Put the green block on the white box first, then put the milk carton on the black book.",
-   "episodes": 7,
+   "episodes": 8,
    "views": [
     "front",
     "wrist"
@@ -196,7 +196,7 @@
    "task": "bottle_in_cradle",
    "family": "bottle_in_rack",
    "instruction": "Lay the wine bottle in the wine cradle.",
-   "episodes": 14,
+   "episodes": 17,
    "views": [
     "front",
     "wrist"
@@ -261,7 +261,7 @@
    "task": "juice_carton_behind_plate",
    "family": "relative_front_behind",
    "instruction": "Put the orange juice carton behind the plate.",
-   "episodes": 12,
+   "episodes": 13,
    "views": [
     "front",
     "wrist"
@@ -274,7 +274,7 @@
    "task": "line_up_cans_behind_plate",
    "family": "line_up_row",
    "instruction": "Put the soup can and then the tomato sauce can in a row behind the plate, with the soup can on the left.",
-   "episodes": 5,
+   "episodes": 7,
    "views": [
     "front",
     "wrist"
@@ -287,7 +287,7 @@
    "task": "line_up_row_behind_cube",
    "family": "line_up_row",
    "instruction": "Line up the tomato sauce can and then the long block in a straight row behind the yellow cube.",
-   "episodes": 9,
+   "episodes": 10,
    "views": [
     "front",
     "wrist"
@@ -326,13 +326,39 @@
    "task": "marker_in_pencil_box",
    "family": "utensil_to_holder",
    "instruction": "Put the marker in the pencil box.",
-   "episodes": 7,
+   "episodes": 16,
    "views": [
     "front",
     "wrist"
    ],
    "instructions": [
     "Put the marker in the pencil box."
+   ]
+  },
+  {
+   "task": "milk_carton_in_front_of_basket",
+   "family": "relative_front_behind",
+   "instruction": "Put the milk carton in front of the basket.",
+   "episodes": 2,
+   "views": [
+    "front",
+    "wrist"
+   ],
+   "instructions": [
+    "Put the milk carton in front of the basket."
+   ]
+  },
+  {
+   "task": "milk_left_of_bowl",
+   "family": "relative_left_right",
+   "instruction": "Put the milk carton to the left of the bowl.",
+   "episodes": 1,
+   "views": [
+    "front",
+    "wrist"
+   ],
+   "instructions": [
+    "Put the milk carton to the left of the bowl."
    ]
   },
   {
@@ -352,7 +378,7 @@
    "task": "pudding_centered_on_round_coaster",
    "family": "center_on_target",
    "instruction": "Put the pudding box down right in the middle of the round coaster.",
-   "episodes": 13,
+   "episodes": 14,
    "views": [
     "front",
     "wrist"
@@ -365,7 +391,7 @@
    "task": "push_block_against_block",
    "family": "push_together",
    "instruction": "Push the red block against the blue block.",
-   "episodes": 6,
+   "episodes": 9,
    "views": [
     "front",
     "wrist"
@@ -378,7 +404,7 @@
    "task": "push_box_against_book",
    "family": "push_together",
    "instruction": "Push the cardboard box up against the standing book.",
-   "episodes": 3,
+   "episodes": 14,
    "views": [
     "front",
     "wrist"
@@ -391,7 +417,7 @@
    "task": "push_cube_into_tape_square",
    "family": "push_to_target",
    "instruction": "Push the cube into the taped square.",
-   "episodes": 9,
+   "episodes": 10,
    "views": [
     "front",
     "wrist"
@@ -417,7 +443,7 @@
    "task": "sauce_can_between_bowls",
    "family": "place_between",
    "instruction": "Put the tomato sauce can between the two bowls.",
-   "episodes": 5,
+   "episodes": 6,
    "views": [
     "front",
     "wrist"
@@ -443,7 +469,7 @@
    "task": "soup_can_centered_on_square_mat",
    "family": "center_on_target",
    "instruction": "Set the soup can in the exact centre of the square mat.",
-   "episodes": 14,
+   "episodes": 15,
    "views": [
     "front",
     "wrist"
@@ -453,16 +479,42 @@
    ]
   },
   {
+   "task": "soup_can_in_basket",
+   "family": "put_in_container",
+   "instruction": "Put the soup can in the basket.",
+   "episodes": 3,
+   "views": [
+    "front",
+    "wrist"
+   ],
+   "instructions": [
+    "Put the soup can in the basket."
+   ]
+  },
+  {
    "task": "soup_then_sauce_in_wooden_box",
    "family": "gather_two",
    "instruction": "Put the alphabet soup can in the wooden box first, then the tomato sauce can.",
-   "episodes": 10,
+   "episodes": 11,
    "views": [
     "front",
     "wrist"
    ],
    "instructions": [
     "Put the alphabet soup can in the wooden box first, then the tomato sauce can."
+   ]
+  },
+  {
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "instruction": "Put the sponge on the coaster.",
+   "episodes": 10,
+   "views": [
+    "front",
+    "wrist"
+   ],
+   "instructions": [
+    "Put the sponge on the coaster."
    ]
   },
   {
@@ -954,6 +1006,143 @@
     "issues": [],
     "verify": "Task: one empty right hand comes in from the bottom edge (fps=6 frames f_002-f_004). It grasps the orange ball where it started, at the right of the scene (f_005-f_006), carries it left between the two cans (f_013-f_022), lets go, and leaves empty (f_023-f_025). The ball is the only task object. End state: in f_026-f_031 the ball rests between the near soup can and the far tomato sauce can, in the same place as in the robot's last frame (robot 21.4s). Physics: the ball moves only while held. Nothing appears, vanishes or duplicates. The 12fps crop (z5.jpg) shows the cans and bowl staying still while the arm passes close to them, and the ball rests stably after release. Scene: the first frame matches robot 0.0s with the robot removed. Both cans, the bowl, the chocolate box, the blue box and the red box are in the same places, and the lighting and camera match. There are no overlays and no cuts.",
     "robot": "Ball grasped f124-167 with a two-finger grasp, carried and placed between the two cans (release f331-349); final frames f615-644 show the ball sitting still between the cans A contiguous extraction at 13-20s showed the ball staying put while the arm backed off and retreated, and the second gripper close at f486 did not move it"
+   }
+  },
+  {
+   "id": "ball_between_cans/episode_014",
+   "task": "ball_between_cans",
+   "family": "place_between",
+   "episode": 14,
+   "seed": 100018,
+   "instruction": "Put the orange ball between the soup can and the tomato sauce can.",
+   "fps": 30,
+   "robot_frames": 646,
+   "robot_duration_s": 21.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/ball_between_cans/episode_014/",
+   "arena": "kitchen",
+   "distractors": [
+    "popcorn",
+    "ramekin"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person picks up the orange ball, places it between the two cans to match the robot's end state, and the hand leaves empty, so the pair is accepted.",
+    "issues": [],
+    "verify": "Single task object: the empty right hand comes in from the bottom/right edge (f2-f4), grasps the orange ball at its start spot near the back-right (f5-f6), carries it left (f7-f12) and sets it down between the dark soup can and the labelled tomato sauce can (f13-f21). The hand lets go and leaves empty out the bottom edge (f21-f22). From f23 to f31 the ball stays still between the two cans, nearer the front-left can, which matches the robot's 21.4s frame. The cans, bowl and back-right distractor stay where they were in f1 and in the final frames. Nothing appears, duplicates or moves without contact, and there is no second hand, overlay or cut. f1 matches robot 0.0s with the robot removed.",
+    "robot": "Ball released at f373 between the two cans; its position stays the same from f420 to f631 Retreat and the gripper close at f502 leave the ball and cans undisturbed"
+   }
+  },
+  {
+   "id": "ball_between_cans/episode_015",
+   "task": "ball_between_cans",
+   "family": "place_between",
+   "episode": 15,
+   "seed": 100019,
+   "instruction": "Put the orange ball between the soup can and the tomato sauce can.",
+   "fps": 30,
+   "robot_frames": 545,
+   "robot_duration_s": 18.17,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/ball_between_cans/episode_015/",
+   "arena": "kitchen",
+   "distractors": [
+    "akita_black_bowl",
+    "white_bowl",
+    "popcorn",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person moves the ball into the gap between the soup can and the tomato sauce can, ending as the robot did, with clean hand entry and exit, so the pair is accepted.",
+    "issues": [],
+    "verify": "The empty right hand comes in from the bottom edge (f3-f4), grasps the ball at its start spot near the bowl (f6-f7), carries it right (f13-f16) and places it in the gap between the front soup can and the back tomato sauce can (f17-f22). The hand opens and leaves empty (f23-f27). From f27 to f31 the ball sits between the two cans, slightly right of the line between them, which matches the robot's 18.1s frame. Both cans keep the positions they had in f1. The bowl, the white dish and the chocolate-bar distractor do not move. There are no duplicates, overlays, cuts or second hand. f1 matches robot 0.0s with the robot removed.",
+    "robot": "Ball released at f344 between the two cans and stays stable through the final f544 Distractors are unchanged"
+   }
+  },
+  {
+   "id": "ball_between_cans/episode_016",
+   "task": "ball_between_cans",
+   "family": "place_between",
+   "episode": 16,
+   "seed": 100020,
+   "instruction": "Put the orange ball between the soup can and the tomato sauce can.",
+   "fps": 30,
+   "robot_frames": 522,
+   "robot_duration_s": 17.4,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/ball_between_cans/episode_016/",
+   "arena": "living_room",
+   "distractors": [
+    "popcorn",
+    "ramekin",
+    "cream_cheese"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person picks up the ball and leaves it between the two cans exactly as in the robot's final frame, so the pair is accepted.",
+    "issues": [],
+    "verify": "The empty right hand comes in from the bottom edge (f2-f4), grasps the ball at its start spot (f5-f7), carries it to the cans (f12-f14) and places it between the front and back cans (f15-f21). The hand releases the ball and leaves empty out the bottom (f22-f24). From f25 to f31 the ball rests in the gap between the cans, slightly to the right, which matches the robot's 17.3s frame. The cans, the bowl and the two box distractors keep their f1 positions. Nothing appears or duplicates, there is no contactless motion, second hand, overlay or cut. f1 matches robot 0.0s with the robot removed.",
+    "robot": "Ball released at f328 between the two cans and stays still through the final f521 No distractor motion"
+   }
+  },
+  {
+   "id": "ball_between_cans/episode_017",
+   "task": "ball_between_cans",
+   "family": "place_between",
+   "episode": 17,
+   "seed": 100021,
+   "instruction": "Put the orange ball between the soup can and the tomato sauce can.",
+   "fps": 30,
+   "robot_frames": 580,
+   "robot_duration_s": 19.33,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/ball_between_cans/episode_017/",
+   "arena": "living_room",
+   "distractors": [
+    "white_bowl",
+    "plate",
+    "akita_black_bowl",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person carries the ball from the back of the table to the gap between the two cans, ending as the robot did, so the pair is accepted.",
+    "issues": [],
+    "verify": "Task: one right hand comes in empty from the bottom-right edge (fps=6 frames f_003-f_004), grasps the orange ball where it started at the back (f_006-f_012), carries it left (f_013-f_014), sets it down between the soup can and the tomato sauce can (f_014-f_021) and leaves empty (f_021-f_022). End state: the final frames f_023-f_031 show the ball resting in the gap between the two cans, in the same spot as in the robot's last frame (robot 19.2s). Physics and scene: the ball moves only while held, no copy appears, the cans, bowl, plate, cup and box keep their first-frame positions, and the first frame matches robot 0.0s with the robot removed. There is no second hand, overlay or cut.",
+    "robot": "Ball released at f357 between the two cans and stays still through the final f570 Cans and other objects are undisturbed"
    }
   },
   {
@@ -2011,6 +2200,41 @@
     "issues": [],
     "verify": "Frame 1 matches the robot's 0.0s frame without the robot: light wood table, dark cabinets, red block in the upper middle, blue card, bowl at the left, black cup at the bottom. Frames 2-6: an empty right hand comes in from the bottom edge. Frames 6-12: it grasps the block. Frames 13-21: it carries the block over to behind the bowl. Frame 22: the block is released. Native 24fps frames around 3.4-3.9s show the empty hand passing over the bowl and leaving smoothly at the bottom edge. The bowl, cup and card stay in place. End state (frames 23-31): the block rests upper-left of the bowl with a gap. This matches the robot's 18.7s frame. One hand only, no copies, overlays or cuts.",
     "robot": "The red block is grasped at f138-181 with a two-finger grasp, carried, and released at f388 on the far side of the bowl from the front camera, so it ends behind the bowl. Final-second frames f534-563 show the block still, and the distractors (card, can) stay where they started."
+   }
+  },
+  {
+   "id": "block_behind_bowl/episode_014",
+   "task": "block_behind_bowl",
+   "family": "relative_front_behind",
+   "episode": 14,
+   "seed": 100003,
+   "instruction": "Put the red block behind the bowl.",
+   "fps": 30,
+   "robot_frames": 516,
+   "robot_duration_s": 17.2,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/block_behind_bowl/episode_014/",
+   "arena": "kitchen",
+   "distractors": [
+    "chocolate_pudding",
+    "butter",
+    "plate",
+    "alphabet_soup"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the red block to behind the bowl, matching the robot's final placement, with one clean hand and no scene changes, so the pair is accepted.",
+    "issues": [],
+    "verify": "Task: one right hand comes in empty from the bottom edge (f_003), grasps the red block where it started (f_005-f_012), carries it to behind the bowl (f_013-f_020), releases it, and the hand passes above the bowl as it leaves empty (f_021-f_022). End state: in f_022-f_031 the block sits upright behind the bowl, toward the plate, at the same position as in the robot's last frame (robot 17.1s). Physics and scene: the bowl stays put when the hand passes over it on the way out (compared f_001, f_020, f_021 and f_022 side by side). The block moves only while held, and the distractors (can, chocolate bar, small box, plate) do not move. The first frame matches robot 0.0s with the robot removed, and there is no second hand, overlay or cut.",
+    "robot": "Block released f314-326 behind the bowl (far side from camera); it is settled from f345 through final f515. Plate, can, snack boxes unmoved (the top-right box is only hidden by the arm earlier)."
    }
   },
   {
@@ -3346,6 +3570,108 @@
    }
   },
   {
+   "id": "block_bowl_to_ramekin/episode_006",
+   "task": "block_bowl_to_ramekin",
+   "family": "transfer_between_containers",
+   "episode": 6,
+   "seed": 100015,
+   "instruction": "Move the block from the bowl into the ramekin.",
+   "fps": 30,
+   "robot_frames": 604,
+   "robot_duration_s": 20.13,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/block_bowl_to_ramekin/episode_006/",
+   "arena": "living_room",
+   "distractors": [
+    "cream_cheese",
+    "tomato_sauce",
+    "alphabet_soup"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the block from the bowl into the ramekin with one empty right hand, and the scene ends as the robot's does, so the pair is accepted.",
+    "issues": [],
+    "verify": "f_001 matches the robot's 0.0s frame with the robot removed: same bowl holding the block, ramekin on the left, two cans and a blue card, same camera and lighting. f_003-f_006: an empty right hand comes in from the right edge. f_007-f_012: it grasps the block in the bowl. f_013-f_015: it carries the block left. f_016-f_024: it places the block in the ramekin. f_025-f_026: the hand leaves empty at the bottom edge. f_027-f_032 end state: the block sits inside the ramekin and the bowl is empty. This matches the robot's 20.0s frame. No second hand, no duplicated block and no movement without contact. The cans and card keep their positions from the first frame to the last.",
+    "robot": "Two-finger grasp of the block in the bowl (f131-f174), lift at f202, carry to the ramekin, open at f357, release f371-f383. Block ends inside the ramekin. Between 14.0 and 15.6s the wrist view shows the block apparently turning. The table grain and ramekin rim turn with it, so this is wrist roll during the retreat, not the block moving. In the front view the block is still from f420 to the end."
+   }
+  },
+  {
+   "id": "block_bowl_to_ramekin/episode_007",
+   "task": "block_bowl_to_ramekin",
+   "family": "transfer_between_containers",
+   "episode": 7,
+   "seed": 100016,
+   "instruction": "Move the block from the bowl into the ramekin.",
+   "fps": 30,
+   "robot_frames": 586,
+   "robot_duration_s": 19.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/block_bowl_to_ramekin/episode_007/",
+   "arena": "living_room",
+   "distractors": [
+    "plate",
+    "cream_cheese",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The block goes from the bowl to the ramekin in a single clean transfer, and the end state matches the robot's, so the pair is accepted.",
+    "issues": [],
+    "verify": "f_001 matches the robot's first frame without the robot: bowl with the block at upper right, ridged ramekin, plate, battery and blue card. f_002-f_004: an empty right hand enters from the bottom right. f_005-f_011: it grasps the block in the bowl. f_012-f_014: it carries the block. f_015-f_020: it places the block in the ramekin. f_021-f_023: the hand leaves empty. In f_022 it hovers over the plate, but the plate stays at the same pixel position (checked in z_end.jpg against f_031). f_024-f_032 end state: the block is inside the ramekin and the bowl is empty. This matches the robot's 19.4s frame. No copies, overlays or second hand. The distractors stay put.",
+    "robot": "Grasp in the bowl at f145-f188, lift f216, carry and align f328-f339, release f382-f394 inside the ramekin. The block sits flat in the ramekin from f450 on, and the final second f556-f585 is static."
+   }
+  },
+  {
+   "id": "block_bowl_to_ramekin/episode_008",
+   "task": "block_bowl_to_ramekin",
+   "family": "transfer_between_containers",
+   "episode": 8,
+   "seed": 100017,
+   "instruction": "Move the block from the bowl into the ramekin.",
+   "fps": 30,
+   "robot_frames": 586,
+   "robot_duration_s": 19.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/block_bowl_to_ramekin/episode_008/",
+   "arena": "kitchen",
+   "distractors": [
+    "chocolate_pudding",
+    "cream_cheese",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The block is moved from the bowl into the ramekin by one empty right hand, and the end matches the robot's, so the pair is accepted.",
+    "issues": [],
+    "verify": "f_001 matches the robot's 0.0s frame without the robot: bowl with the block at the left edge, ramekin at the top right, small yellow item, blue card and brown box, on the same light table. f_003-f_004: an empty right hand enters from the bottom. f_005-f_012: it grasps the block in the bowl. f_013-f_015: it carries the block right. f_016-f_022: it places the block in the ramekin and releases it. f_023-f_025: the hand leaves empty to the right and bottom. f_026-f_032 end state: the block is inside the ramekin and the bowl is empty. This matches the robot's 19.4s frame. The distractors (card, brown box, yellow item) stay in their first-frame positions. No second hand, no duplicate block and no overlays.",
+    "robot": "Grasp at f143-f186. The source bowl sits at the left edge of the front frame but the block stays visible. Lift f214, carry to the ramekin f328, release f382-f394. The block ends inside the ramekin and is static through f556-f585."
+   }
+  },
+  {
    "id": "block_in_bowl/episode_000",
    "task": "block_in_bowl",
    "family": "container_insertion",
@@ -4361,6 +4687,40 @@
     "issues": [],
     "verify": "The order is correct. In fps=6 frames f_003 to f_014, one right hand enters empty from the lower right, picks up the green block and puts it on the white box. Only after that, in f_015 to f_028, does it pick up the milk carton and put it on the black book. The end state matches the robot's last frame (34.4s). In f_031 to f_036 the green block sits on top of the white box and the milk carton stands upright on the black book. The physics holds up. Each object moves only while the hand holds it, and nothing appears, duplicates, floats or passes through anything. The block and the carton stay put after release, and the distractors (can, dish) and the box and book do not move. The hands rule holds. One right hand enters empty and leaves empty: it is withdrawing in f_026 and gone by f_028. No second hand does any work. The scene is consistent. Human frame f_001 matches the robot's 0.0s frame with the robot removed: same layout, lighting and camera, with no overlays or cuts.",
     "robot": "The block goes onto the box first (release at f361-373), then the milk goes onto the book (grasp at f508-551, release at f770-782). The order is correct. The block and the milk both stay upright and static through the final second (f1005-1034). The can and the dish are unmoved."
+   }
+  },
+  {
+   "id": "block_on_box_then_milk_on_book/episode_007",
+   "task": "block_on_box_then_milk_on_book",
+   "family": "place_on_elevated",
+   "episode": 7,
+   "seed": 100005,
+   "instruction": "Put the green block on the white box first, then put the milk carton on the black book.",
+   "fps": 30,
+   "robot_frames": 1077,
+   "robot_duration_s": 35.9,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/block_on_box_then_milk_on_book/episode_007/",
+   "arena": "kitchen",
+   "distractors": [
+    "ramekin",
+    "alphabet_soup",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person puts the green block on the box and then the milk on the book, in the right order, and the end state matches the robot's, so the pair is accepted.",
+    "issues": [],
+    "verify": "Order correct: the empty right hand enters at f_002, grasps the green block at f_003-f_008, carries it to the white box and releases it on top at f_009-f_012. Only after that does it grasp the milk at its original spot (f_013-f_015), carry it to the book (f_016-f_024) and leave empty (f_025-f_026). f_009-f_011 at full size: the milk stays at its original position and angle while the block is placed. There is no copy, no movement without contact, and no second hand. The end state in f_031 matches robot 35.8s: the block sits on the white box and the milk stands upright on the black book. The bowls, cup and book do not move. The first frame matches robot 0.0s with the robot removed: same layout, camera and lighting, and no overlays.",
+    "robot": "Green block grasped f141-184, carried and released on white box f411; then milk grasped f570-613 and released upright on black book f855. The order is correct. In 13.2-16.2s contiguous frames the block is slightly tilted inside the fingers before release, then sits flat on the box. End pose quat is z-only and the block is centred on the box."
    }
   },
   {
@@ -6688,6 +7048,106 @@
    }
   },
   {
+   "id": "bottle_in_cradle/episode_014",
+   "task": "bottle_in_cradle",
+   "family": "bottle_in_rack",
+   "episode": 14,
+   "seed": 100012,
+   "instruction": "Lay the wine bottle in the wine cradle.",
+   "fps": 30,
+   "robot_frames": 791,
+   "robot_duration_s": 26.37,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/bottle_in_cradle/episode_014/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the wine bottle, turns it and lays it in the cradle the same way round as the robot, so the pair is accepted.",
+    "issues": [],
+    "verify": "The right hand enters empty at f_002-f_003 and grasps the upright wine bottle at its original spot (f_004-f_008). It lifts, carries and turns the bottle (f_009-f_014), lays it in the wooden cradle (f_015-f_020), and leaves empty (f_021-f_023). The end state in f_031 matches robot 26.3s: the bottle lies across the cradle with the label/base on the left and the neck pointing right. The distractor boxes do not move. The blue box is at about (182,293) in both f_001 and f_031, and the orange box is at about (288,268) in both. At f_022 the hand passes near the blue box without moving it. No duplicate bottle, no second hand, and no overlays. The first frame matches robot 0.0s with the robot removed.",
+    "robot": "Upright bottle grasped f172-203, lifted f293, rotated horizontal by f390, aligned and lowered onto cradle f457-525, released f547; it lies in the cradle through f761-790 with no motion. Distractor boxes stay put; no arm collisions or wild motion; wrist view coherent with the bottle held centered until release."
+   }
+  },
+  {
+   "id": "bottle_in_cradle/episode_015",
+   "task": "bottle_in_cradle",
+   "family": "bottle_in_rack",
+   "episode": 15,
+   "seed": 100016,
+   "instruction": "Lay the wine bottle in the wine cradle.",
+   "fps": 30,
+   "robot_frames": 798,
+   "robot_duration_s": 26.6,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/bottle_in_cradle/episode_015/",
+   "arena": "living_room",
+   "distractors": [
+    "cream_cheese",
+    "ramekin",
+    "tomato_sauce"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person picks up the wine bottle and lays it in the cradle with the same orientation as the robot's end state, with clean physics and a single hand that enters and leaves empty.",
+    "issues": [],
+    "verify": "Task: the single right hand enters empty from the bottom edge at about 0.5s (f_003-f_005), grasps the wine bottle at f_006, lifts and rotates it (f_013-f_015), and lays it in the cradle (f_016-f_026). There is only one task object, so the order is correct. End state: a zoomed crop of the last human frame against the robot's 26.5s frame shows the bottle lying in the cradle with the label toward the upper-left and the neck toward the lower-right, in the same orientation and position, resting stably. Physics: the bottle moves only while held, and no copy appears. The cradle, the blue box, the can and the white bowl stay in place from f_001 to f_031. Scene: the first frame matches the robot's 0.0s frame with the robot removed. There are no overlays and no cuts. The hand leaves empty past the bottom-right edge (f_027-f_028).",
+    "robot": "Bottle grasped f161-192, lifted f281, aligned f425, lowered and released f465-515; it rests in the cradle with no motion through f768-797. The bowl, cup and blue box stay at their start positions; no collisions or wild swings."
+   }
+  },
+  {
+   "id": "bottle_in_cradle/episode_016",
+   "task": "bottle_in_cradle",
+   "family": "bottle_in_rack",
+   "episode": 16,
+   "seed": 100018,
+   "instruction": "Lay the wine bottle in the wine cradle.",
+   "fps": 30,
+   "robot_frames": 821,
+   "robot_duration_s": 27.37,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/bottle_in_cradle/episode_016/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person lays the wine bottle in the cradle in the robot's orientation with no distractor movement, so it passes.",
+    "issues": [],
+    "verify": "Task: one right hand enters empty from the bottom at about 0.3-0.5s (f_002-f_003), grasps the bottle (f_004-f_010), lifts it upright and turns it (f_011-f_014), and lays it in the cradle (f_015-f_025). End state: in a side-by-side zoom (end_cmp.png) of the last human frame and the robot's 27.3s frame, the bottle lies in the cradle with the base toward the left and the neck pointing right, and the label sits in the same place. The battery distractor is in the same spot. Distractors: the candy bar next to the bottle stays at the same tile position (about 125,178) in f_001, f_011, f_013 and f_031, even though the arm passes over it. The battery and cradle do not move. Scene: first_cmp.png shows the human first frame matches the robot's 0.0s frame with the robot removed. There are no overlays or cuts. The hand leaves empty out of the bottom-right edge (f_026-f_028).",
+    "robot": "Bottle is lifted, aligned and laid in the cradle (f465-f521) and is stable through the final second (f791-f820). Distractors stay put; release and retreat are clean."
+   }
+  },
+  {
    "id": "can_between_books/episode_000",
    "task": "can_between_books",
    "family": "place_between",
@@ -8187,6 +8647,40 @@
    }
   },
   {
+   "id": "juice_carton_behind_plate/episode_012",
+   "task": "juice_carton_behind_plate",
+   "family": "relative_front_behind",
+   "episode": 12,
+   "seed": 100016,
+   "instruction": "Put the orange juice carton behind the plate.",
+   "fps": 30,
+   "robot_frames": 640,
+   "robot_duration_s": 21.33,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/juice_carton_behind_plate/episode_012/",
+   "arena": "living_room",
+   "distractors": [
+    "popcorn",
+    "ramekin",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person places the juice carton behind the plate beside the ramekin, matching the robot's final frame, and no distractor moves.",
+    "issues": [],
+    "verify": "Task adherence: the only task object is the juice carton. The right hand picks it up (human 0.9-1.4s), carries it over the plate (f_012-f_018) and sets it down upright, just left of the ramekin and behind the plate (f_019-f_020). This matches the robot's last frame (21.2s): carton upright, left of the ramekin, behind the plate. Physical plausibility: the carton moves only while it is held (f_012-f_020). It rests stably after release (f_021-f_031). No object duplicates, appears, vanishes or passes through another object. Hands: one right hand enters empty from the lower right (0.5s), and after the place it leaves empty to the bottom-right edge (f_021-f_024). No second hand appears. Scene consistency: human frame 0.0s matches robot frame 0.0s with the robot removed: the same bowl, ramekin, plate, sardine tin and carton in the same layout. In f_031 the bowl, ramekin, plate and sardine tin are still where they were in the first frame, even though the hand passed close to the ramekin and plate. No overlays and no cuts.",
+    "robot": "Carton grasped f145-188 and released at f416 behind the plate, next to the small bowl. The bowl does not move, and the carton stays still from f480 to f639."
+   }
+  },
+  {
    "id": "line_up_cans_behind_plate/episode_000",
    "task": "line_up_cans_behind_plate",
    "family": "line_up_row",
@@ -8353,6 +8847,72 @@
     "issues": [],
     "verify": "Order matches the robot. The empty right hand enters (f_002 to f_003), takes the blue soup can first and stands it behind the plate on the left (f_004 to f_012), then takes the red-label sauce can (f_013 to f_015) and stands it to the right of the soup can (f_016 to f_024). The robot does the same: blue can first (5.6 to 16.8s), red can second (22.5 to 33.7s). End state (f_036) matches the robot's 39.3s frame. Both cans stand upright in a row behind the plate, blue on the left and red on the right, and the plate, small box and orange box are in their original places. A 12fps crop of the plate area (frames 34 to 51) shows the plate keeping its shape and position. The grey areas on it are only the arm's shadow, and the cans stay upright after release. The orange box and the small dark box do not move when the arm passes near them (f_003 to f_007, f_013 to f_016). The first frame matches the robot's first frame. There is one hand, which leaves empty (f_026), with no copies, overlays or cuts.",
     "robot": "The soup can (blue) is grasped first at f103-f171, carried, and released upright behind the plate on the left at f427-f439. The sauce can is grasped second at f640-f708, carried, and placed to the right of the soup can behind the plate at f917-f929."
+   }
+  },
+  {
+   "id": "line_up_cans_behind_plate/episode_005",
+   "task": "line_up_cans_behind_plate",
+   "family": "line_up_row",
+   "episode": 5,
+   "seed": 100009,
+   "instruction": "Put the soup can and then the tomato sauce can in a row behind the plate, with the soup can on the left.",
+   "fps": 30,
+   "robot_frames": 1249,
+   "robot_duration_s": 41.63,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/line_up_cans_behind_plate/episode_005/",
+   "arena": "kitchen",
+   "distractors": [
+    "red_bowl",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the front (soup) can and then the back (sauce) can into a row behind the plate in the robot's order, with an end state that matches, so the pair is accepted.",
+    "issues": [],
+    "verify": "Order matches the robot. The front blue soup can is picked first (fps=6 frames 7-11, about 1.0-1.7s) and stood behind the plate on the left; the hand leaves empty (frame 12). The back sauce can is then picked from its original spot (frames 15-17) and placed to the right of the soup can (frames 17-23); the hand leaves empty. The end state (frames 24-31, 5.0s) shows both cans upright in a row behind the plate, soup on the left. This matches the robot's last frame (41.5s). Physical plausibility holds. No can moves without contact, there is no duplication or merging, and both released cans stay upright and still. Hands and scene are clean. One right hand enters empty from the bottom edge. The first frame matches the robot's 0.0s layout with the robot removed. The small bowl, plate and wire basket never move, and there are no overlays or cuts.",
+    "robot": "Soup can grasped f129-197, carried and stood behind-left of plate, released f419-431; sauce can grasped f617-685, placed to its right f951-963. Order is correct. Final frames f1219-1248 show the soup (blue) can on the left and the sauce can on the right, side by side behind the plate, and both are static."
+   }
+  },
+  {
+   "id": "line_up_cans_behind_plate/episode_006",
+   "task": "line_up_cans_behind_plate",
+   "family": "line_up_row",
+   "episode": 6,
+   "seed": 100011,
+   "instruction": "Put the soup can and then the tomato sauce can in a row behind the plate, with the soup can on the left.",
+   "fps": 30,
+   "robot_frames": 935,
+   "robot_duration_s": 31.17,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/line_up_cans_behind_plate/episode_006/",
+   "arena": "living_room",
+   "distractors": [
+    "cream_cheese",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person stands the soup can and then the sauce can in a row behind the plate, with the soup can on the left. The order and end state match the robot, one hand does the work and the physics is clean, so it passes.",
+    "issues": [],
+    "verify": "Order is right: the hand enters empty from the bottom edge (f_002-f_003), grabs the blue soup can at the back right (f_004-f_006) and stands it behind the plate on the left (f_007-f_012). Only then does it take the sauce can from its original spot (f_012-f_015) and stand it to the right of the soup can (f_016-f_021). The end state matches the robot's last frame (31.1s). Both cans stand upright in a row just behind the plate, soup can on the left and sauce can on the right, and both matchboxes and the plate are where they started (f_025-f_031). Only one right arm does the work. The dark arm-shaped forms in f_003-f_006 are the arm's shadow on the table, not a second hand. The right matchbox is briefly hidden under the arm and reappears unmoved. The hand leaves empty at f_022. No copies, teleports or floating objects. Frame 1 matches the robot's 0.0s frame with the robot removed: same can, box and plate layout, same camera, no overlays and no cut.",
+    "robot": "Soup can grasped f107-175 and placed behind the plate f329-359; sauce can grasped f497-565 and placed to its right f680-711. Order is correct. Final frames f905-934 show both cans upright and side by side behind the plate, soup on the left, and static."
    }
   },
   {
@@ -8661,6 +9221,39 @@
     "issues": [],
     "verify": "Order is correct. In f_003-f_012 the can is carried and stood behind the yellow cube. In f_013-f_025 the long block is carried and placed behind the can. In a side-by-side of f_031 and the robot's 36.2s frame, the block, can and cube form the same row and the orientations match. The plate, the blue card and the small card at the left are unmoved. The hand brushes past the cube in f_026, but the cube's position is unchanged. A single hand leaves empty at the bottom right (f_027). No appearing or duplicated objects. f_001 matches the robot's first frame without the robot. There are no overlays or cuts.",
     "robot": "Can set behind the yellow cube at f410. Long block released at f894 behind the can, lengthwise, and the row is straight. Final second f1058-1087 is static. last.png matches. The card, plate and box do not move."
+   }
+  },
+  {
+   "id": "line_up_row_behind_cube/episode_009",
+   "task": "line_up_row_behind_cube",
+   "family": "line_up_row",
+   "episode": 9,
+   "seed": 100011,
+   "instruction": "Line up the tomato sauce can and then the long block in a straight row behind the yellow cube.",
+   "fps": 30,
+   "robot_frames": 1028,
+   "robot_duration_s": 34.27,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/line_up_row_behind_cube/episode_009/",
+   "arena": "living_room",
+   "distractors": [
+    "cream_cheese",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person stands the sauce can behind the yellow cube and then lays the long block behind the can in a straight row. The order and end state match the robot, so it passes.",
+    "issues": [],
+    "verify": "Order is right: the hand enters empty (f_002-f_003), grasps the sauce can at the far left (f_004-f_007), carries it right (f_008-f_012) and stands it just behind the yellow cube (f_013-f_015). Only after that does it pick up the long orange block (f_015-f_018) and place it behind the can (f_019-f_025). The end state matches the robot's last frame (34.2s). The orange block, sauce can and yellow cube form a diagonal row with the block farthest back; positions and the block's orientation match the robot. The bowl and the blue card do not move (f_026-f_031). There is a single right hand. The dark hand shapes in f_025-f_026 are the hand's shadow. The hand leaves empty at f_026-f_027. The yellow cube is only hidden under the hand and does not move. No object appears, duplicates or moves without contact. Frame 1 matches the robot's 0.0s frame with the robot removed. No overlays or cuts.",
+    "robot": "Can is released behind the cube at f376, then the block is grasped at f556-624, carried and released behind the can at f808. Order is correct. Final second f998-1027 is static, with a straight cube-can-block row."
    }
   },
   {
@@ -9303,6 +9896,413 @@
     "issues": [],
     "verify": "Order and task: the marker is grasped where it started, beside the bowl (f_005-f_011), lifted (f_012-f_014) and placed into the pencil box (f_015-f_023). The bowl and the small card stay put; the arm only passes over them. End state: a full-resolution crop of the last frame (end_hr.png) shows the marker inside the box with its black cap toward the far end. This matches a crop of the robot's last frame (robot_end.png). Hands: one right hand enters empty from the bottom edge (f_002-f_003) and leaves empty (f_025-f_026). No second hand and no duplicated marker. The marker looks paler mid-carry (f_014) because of lighting and motion blur; it is the same object, and it reads normally in the box at the end. Scene and physics: f_001 matches robot frame 0.0s with the robot removed (light wood table, kitchen cabinets, marker, bowl, box and card). The marker moves only while held. Nothing is overlaid and there is no scene cut.",
     "robot": "Marker grasped f134-f205 (visible), lifted f237, carried to the box and released at f416. It lies inside the box and is stable from f563 to f592. The bowl and battery do not move, and the motion is smooth."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_007",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 7,
+   "seed": 100012,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 652,
+   "robot_duration_s": 21.73,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_007/",
+   "arena": "living_room",
+   "distractors": [
+    "popcorn",
+    "cream_cheese",
+    "ramekin",
+    "alphabet_soup"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the marker with a real grasp and lays it in the pencil box in the same orientation as the robot, with the hand entering and leaving empty, so the pair is accepted.",
+    "issues": [],
+    "verify": "Task: one empty right hand enters from the bottom-right edge (f_002 to f_003), grasps the marker (f_004 to f_012), carries it to the blue pencil box (f_013 to f_027) and lays it inside. The hand leaves empty (f_028 to f_029). There is only one object, so the order is correct. End state (f_026 to f_031) matches the robot's last frame (21.6s): the marker lies lengthwise in the box with the white cap toward the upper right and the black end toward the lower left. Physical plausibility: zoomed f_001 to f_006 show the marker stays still until the hand touches it. It moves only while held, no copy appears, and after release it rests stably in the box. Scene: f_001 matches the robot's 0.0s frame with the robot removed (box, black cup, battery pack, small blue box, bowl, monitor). The distractors are in the same positions in f_001 and f_026 to f_031. There is no second hand, no overlay and no cut.",
+    "robot": "Marker grasped f125-f196 (visible), lifted f226, carried and laid inside the box (release f366). It stays settled from f622 to f651. The cup, bowl and battery boxes stay in place, and there is no arm contact with the box rim."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_008",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 8,
+   "seed": 100013,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 728,
+   "robot_duration_s": 24.27,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_008/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "cream_cheese",
+    "red_bowl",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person picks up the marker cleanly and lays it in the pencil box in the same orientation as the robot's last frame, with an empty hand on entry and exit, so the pair is accepted.",
+    "issues": [],
+    "verify": "Task: one empty right hand enters from the bottom edge (f_002 to f_003), grasps the marker on the left (f_004 to f_010), carries it to the blue pencil box at the upper right (f_011 to f_014) and lays it in (f_015 to f_021). The hand leaves empty through the bottom-right edge (f_022 to f_023). There is only one object, so the order is correct. End state: a zoomed crop of f_031 next to the robot's last frame (24.2s) shows the marker lengthwise in the box in the same orientation, with the black end at the upper left and the white labelled body toward the lower right. Physical plausibility: zoomed f_004 to f_009 show the fingers overlap the small dish during the grasp but the dish does not move. The marker moves only while held, no copy appears, and after release it rests stably in the box (f_024 to f_031). Scene: f_001 matches the robot's 0.0s frame with the robot removed (marker, dish, bowl, blue card, battery, pencil box, kitchen cabinets). The bowl, card, battery, dish and box are in the same positions in f_001 and f_031. In f_023 the shape at the edge is the same exiting hand plus its shadow, not a second hand. There is no overlay and no cut.",
+    "robot": "The marker is grasped mid-body (wrist f147-f218), carried, and lowered into the pencil box. It is released at f434-f442 and lies flat inside the box. Distractors (dish, bowl, eraser, snack box) and the pencil box do not move. The marker stays still through the final second (f698-f727)."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_009",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 9,
+   "seed": 100014,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 597,
+   "robot_duration_s": 19.9,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_009/",
+   "arena": "kitchen",
+   "distractors": [
+    "ramekin",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "One right hand picks up the marker, lays it inside the pencil box and leaves empty, and the end state matches the robot's.",
+    "issues": [],
+    "verify": "Task: f_002-f_003 an empty right hand enters from the bottom-right edge. f_004-f_010 it grasps the marker by the left bowl and lifts it. f_011-f_014 it carries the marker to the blue pencil box. f_015-f_020 it lays the marker lengthwise inside. f_021-f_023 the hand leaves empty through the bottom-right edge. Only one task object, so order is trivially correct. End state: the human last frame (f_031) and the robot frame at 19.8s both show the marker lying lengthwise inside the pencil box with its dark end toward the far end. The two bowls are unmoved. Physics: the marker moves only while held. No copies, nothing vanishes, and the marker rests stably in the box from f_022 to f_031. Only one hand appears throughout. Scene: f_001 matches the robot's 0.0s frame with the robot removed (same marker pose, box, two bowls, camera and lighting). The bowl darkening in f_012 and f_022 is arm shadow. There are no overlays or cuts. The small silver piece by the robot is a robot part floating beside the gripper, not a table object.",
+    "robot": "The marker gets a clean two-finger grasp (wrist f134-f205), is carried to the box, and is released at f412-f420. It settles flat inside the box by f450. The front view partly hides the grasp behind the arm, but the marker is visible before and after it. The bowls and box stay still."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_010",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 10,
+   "seed": 100015,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 747,
+   "robot_duration_s": 24.9,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_010/",
+   "arena": "kitchen",
+   "distractors": [
+    "popcorn",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person places the marker lengthwise in the pencil box with one hand, no distractor moves, and the end state matches the robot's.",
+    "issues": [],
+    "verify": "Task: f_002-f_003 an empty right hand enters from the bottom-right. f_004-f_010 it grasps the horizontal marker on the left. f_011-f_014 it carries it to the pencil box. f_015-f_020 it lays it diagonally inside. f_021-f_022 the hand exits empty through the bottom-right. There is one task object. End state: the human f_031 matches the robot frame at 24.8s, with the marker lying diagonally in the box and its black cap at the near-right end. The small matchbox and the bowl are in the same positions. Distractors: the matchbox stays at the same image position in f_001, f_019, f_021, f_022 and f_031, including while the hand passes near it. The bowl is unmoved. There are no duplicates, floating or teleporting objects, and no second hand. Scene: f_001 matches the robot's first frame with the robot removed (marker, box, matchbox, bowl, kitchen background). There are no overlays or cuts.",
+    "robot": "The marker is grasped (f148-f219), carried, lowered, and released at f441-f449. It lies inside the pencil box. The distractors (dish, snack box) and the pencil box do not move. The final second (f717-f746) is static."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_011",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 11,
+   "seed": 100016,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 692,
+   "robot_duration_s": 23.07,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_011/",
+   "arena": "living_room",
+   "distractors": [
+    "popcorn",
+    "white_bowl",
+    "plate"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "One hand moves the marker into the pencil box cleanly, and the end state matches the robot's.",
+    "issues": [],
+    "verify": "Task: f_002-f_003 an empty right hand enters from the bottom-right. f_004-f_010 it grasps the upright marker. f_011-f_013 it carries it to the pencil box. f_014-f_021 it lays it lengthwise inside. f_022-f_024 the hand exits empty. There is one task object. End state: the human f_031 matches the robot frame at 23.0s, with the marker lengthwise in the box, its black cap at the far end and its white end at the near end. The plate, small bowl and matchbox are in the same positions. Distractors: in a zoom of f_001-f_012 the hand passes over and near the matchbox, which stays at the same spot in every frame (and in f_031). It is not pushed. There are no duplicates, nothing vanishes, the marker rests stably, and there is only one hand. Scene: f_001 matches the robot's first frame with the robot removed (wood table, plate, bowl, marker, matchbox, box). There are no overlays or cuts.",
+    "robot": "The marker gets a centred two-finger grasp (wrist f145-f216), is carried to the box, and is released at f380-f388. It settles flat inside the box by f420. The plate, dish, snack box and pencil box stay still. The final frames f662-f691 are static."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_012",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 12,
+   "seed": 100017,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 593,
+   "robot_duration_s": 19.77,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_012/",
+   "arena": "living_room",
+   "distractors": [
+    "chocolate_pudding",
+    "red_bowl",
+    "plate",
+    "tomato_sauce"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person puts the marker into the pencil box at the left with one hand, no distractor moves, and the end state matches the robot's.",
+    "issues": [],
+    "verify": "Task: one right hand enters empty from the right edge (f_004-f_006), grasps the marker where it lies (f_007-f_010), carries it to the blue pencil box on the left (f_011-f_013) and lays it inside (f_014-f_020). It then withdraws empty to the bottom edge (f_021-f_023). End state: f_023-f_031 show the marker lying lengthwise inside the box, white cap toward the top and dark end toward the bottom. This matches the robot's 16.9s and 19.7s frames. Physics: the marker moves only while it is held. No copy appears, and nothing floats or passes through anything. The marker rests stably in the box from f_023 onward. Scene: the first frame matches the robot's 0.0s frame with the robot removed (box, marker, battery, plate, bowl, same camera). The battery, plate, bowl and box stay in place from first frame to last. There are no overlays, cuts or second hand.",
+    "robot": "Marker is grasped at its middle at f138-209, then lifted (f243), carried (f359), aligned and lowered, and released at f406-414; it lies flat inside the pencil box. Final second f563-592: the marker stays still in the box. The eraser box, plate and bowl do not move."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_013",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 13,
+   "seed": 100019,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 677,
+   "robot_duration_s": 22.57,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_013/",
+   "arena": "living_room",
+   "distractors": [
+    "plate",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "One hand places the marker into the pencil box in the same orientation as the robot's result, with no scene problems.",
+    "issues": [],
+    "verify": "Task: one right hand enters empty from the bottom edge (f_004-f_005) and grasps the upright marker at the left (f_006-f_011). It carries the marker to the blue pencil box at the upper right (f_012-f_016), lays it inside and presses it down (f_017-f_022). It then leaves empty through the right edge (f_023-f_026). End state: f_027-f_031 show the marker lying along the box's long axis, white cap toward the upper left and black end toward the lower right. This matches the robot's 22.5s frame. Physics: the marker moves only while it is held. No copy appears and nothing teleports. The marker rests stably in the box after release. Scene: the first frame matches the robot's 0.0s frame with the robot removed (marker, box, plate, crayon box, TV stand). The box, plate and crayon box keep their positions throughout. There are no overlays, cuts or second hand.",
+    "robot": "Marker is grasped at f119-190, lifted at f220, carried to the box at f340, lowered and released at f386-394. It rests flat in the box. The battery pack and plate do not move. Final second f647-676 is static."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_014",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 14,
+   "seed": 100020,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 718,
+   "robot_duration_s": 23.93,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_014/",
+   "arena": "living_room",
+   "distractors": [
+    "akita_black_bowl",
+    "plate"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the marker and lays it in the pencil box, with the same end state as the robot and no physics or scene problems.",
+    "issues": [],
+    "verify": "I extracted 32 frames at fps=6. Frame 1 matches the robot's first frame with the robot removed: blue pencil box on the left, marker upper middle, pink plate and steel bowl on the right, same camera. One right hand enters empty from the bottom-right (f3). It pinches the marker at f4-f10, and the marker stays still until the fingers close on it. The hand carries it (f10-f12) and lays it in the box (f13-f20), then leaves empty at f22. The pink plate is only hidden behind the forearm while the hand is near it. It is back in the same place from f11, and the bowl never moves. No copies, overlays or cuts. End state (f23-f31) matches the robot at 23.8s: marker lying lengthwise inside the box, white end toward the far side and black end toward the camera.",
+    "robot": "Marker is grasped at f128-199, lifted at f230, carried and aligned over the box at f371-407, and released at f418-426. It sits inside the box. The box keeps its position through the carry and retreat. The plate and bowl do not move. Final second f688-717 is static."
+   }
+  },
+  {
+   "id": "marker_in_pencil_box/episode_015",
+   "task": "marker_in_pencil_box",
+   "family": "utensil_to_holder",
+   "episode": 15,
+   "seed": 100021,
+   "instruction": "Put the marker in the pencil box.",
+   "fps": 30,
+   "robot_frames": 710,
+   "robot_duration_s": 23.67,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/marker_in_pencil_box/episode_015/",
+   "arena": "living_room",
+   "distractors": [
+    "ramekin",
+    "cream_cheese",
+    "chocolate_pudding",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person puts the marker into the pencil box in one clean pick-and-place, with an end state that matches the robot.",
+    "issues": [],
+    "verify": "Frame 1 matches the robot's first frame: marker on the left, small yellow item, blue eraser, blue box at the back right, dark block beside the box, bowl. Same camera. One right hand enters empty from the bottom (f2-f3). It grasps the marker at f4-f11, and the marker only lifts once it is held (f11-f13). It is carried to the box and set in (f14-f20). The hand releases and leaves empty (f21-f25). The eraser and the yellow item are in the same place in f1 and f31, and the dark block and the bowl do not move. No duplicates, overlays or cuts. I compared the last frame at full resolution (hcrop.png) with the robot's frame at 23.6s. In both, the marker lies inside the box with the black cap at the upper left and the white end at the lower right.",
+    "robot": "Marker is grasped at f139-210, lifted at f243, carried at f366, aligned and lowered, and released at f413-421. It lies flat in the box. The nearby battery, eraser, bowl and chocolate box do not move. Final second f680-709 is static."
+   }
+  },
+  {
+   "id": "milk_carton_in_front_of_basket/episode_000",
+   "task": "milk_carton_in_front_of_basket",
+   "family": "relative_front_behind",
+   "episode": 0,
+   "seed": 100001,
+   "instruction": "Put the milk carton in front of the basket.",
+   "fps": 30,
+   "robot_frames": 662,
+   "robot_duration_s": 22.07,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/milk_carton_in_front_of_basket/episode_000/",
+   "arena": "kitchen",
+   "distractors": [
+    "white_bowl",
+    "red_bowl",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the milk carton to stand in front of the basket, with a believable grasp and an end state that matches the robot.",
+    "issues": [],
+    "verify": "Frame 1 matches the robot's first frame: basket at the upper left, milk carton upper middle, small bowl, white bowl, large steel bowl. Same camera. One right hand enters empty from the bottom (f3) and passes over the large bowl. I checked frames from 0.3 to 0.95s and the bowl stays in place. The hand grasps the carton at f5-f6, carries it (f7-f17) and sets it down upright in front of the basket. It leaves empty (f19-f21). All bowls are in the same places at the end. No duplicates, overlays or cuts. I compared the last frame (hcrop.png) with the robot's frame at 22.0s (rcrop.png). In both, the carton stands upright, slightly tilted, just in front of the basket's front face toward the camera, a little right of centre.",
+    "robot": "The milk is grasped at f120-163, carried and lowered directly in front of the basket (on the camera side), with release at f437. Contiguous frames from 14.3 to 18.7s in both views show a clean release: the fingers open, the milk stays upright and does not move as the arm backs off."
+   }
+  },
+  {
+   "id": "milk_carton_in_front_of_basket/episode_001",
+   "task": "milk_carton_in_front_of_basket",
+   "family": "relative_front_behind",
+   "episode": 1,
+   "seed": 100002,
+   "instruction": "Put the milk carton in front of the basket.",
+   "fps": 30,
+   "robot_frames": 738,
+   "robot_duration_s": 24.6,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/milk_carton_in_front_of_basket/episode_001/",
+   "arena": "living_room",
+   "distractors": [
+    "ramekin",
+    "plate"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person places the milk carton in front of the basket, matching the robot's end position, with a clean single-hand motion.",
+    "issues": [],
+    "verify": "Only task object (milk) is handled: an empty right hand enters from the bottom edge (f_002-f_003), grasps the milk at its start position near the plate (f_005-f_006), carries it left (f_007-f_012), sets it down below/in front of the basket (f_013-f_018) and leaves empty (f_019-f_020). End state (f_021-f_031, human 5.0s) matches robot 24.5s: milk upright just in front of the basket, slightly right of its centre; basket, plate and white cup unchanged. Milk only moves while held; no copies, no appearing or vanishing objects, no floating; the arm briefly hides the cup but it reappears in the same place. One hand only, no overlays or cuts; first frame matches robot 0.0s with the robot removed.",
+    "robot": "The milk is grasped at f129-172, lifted at f226, carried to the basket and released at f454 just in front of the basket. The wrist view at f441-480 shows the fingers opening cleanly with the carton upright. In the front view the milk does not move through to f737."
+   }
+  },
+  {
+   "id": "milk_left_of_bowl/episode_000",
+   "task": "milk_left_of_bowl",
+   "family": "relative_left_right",
+   "episode": 0,
+   "seed": 100002,
+   "instruction": "Put the milk carton to the left of the bowl.",
+   "fps": 30,
+   "robot_frames": 515,
+   "robot_duration_s": 17.17,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/milk_left_of_bowl/episode_000/",
+   "arena": "living_room",
+   "distractors": [
+    "tomato_sauce",
+    "cream_cheese",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person puts the milk carton to the left of the bowl with a gap, matching the robot's end state and keeping the distractors in place.",
+    "issues": [],
+    "verify": "An empty right hand enters from the bottom right (f_003-f_004), grasps the milk at its start position behind the bowl (f_005-f_010), carries it to the left of the bowl (f_011-f_018), releases it and leaves empty (f_019-f_022). Final frame (last_full.jpg) matches robot 17.1s: milk upright to the left of the bowl with a small visible gap, at nearly the same pixel position. The milk passes right next to the small blue box, but the zooms (z_001/z_012/z_016/z_031) show the box stays in the same place. The can, the yellow box and the bowl are also unchanged. No duplication, teleporting or second hand; first frame matches robot 0.0s with the robot removed; no overlays or cuts.",
+    "robot": "The milk is grasped with two fingers at f135-f206 (a second close at f163 tightens the grip), lifted at f228, carried and lowered to the left of the bowl, and released at f327. It stands upright with a clear gap from the bowl. The final second (f485-f514) shows the milk stationary and upright. The distractors (can, blue box, yellow box) stay where they started."
    }
   },
   {
@@ -10223,6 +11223,39 @@
    }
   },
   {
+   "id": "pudding_centered_on_round_coaster/episode_013",
+   "task": "pudding_centered_on_round_coaster",
+   "family": "center_on_target",
+   "episode": 13,
+   "seed": 100013,
+   "instruction": "Put the pudding box down right in the middle of the round coaster.",
+   "fps": 30,
+   "robot_frames": 576,
+   "robot_duration_s": 19.2,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/pudding_centered_on_round_coaster/episode_013/",
+   "arena": "living_room",
+   "distractors": [
+    "popcorn",
+    "tomato_sauce"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the pudding box and sets it upright in the middle of the round coaster, matching the robot's end state with no scene or physics problems, so it passes.",
+    "issues": [],
+    "verify": "Human f_001 matches the robot's 0.0s frame with the robot removed: green square, can, pudding box lying flat, small blue box, yellow coaster, same camera and lighting. An empty right hand enters at f_003-f_004, grasps the pudding box at f_006-f_012, carries it at f_013-f_015 and sets it upright on the yellow coaster at f_016-f_024. Only the pudding box is handled and there is no second hand. The hand leaves empty at f_025-f_027. In f_026-f_027 it passes over the small blue box, but that box is in the same place in f_028 as in f_001, and the can and green square never move. End state at f_028-f_031: the pudding box stands upright, roughly centred on the coaster. This matches the robot's 19.1s frame. No copies, teleporting or overlays appear.",
+    "robot": "Pudding is picked (f139-f194) and placed on the yellow round coaster, not the green square distractor coaster. It is released around f397 and sits centred. The arm partly hides the pudding during the grasp (f114-f240), but the box is still identifiable. The placement on the coaster is clearly visible."
+   }
+  },
+  {
    "id": "push_block_against_block/episode_000",
    "task": "push_block_against_block",
    "family": "push_together",
@@ -10425,6 +11458,105 @@
    }
   },
   {
+   "id": "push_block_against_block/episode_006",
+   "task": "push_block_against_block",
+   "family": "push_together",
+   "episode": 6,
+   "seed": 100013,
+   "instruction": "Push the red block against the blue block.",
+   "fps": 30,
+   "robot_frames": 525,
+   "robot_duration_s": 17.5,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_block_against_block/episode_006/",
+   "arena": "living_room",
+   "distractors": [
+    "ramekin",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person pushes the red block along the table into contact with the stationary blue block, matching the robot's end state, so it passes.",
+    "issues": [],
+    "verify": "Human f_001 matches the robot's 0.0s frame without the robot: two white bowls, blue block, red block, same layout and camera. An empty right hand enters at f_002-f_004, contacts the red block at f_005-f_006 and slides it left along the table without lifting it (f_007-f_018) until it touches the blue block. The hand withdraws empty at f_019-f_023 and is out of frame by f_024. The blue block stays at the same spot throughout, and both bowls stay unmoved. End state at f_024-f_031: the red block sits against the right side of the blue block, slightly forward. This matches the robot's 17.4s frame. No second hand, copies or overlays appear.",
+    "robot": "The closed gripper pushes the red block along the table from f162 to f326, and it ends in contact with the blue block (front f341-f524). It is never lifted. The blue block stays visible in the front view throughout, and red is visible at the fingertips. The bowls do not move, and the final second is stationary."
+   }
+  },
+  {
+   "id": "push_block_against_block/episode_007",
+   "task": "push_block_against_block",
+   "family": "push_together",
+   "episode": 7,
+   "seed": 100017,
+   "instruction": "Push the red block against the blue block.",
+   "fps": 30,
+   "robot_frames": 460,
+   "robot_duration_s": 15.33,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_block_against_block/episode_007/",
+   "arena": "kitchen",
+   "distractors": [
+    "alphabet_soup",
+    "popcorn"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person slides the red block against the blue block and leaves the same contact arrangement as the robot, with distractors unmoved, so it passes.",
+    "issues": [],
+    "verify": "Human f_001 matches the robot's 0.0s frame without the robot: kitchen cabinets, dark can, small blue box, red block and blue block in the same positions. An empty right hand enters at f_002-f_003. Its fingers pass near the blue block at f_003, but the blue block does not move. The hand pushes the red block along the table at f_004-f_017, and the red block stays on the table. The hand leaves empty past the blue block at f_018-f_019. A crop comparing f_001 with f_031 shows the blue block in the identical position. The can and the small box never move. End state at f_020-f_031: the red block is squared up and touching the upper-left side of the blue block. This matches the robot's 15.2s frame. No second hand, copies or overlays appear.",
+    "robot": "The closed gripper pushes the red block (corner first) along the table until it touches the blue block, between f126 and f279, without lifting it (wrist f126-f295). The red block stays visible in the front view during the push and at contact (f189-f279)."
+   }
+  },
+  {
+   "id": "push_block_against_block/episode_008",
+   "task": "push_block_against_block",
+   "family": "push_together",
+   "episode": 8,
+   "seed": 100019,
+   "instruction": "Push the red block against the blue block.",
+   "fps": 30,
+   "robot_frames": 541,
+   "robot_duration_s": 18.03,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_block_against_block/episode_008/",
+   "arena": "kitchen",
+   "distractors": [
+    "akita_black_bowl",
+    "tomato_sauce"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person pushes the red block into contact with the blue block, matching the robot's final configuration, so it passes.",
+    "issues": [],
+    "verify": "Task: in fps=6 frames f_002-f_021 a single right hand comes in empty from the bottom edge, rests on the red block and slides it along the table toward the blue block. The red block never leaves the table. The hand leaves empty by f_021-f_022. End state: from f_022 to f_032 the red block sits flush against the left side of the blue block, and the blue block is where it started (about x=155, y=158 in the tile). This matches the robot's last frame (17.9s), where red and blue touch the same way. Physics: only the red block moves, and only while the hand touches it. The blue block, can and bowl stay still. No object appears, duplicates or floats, and no second hand shows up (zoomed frames 14-25 checked). Scene: f_001 matches the robot's 0.0s frame with the robot removed (same red and blue blocks, can, bowl and kitchen backdrop). There are no overlays and no cuts.",
+    "robot": "The red block slides into the blue block with no lift (wrist f145-f363). The faces are flush at close gap (f348). Red and blue stay visible in the front view throughout (f221-f390)."
+   }
+  },
+  {
    "id": "push_box_against_book/episode_000",
    "task": "push_box_against_book",
    "family": "push_together",
@@ -10522,6 +11654,382 @@
     "issues": [],
     "verify": "Task adherence: f_002-f_005 show one empty right hand coming in from the bottom edge. In f_005-f_018 it pushes the cardboard box left across the table, without lifting it, until the box is flush against the standing book. In f_019-f_020 the hand leaves empty. End state: the last frames (f_021-f_031) match the robot's last frame (17.9s). The box touches the right face of the book in the same orientation, and the book is still standing in place. The can, the small box and the plate have not moved. Scene: the first frame matches the robot's 0.0s frame with the robot removed. Same objects, layout, kitchen-cabinet background and lighting; only the framing drifts slightly. The box moves only while the hand touches it. There are no new objects, copies, overlays or cuts, and only one hand appears.",
     "robot": "The box is pushed along the table into the standing book (f233-f355). In f450-f539 it rests against the book's face. The can, battery and plate do not move. The book stays upright, and the box holds still in the final second (f510-f539)."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_003",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 3,
+   "seed": 100009,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 509,
+   "robot_duration_s": 16.97,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_003/",
+   "arena": "living_room",
+   "distractors": [
+    "butter",
+    "alphabet_soup",
+    "ramekin",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person pushes the cardboard box along the table until it rests against the standing book, matching the robot's end state, so it passes.",
+    "issues": [],
+    "verify": "Task: in f_003-f_020 a single right hand comes in empty from the bottom edge, pushes the cardboard box left along the table into the standing book without lifting it, and leaves empty (f_019-f_020). End state: from f_020 to f_032 the box rests against the lower right of the standing book, sitting slightly in front of it. This matches the robot's 16.9s frame. The book stays upright and in place in every frame. Physics: the box moves only while the hand touches it and stays fixed after release (its right edge does not move from f_019 to f_032). Its apparent size changes a little during the push, but that is the hand covering it plus perspective; the robot's own frames show the same change from 35 to 37 px. In zoom2 (f_014), the box overlapping the book is the box sitting in front of it, not passing through. Scene: f_001 matches the robot's 0.0s frame with the robot removed (book, box, can, small bowl, red item and larger bowl on the dark wood table). Distractors do not move, there are no overlays, and no cuts.",
+    "robot": "The box stays visible as it is pushed along the table toward the book (f142-f351) and ends flush against the book (f479-f508). The box is never lifted and does not move after the arm withdraws. The bowls, can and packet stay still."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_004",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 4,
+   "seed": 100011,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 494,
+   "robot_duration_s": 16.47,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_004/",
+   "arena": "kitchen",
+   "distractors": [
+    "akita_black_bowl",
+    "alphabet_soup"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person slides the box left along the table until it touches the standing book, then withdraws an empty hand; the end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "f_001 matches robot 0.0s with the robot removed: mug, standing book, box and bowl are in the same layout under the same camera. f_003 to f_005: an empty right hand enters from the bottom edge and touches the box. f_006 to f_018: it slides the box left along the table, without lifting it, until the box touches the book's right face. f_019 to f_020: the hand withdraws empty. In f_021 to f_031 the box rests against the book, matching robot 16.4s. Mug, book and bowl stay put; there is no second hand, no copied object and no overlay.",
+    "robot": "The box is pushed toward the book and ends against it (f390-f493). It stays at least partly visible during the strokes (f142-f342). The final second is still. The can and bowl do not move."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_005",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 5,
+   "seed": 100014,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 558,
+   "robot_duration_s": 18.6,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_005/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "akita_black_bowl",
+    "chocolate_pudding",
+    "alphabet_soup"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person slides the box until it rests against the standing book and leaves with an empty hand; the end state matches the robot's last frame, so it passes.",
+    "issues": [],
+    "verify": "f_001 matches robot 0.0s: book, box, small card, bowl, can and dark box are in the same layout. f_002 to f_005: an empty right hand enters from the bottom. f_006 to f_020: it pushes the box up-left along the table until it rests against the book's lower-right face. Zoomed crops of f_013 and f_018 show the box staying on the table and the book not being displaced. f_021 to f_022: the hand leaves empty. In f_023 to f_031 the box rests against the book at the same angle as in robot 18.5s, and the distractors stay put. There is no second hand, no copied object and no overlay.",
+    "robot": "The box is pushed from the centre into contact with the book. It ends rotated about 30 degrees, resting against the book's face (f450-f557), and last.png matches. The book stays standing, the distractors stay still, and the final second is still."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_006",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 6,
+   "seed": 100020,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 502,
+   "robot_duration_s": 16.73,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_006/",
+   "arena": "kitchen",
+   "distractors": [
+    "cream_cheese",
+    "red_bowl",
+    "akita_black_bowl",
+    "butter"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person pushes the box along the table up against the standing book and withdraws; the end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "f_001 matches robot 0.0s: white bowl, standing book, box, small card, bowl and blue card are in the same layout. f_002 to f_004: an empty right hand enters from the bottom. f_005 to f_017: it slides the box left along the table until the box touches the book's right side. f_018 to f_020: the hand leaves empty. In f_021 to f_033 the box rests against the book, matching robot 16.6s. The distractors do not move, and there is no second hand, no copied object and no overlay.",
+    "robot": "Closed gripper approaches behind the box (f140-158) and pushes it in two strokes (f225, f277) until it is flush against the standing book (f311). It then backs off and lifts (f326-390). Final second (f472-501): the box stays still, touching the book. The book, bowls and other distractors do not move."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_007",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 7,
+   "seed": 100021,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 502,
+   "robot_duration_s": 16.73,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_007/",
+   "arena": "kitchen",
+   "distractors": [
+    "cream_cheese",
+    "plate",
+    "butter"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person slides the box against the standing book with one right hand that enters and leaves empty; the end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "Task: in f_005-f_022 one right hand enters empty from the bottom edge and pushes the cardboard box from its right side along the table toward the standing book. The zoomed crops show the box stays on the table and is never lifted. The hand leaves empty (f_022-f_024). End state: f_031 next to the robot's 16.6s frame shows the box lengthwise against the right face of the standing book with the same orientation and position. The book stays upright. Physics: the box moves only while the hand touches it, rests stably after release, and nothing appears, duplicates or passes through anything. Scene: f_001 matches the robot's 0.0s frame with the robot removed (book, box, plate, phone, red snack pack, same camera). The distractors are in the same places in the last frame. There are no overlays or cuts, only slight camera drift.",
+    "robot": "The gripper pushes the box across in strokes f223 and f274, and the box ends against the book at f312. The arm lifts away cleanly from f351 to f420. Final frames f472-501 are stable with the box flush against the book. The plate, bowl and boxes used as distractors stay where they started."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_008",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 8,
+   "seed": 100023,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 512,
+   "robot_duration_s": 17.07,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_008/",
+   "arena": "living_room",
+   "distractors": [
+    "ramekin",
+    "butter",
+    "popcorn",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person pushes the box along the table until it rests against the standing book and withdraws an empty hand; the end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "Task: one right hand enters empty from the bottom edge (f_002-f_004) and pushes the box from its right side flat along the table until it meets the book (f_007-f_021). The hand leaves empty (f_021-f_023). End state: f_031 next to the robot's 17.0s frame shows the box flush against the right face of the standing book in the same position and orientation. Distractors: the red snack pack near the arm's path is briefly hidden behind the forearm. It is at the same spot in f_001 and f_031, and the bowls and small blue box do not move either. Physics: no duplication, appearance or contact-free motion. The box rests stably after release. Scene: f_001 matches the robot's 0.0s frame with the robot removed, with the same camera and lighting. There are no overlays or cuts.",
+    "robot": "The box is pushed toward the book in strokes f216 and f278 and is against the book by f320. The gripper retreats from f335 to f420. Final second f482-511 is stable with the box flush against the book. The bowls, butter pack and small box do not move."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_009",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 9,
+   "seed": 100024,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 499,
+   "robot_duration_s": 16.63,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_009/",
+   "arena": "kitchen",
+   "distractors": [
+    "cream_cheese",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "One right hand slides the box flat across the table until it touches the standing book, and the end state matches the robot's last frame.",
+    "issues": [],
+    "verify": "The first frame f_001 matches the robot's 0.0s frame with the robot removed: blue tin, standing black book, box and bowl are in the same layout. In f_003-f_022 one right hand enters empty from the bottom edge and slides the box left along the table without lifting it. The box rotates slightly under the hand's contact, and the box moves only while the hand touches it. In f_023-f_026 the hand leaves empty. The box rests against the book's front face, and the box and book are both stable. The end state in f_027-f_031 matches the robot's 16.5s frame: the box lies flush against the book, angled the same way. The tin, book and bowl do not move. No second hand, no copy of the box, no overlays and no cuts appear in any of the 31 frames.",
+    "robot": "Push strokes run from f211 to f302 and leave the box against the book. The gripper backs off and lifts from f318 to f390. Final frames f469-498 are static with the box touching the book. The bowl and the blue pack stay in place."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_010",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 10,
+   "seed": 100027,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 509,
+   "robot_duration_s": 16.97,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_010/",
+   "arena": "living_room",
+   "distractors": [
+    "plate",
+    "tomato_sauce",
+    "white_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The box is pushed flat against the standing book by one right hand, which enters and leaves empty, and the end state matches the robot.",
+    "issues": [],
+    "verify": "The first frame f_001 matches the robot's 0.0s frame: book, box, plate, can and bowl are in the same layout on the wooden table. In f_002-f_020 one right hand enters empty from the bottom and pushes the box flat along the table to the left until it touches the book. The box moves only while the hand is in contact with it. In f_021-f_024 the hand leaves empty through the bottom edge. The end state in f_025-f_031 matches the robot's 16.9s frame: the box rests against the right face of the standing book. The book stays upright and in place, and the plate, can and bowl do not move. No second hand, no duplication, no overlays and no cuts appear.",
+    "robot": "Push strokes from f229 to f322 bring the box up against the book. The gripper retreats from f337 to f420. Final second f479-508 is static with the box against the book. The plate, bowl and can do not move, and the book stays upright."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_011",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 11,
+   "seed": 100029,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 487,
+   "robot_duration_s": 16.23,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_011/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "tomato_sauce",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "One right hand pushes the box along the table until it rests against the book, matching the robot's end state with no physics or scene issues.",
+    "issues": [],
+    "verify": "The first frame f_001 matches the robot's 0.0s frame: binder or book standing upright, box, small orange box, can and the second box are in the same layout. In f_002-f_017 one right hand enters empty from the bottom and slides the box left along the table until it touches the book, without lifting it. The box moves only while in contact with the hand. In f_018-f_019 the hand withdraws empty. The end state in f_020-f_031 matches the robot's 16.1s frame: the box rests flush against the right side of the book. The distractors and the book do not move. No second hand, no copy of the box, no overlays and no cuts appear.",
+    "robot": "Closed gripper pushes the box left along the table during stroke1/stroke2 (f187-f294). The box stays on the table and in contact with the gripper. In the final frames f457-f486 it rests flush against the standing book. Distractors (soup can, two small boxes) and the book do not move. Retreat is smooth and the box is static over the final second."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_012",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 12,
+   "seed": 100030,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 616,
+   "robot_duration_s": 20.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_012/",
+   "arena": "kitchen",
+   "distractors": [
+    "plate",
+    "popcorn",
+    "akita_black_bowl",
+    "ramekin"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The hand slides the box right until it is flush against the standing book, and the final frame matches the robot's last frame closely.",
+    "issues": [],
+    "verify": "Single task object (box): in f_004-f_019 one empty right hand comes in from the bottom edge, lays its palm on the box and slides it right along the table into the standing book without lifting it. The hand leaves empty by f_021-f_022. End state matches: f_031 shows the box flush against the left face of the book, with the same L-shaped look as the robot's 20.4s frame (the book's shadow falls on the box). Scene is consistent: f_001 matches the robot's 0.0s frame with the robot removed, with the same box, book, small pot, plate, matchbox, metal bowl and camera. The metal handle near the pot in robot frames appears only when the gripper is close (it is absent at 2.9s and 11.7s), so it is a robot part and not a missing object. Distractors (pot, plate, matchbox, bowl) stay still in every frame. No duplicate objects, overlays or cuts. The box is only hidden under the palm during contact.",
+    "robot": "Box is pushed right along the table into the standing book (f229-f324) and stays flush against it through the final frames f586-f615. Bowl, plates, ramekin and small box are static. The book does not tip. The box is visible throughout in the front view."
+   }
+  },
+  {
+   "id": "push_box_against_book/episode_013",
+   "task": "push_box_against_book",
+   "family": "push_together",
+   "episode": 13,
+   "seed": 100031,
+   "instruction": "Push the cardboard box up against the standing book.",
+   "fps": 30,
+   "robot_frames": 506,
+   "robot_duration_s": 16.87,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_box_against_book/episode_013/",
+   "arena": "living_room",
+   "distractors": [
+    "plate",
+    "butter"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "One right hand pushes the box flat into contact with the standing book, and the end state matches the robot's with a consistent scene.",
+    "issues": [],
+    "verify": "One empty right hand enters from the bottom edge at f_003, takes hold of the box from above-right and slides it left along the table to the book (f_004-f_018), turning it from diagonal to horizontal, the same as the robot. The box is not lifted. The hand leaves empty by f_019-f_020. End state matches: f_031 shows the box with its long axis horizontal and its left end against the standing book, matching the robot's 16.8s frame. The box size stays the same from f_001 to f_031 (it does not morph). f_001 matches the robot's 0.0s frame with the robot removed: same book, box, plate, matchbox, TV stand and camera. The book, plate and matchbox stay still throughout. No second hand, duplicate objects, overlays or cuts.",
+    "robot": "Box is slid left along the table until it contacts the standing book (f203-f309). It stays against the book over the final second (f476-f505) with no motion. Plate and butter box do not move. There is no floating or penetration. The arm motion is smooth."
    }
   },
   {
@@ -10825,6 +12333,40 @@
     "issues": [],
     "verify": "First frame (f_001) matches robot 0.0s with the robot removed: green cube, white tape square, cyan mat, three bowls and brown cup all in the same layout. One right hand enters empty from the bottom edge (f_003), touches the cube at f_005, and slides it down into the square with fingers on the cube the whole time (f_006 to f_022). The cube is not lifted, copied or teleported. The hand leaves empty (f_023 to f_024). From f_025 to f_031 the cube sits inside the square, rotated about 45 degrees, which matches the robot's 28.0s end state (cube inside the square). Distractors (cyan mat, bowls, cup) and the tape square stay fixed. There is no second hand, no overlay and no cut.",
     "robot": "Green cube pushed into the white tape square (strokes f141-f393, with a corrective push f505-f589). Inside the square and still from f720 to f843. Only the cube moves, and only while the fingertips touch it. The bowls, cyan mat and tin are fixed, and there are no snaps."
+   }
+  },
+  {
+   "id": "push_cube_into_tape_square/episode_009",
+   "task": "push_cube_into_tape_square",
+   "family": "push_to_target",
+   "episode": 9,
+   "seed": 100015,
+   "instruction": "Push the cube into the taped square.",
+   "fps": 30,
+   "robot_frames": 826,
+   "robot_duration_s": 27.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/push_cube_into_tape_square/episode_009/",
+   "arena": "kitchen",
+   "distractors": [
+    "alphabet_soup",
+    "white_bowl",
+    "butter"
+   ],
+   "review": {
+    "task_adherence": 4,
+    "physics": 4,
+    "summary": "One right hand slides the cube along the table into the taped square and leaves empty. The end state matches the robot, with no artifacts, so it is accepted.",
+    "issues": [],
+    "verify": "In the fps=6 frames, an empty right hand enters from the bottom edge (f_003 to f_005). It contacts the cube (f_006) and slides it along the table into the blue taped square (f_007 to f_020). It releases and leaves empty (f_021 to f_024). Only one object is handled. The cube moves only while the hand touches it and never appears to be lifted. No copies appear and there is no second hand. In the last frames (f_025 to f_031) the cube rests inside the blue square, which matches the robot at 27.4s. The green mat, can, candy bar and bowl stay still. The human first frame matches the robot's first frame without the robot. The small metal piece near the robot base in the robot frames is part of the robot, as a zoomed robot frame (r0.jpg) shows, so it is not a missing object.",
+    "robot": "Cube is pushed in two strokes (f149-f368, then f504-f579) into the blue taped square. It stays fully inside the square from f660 to the final f825. During stroke1 (f150-f330) the cube is partly occluded by the gripper in the front view, but cyan remains visible and the wrist view shows clear contact. Distractors (green pad, can, butter, bowl) are static."
    }
   },
   {
@@ -11510,6 +13052,41 @@
     "issues": [],
     "verify": "Task: the only task object, the sauce can, is picked from the front-centre (f_005 to f_008), carried over and set upright between the small back bowl and the large front bowl (f_022). The end state at f_031 matches robot 17.8s: the can is upright with the small bowl just behind it and the large bowl in front. Hands: one right hand enters empty from the bottom-right edge (f_002/f_003) and leaves empty (f_023, f_025). The partial head or body shadow at the bottom edge (f_023, f_025) does no work, and no second hand acts. Physics: the can moves only while held. Neither bowl nor any of the distractor boxes moves, and nothing appears, duplicates or floats in the 31 frames. Scene: f_001 matches robot 0.0s with the robot removed (same objects, layout, camera and lighting), with no overlays or cuts.",
     "robot": "The can is grasped with two fingers at f146-f189, lifted at f217, carried, and lowered and released between the small bowl and the large bowl at f321-f347. It stays upright and still from f386 to f536. The four distractor packages and both bowls stay where they started. No collisions or jumps are visible."
+   }
+  },
+  {
+   "id": "sauce_can_between_bowls/episode_005",
+   "task": "sauce_can_between_bowls",
+   "family": "place_between",
+   "episode": 5,
+   "seed": 100005,
+   "instruction": "Put the tomato sauce can between the two bowls.",
+   "fps": 30,
+   "robot_frames": 541,
+   "robot_duration_s": 18.03,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sauce_can_between_bowls/episode_005/",
+   "arena": "kitchen",
+   "distractors": [
+    "butter",
+    "popcorn",
+    "plate",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the tomato sauce can and stands it between the two bowls, matching the robot's end frame with a clean single-hand interaction, so it is accepted.",
+    "issues": [],
+    "verify": "An empty right hand enters from the bottom (f_002 to f_003), grasps the tomato sauce can at the back right (f_004 to f_006), and carries it to the left (f_007 to f_013). The hand stands the can upright between the small left bowl and the steel bowl (f_014 to f_022). It releases and leaves empty (f_023 to f_024). Comparing f_001, the last frame and the robot frame at 17.9s (cmp.jpg) shows the same end state: the can stands between the two bowls, a little nearer the left bowl. The plate, both candy packs and the cookie box do not move. The cookie box is only briefly covered by the arm. No copies, floating objects, second hand or overlays appear. A small brightness change at the end is acceptable.",
+    "robot": "The can is grasped at f117-130, lifted, carried and released at f338-350. It ends upright between the small bowl and the large bowl, with gaps. The can's position is constant from f420 to f540. No distractor or bowl moves, and the final second is static."
    }
   },
   {
@@ -12294,6 +13871,143 @@
    }
   },
   {
+   "id": "soup_can_centered_on_square_mat/episode_014",
+   "task": "soup_can_centered_on_square_mat",
+   "family": "center_on_target",
+   "episode": 14,
+   "seed": 100008,
+   "instruction": "Set the soup can in the exact centre of the square mat.",
+   "fps": 30,
+   "robot_frames": 562,
+   "robot_duration_s": 18.73,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/soup_can_centered_on_square_mat/episode_014/",
+   "arena": "kitchen",
+   "distractors": [
+    "popcorn",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the soup can and stands it at the centre of the square mat, matching the robot's end state, and no distractor moves, so it is accepted.",
+    "issues": [],
+    "verify": "An empty right hand enters from the bottom (f_002 to f_003) and grasps the soup can next to the yellow disc (f_004 to f_006). It carries the can to the white square mat (f_007 to f_018). The hand stands the can upright at the centre of the mat (f_019 to f_021). It releases and leaves empty through the bottom edge (f_022 to f_024). Comparing the first frame, the last frame and the robot frame at 18.6s (cmp.jpg) shows the same end state: the can stands centred on the mat. The yellow disc, bowl and small card stay in place. The card is hidden under the arm for some frames and comes back unmoved. No duplicate can, no second hand, no overlays and no cut appear. The human first frame matches the robot's first frame without the robot.",
+    "robot": "Can grasped f130-f173, lifted f199, carried to white square mat f270-f308, lowered and released f350-f385; final f532-f561 shows can upright, near centre of mat. Yellow disc, bowl and box are static; no collisions or jitter seen."
+   }
+  },
+  {
+   "id": "soup_can_in_basket/episode_000",
+   "task": "soup_can_in_basket",
+   "family": "put_in_container",
+   "episode": 0,
+   "seed": 100001,
+   "instruction": "Put the soup can in the basket.",
+   "fps": 30,
+   "robot_frames": 872,
+   "robot_duration_s": 29.07,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/soup_can_in_basket/episode_000/",
+   "arena": "kitchen",
+   "distractors": [
+    "white_bowl",
+    "butter",
+    "cream_cheese",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the soup can and puts it upright in the basket, matching the robot's end frame with plausible contact, so it is accepted.",
+    "issues": [],
+    "verify": "Task: one right hand enters empty from the bottom-right edge (fps=6 frames f_003-f_005), grasps only the soup can (f_007-f_014), carries it to the basket and sets it upright inside (f_015-f_026), then leaves empty (f_026-f_027). End state: in f_028-f_033 the can stands upright inside the basket, matching the robot's 29.0s frame. Distractors stay put: the blue box, small bowl, orange box and brown box are in the same places in f_001, f_013-f_016 and f_033. The hand passes over the blue box in f_004 without moving it. Scene: f_001 matches the robot's 0.0s frame with the robot removed (same layout, camera and lighting). Nothing appears or duplicates, there is no second hand, and there is no overlay or cut.",
+    "robot": "The gripper grasps the soup can with two fingers from above (f173-f256). It lifts the can at f295, carries it over the basket and lowers it inside (f488-f533). The release is at f584. In the contiguous frames from 13-16 s the can clears the basket rim and the arm does not hit the rim."
+   }
+  },
+  {
+   "id": "soup_can_in_basket/episode_001",
+   "task": "soup_can_in_basket",
+   "family": "put_in_container",
+   "episode": 1,
+   "seed": 100009,
+   "instruction": "Put the soup can in the basket.",
+   "fps": 30,
+   "robot_frames": 751,
+   "robot_duration_s": 25.03,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/soup_can_in_basket/episode_001/",
+   "arena": "kitchen",
+   "distractors": [
+    "chocolate_pudding",
+    "plate",
+    "akita_black_bowl",
+    "ramekin"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person picks up the soup can with one right hand and puts it upright in the basket, matching the robot's end state with no physics or scene problems.",
+    "issues": [],
+    "verify": "Frame 1 (fps=6) matches the robot's 0.0s frame with the robot removed: basket on the left, soup can, small bowl, brown block, steel bowl and plate in the same places, same lighting and camera. An empty right hand comes in from the bottom edge (f3-f4). It passes over the plate in f3, but the plate does not move. The hand grasps the soup can (f5-f7), carries it to the basket (f13-f18), releases it, and leaves empty (f24-f26). The end state in f27-f31 is the can upright in the basket, matching the robot's 24.9s frame. Distractors (bowls, block, plate) stay put. No second hand, no copies, no overlays; the open-hand shape next to the arm in f5 is the arm's shadow.",
+    "robot": "The gripper grasps the can at f145-f228 and lifts it at f266. In the contiguous frames from 11.5-13.5 s the can is carried into the basket and clears the rim. The release is at f510 and the can stays visible in the front view. The can then rests tilted against the cloth inside the basket and does not move from f721 to f750."
+   }
+  },
+  {
+   "id": "soup_can_in_basket/episode_002",
+   "task": "soup_can_in_basket",
+   "family": "put_in_container",
+   "episode": 2,
+   "seed": 100016,
+   "instruction": "Put the soup can in the basket.",
+   "fps": 30,
+   "robot_frames": 787,
+   "robot_duration_s": 26.23,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/soup_can_in_basket/episode_002/",
+   "arena": "kitchen",
+   "distractors": [
+    "red_bowl",
+    "plate",
+    "cream_cheese"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 5,
+    "summary": "The person moves the soup can into the basket with one right hand, and the end state matches the robot's last frame.",
+    "issues": [],
+    "verify": "Frame 1 matches the robot's first frame: plate, soup can, white bowl and blue box in a row, with the basket at the back right. An empty right hand enters from the bottom (f3-f4), grasps the can (f6-f12), lifts it over the bowl without touching it (f13-f14), and lowers it into the basket (f15-f22). It releases the can and leaves empty (f23-f27). The bowl only looks different under the arm's shadow; its position does not change. The end state in f27-f31 is the can upright in the basket, matching the robot's 26.1s frame. The plate, bowl and blue box do not move. There is no second hand, no copy of the can and no overlay.",
+    "robot": "The can is carried at f360-431 and released inside the basket at f517. In f757-786 it is upright in the basket and stable. The plate, red bowl and cream cheese stay fixed. The basket moves by less than 0.1 mm."
+   }
+  },
+  {
    "id": "soup_then_sauce_in_wooden_box/episode_000",
    "task": "soup_then_sauce_in_wooden_box",
    "family": "gather_two",
@@ -12629,6 +14343,380 @@
     "issues": [],
     "verify": "Order matches the robot. The robot takes the left (blue) can first, so at 4.7s only the right can remains, then it takes the right can. The human grasps the left can first (f_005 to f_008) and places it (f_009 to f_013), then grasps the right red/green can (f_015 to f_018) and places it (f_019 to f_024). End state matches. The red/green can ends at the back-left and the blue can at the front-right of the box, the same as the robot's 33.2s frame (compared side by side in cmp.jpg). One right hand enters empty (f_002/f_003) and leaves empty (f_026). Both bowls and the card stay still. No copies or floating objects. The first frame matches the robot's 0.0s layout, and there are no overlays.",
     "robot": "The soup can is grasped at f109-152 and released in the box at f347-359. The sauce can is grasped at f542-585 and released in the box at f796-808, so the order is correct. Both cans sit settled in the box during the final second (f969-998)."
+   }
+  },
+  {
+   "id": "soup_then_sauce_in_wooden_box/episode_010",
+   "task": "soup_then_sauce_in_wooden_box",
+   "family": "gather_two",
+   "episode": 10,
+   "seed": 100007,
+   "instruction": "Put the alphabet soup can in the wooden box first, then the tomato sauce can.",
+   "fps": 30,
+   "robot_frames": 1013,
+   "robot_duration_s": 33.77,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/soup_then_sauce_in_wooden_box/episode_010/",
+   "arena": "living_room",
+   "distractors": [
+    "plate",
+    "cream_cheese"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person puts the alphabet soup can and then the tomato sauce can in the wooden box, in the correct order and with a matching end state.",
+    "issues": [],
+    "verify": "Frame 1 matches the robot's first frame: the wooden box on the left, the alphabet soup can (blue, at the back), the tomato sauce can (green label, in front), the blue box and the plate. Order is correct. The hand first takes the back alphabet soup can (f5-f8) and puts it in the box (f10-f13). It goes back empty (f14-f15), grasps the tomato sauce can (f16-f19), and puts it in the box beside the soup can (f20-f25). That is the robot's order. One right hand enters empty and leaves empty (f3, f26-f27). In f3 a fingertip comes near the plate, but the plate stays in place throughout, and so does the blue box. The end state in f28-f31 is both cans upright and side by side in the wooden box, matching the robot's 33.7s frame. No duplicates, no floating objects and no overlays.",
+    "robot": "Soup is grasped at f101-144 and released in the box at f366-378. Sauce is grasped at f576-619 and released at f814-826. Both cans end upright in the box. Grasps look stable in the wrist view, and in the final second (f983-1012) nothing moves."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_000",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 0,
+   "seed": 100000,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 577,
+   "robot_duration_s": 19.23,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_000/",
+   "arena": "kitchen",
+   "distractors": [
+    "white_bowl",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the sponge and puts it flat on the coaster, matching the robot's end state, and the distractors stay in place.",
+    "issues": [],
+    "verify": "Task adherence: there is one task object, the sponge. An empty right hand enters from the lower right (f_002-f_005), grasps the green sponge at its start position (f_006-f_012), carries it left (f_013-f_014) and sets it flat on the coaster (f_015-f_022), then leaves. End state: in f_025-f_031 the sponge rests flat on the coaster, the dark box is below it and the white lid is to the right. This matches the robot's last frame at 19.1s. The sponge looks larger on the coaster than at its start in both the robot and human videos, which is perspective, not a change in the object. Physical plausibility: the sponge moves only while it is held. It does not appear twice, float or pass through anything, and it stays still after release. Hands: one right hand enters empty and leaves empty. On the way out (f_023) it passes over the dark box distractor. Close crops of the box in f_001, f_022 and f_031 show the same position and orientation, with only a small change in shading, so it was not moved. No second hand appears. Scene consistency: human f_001 matches the robot's 0.0s frame with the robot removed (sponge, coaster, dark box, white lid, cabinets). The camera stays steady, there are no overlays or cuts, and no objects are added.",
+    "robot": "Sponge is grasped at f134-186 with a clean two-finger grasp (wrist view), carried and lowered onto the coaster f343-402, then released. Sponge stays put on the coaster through the final second (f547-576). The battery and bowl distractors never move."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_001",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 1,
+   "seed": 100002,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 614,
+   "robot_duration_s": 20.47,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_001/",
+   "arena": "kitchen",
+   "distractors": [
+    "white_bowl",
+    "akita_black_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the sponge and puts it on the coaster with one right hand that enters and leaves empty, and the end state matches the robot's; accept.",
+    "issues": [],
+    "verify": "Task done: the hand enters empty from the bottom-right (f_002-f_004), grasps the sponge (f_005), carries it to the coaster (f_013-f_018) and releases it. The end state (f_026-f_031) shows the sponge resting on the coaster, matching the robot's 20.4s frame. On the way out the hand passes over or near the silver bowl (12fps zoom around 3.3-4.7s, f_025). The bowl is in the same place in f_001 and f_031, so no distractor moves. One right hand only, empty when it enters and when it leaves; no copy of the sponge appears or duplicates. f_001 matches the robot's first frame with the robot removed: two bowls, the sponge and the coaster in the same layout.",
+    "robot": "The sponge is grasped with two fingers (f128-f186), lifted, carried to the coaster and released (f372-f384). It rests on the coaster and stays still from f431 to the final f613. The apparent rotation in the wrist view (f420-f510) comes from the camera rolling: the coaster and sponge rotate together. The front view shows the sponge static."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_002",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 2,
+   "seed": 100005,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 574,
+   "robot_duration_s": 19.13,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_002/",
+   "arena": "kitchen",
+   "distractors": [
+    "tomato_sauce",
+    "white_bowl",
+    "red_bowl",
+    "ramekin"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the sponge onto the coaster in a single clean pick-and-place with an empty-entering and empty-leaving right hand, and the end state matches the robot's; accept.",
+    "issues": [],
+    "verify": "Single pick-and-place: the hand enters empty (f_003-f_005), grasps the sponge (f_006-f_011), carries it to the coaster (f_013-f_021), then leaves empty (f_022-f_024). The sponge stays on the coaster through f_031. Difference image of f_001 vs f_031: only the sponge changed, so the bowls, ring dish, black cup and coaster did not move. A zoomed final frame next to the robot's last frame shows the sponge on the coaster with a similar orientation. One right hand, no copies or overlays. f_001 matches the robot's first-frame layout.",
+    "robot": "The sponge is grasped (f113-f171), lifted, carried and released on the coaster (f375-f387). It is static on the coaster from f406 to f573. The bowls and the can stay put, and the arm motion is smooth. The sponge and coaster are visible in the front view throughout."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_003",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 3,
+   "seed": 100007,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 623,
+   "robot_duration_s": 20.77,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_003/",
+   "arena": "kitchen",
+   "distractors": [
+    "popcorn",
+    "plate",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person places the sponge on the coaster in one direct pick-and-place with an empty right hand, and the end state matches the robot's; accept.",
+    "issues": [],
+    "verify": "The hand enters empty from the bottom (f_002-f_004), grasps the sponge (f_005-f_011), places it on the coaster (f_013-f_021) and leaves empty (f_022-f_026). The end state (f_031) shows the sponge on the coaster, matching the robot's 20.7s frame. Difference image of f_001 vs f_031: only the sponge changed. The bowl the hand passes over in f_003, the plate and the small box stay put. A dark shape at the bottom-left edge around 2.6-3.4s is only a body shadow (zoomed crop), not a second hand doing work. f_001 matches the robot's first frame without the robot, and there are no overlays or cuts.",
+    "robot": "Sponge grasped f125-f177, carried and lowered onto coaster f358-f384, released cleanly; stays put on coaster through final second f593-f622 Distractors (battery box, plate, bowl) unmoved; last.png matches final arrangement"
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_004",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 4,
+   "seed": 100008,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 616,
+   "robot_duration_s": 20.53,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_004/",
+   "arena": "living_room",
+   "distractors": [
+    "akita_black_bowl",
+    "butter",
+    "cream_cheese",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the sponge and places it on the coaster with one right hand that enters and leaves empty, and the end state matches the robot's; accept.",
+    "issues": [],
+    "verify": "Task: the only task object is the sponge. In f_007-f_012 one right hand grasps the green sponge from its starting place near the bowl, in f_013-f_022 carries it to the coaster and sets it down, then lets go. The end state in f_031-f_032 and human 5.0s (sponge flat on the coaster, coaster in its original spot) matches robot 20.4s. Physical plausibility: the sponge moves only while the fingers hold it (zoomed f_009-f_014). It does not appear, duplicate, teleport or float, and it rests stably on the coaster after release. Hands: one right hand enters empty from the bottom-right edge (f_002-f_004) and leaves empty (f_023-f_024). There is no second hand. A small white sleeve edge at the frame border in f_008-f_011 is not a hand and does no work. Scene: human 0.0s / f_001 matches robot 0.0s with the robot removed (cup, coaster, sponge, blue card, orange box and bowl in the same layout, same camera). The distractors stay put through the clip (the blue card is seen unchanged in zoomed f_011-f_014, and the orange box and bowl are unchanged in f_032). There are no overlays, cuts or new objects.",
+    "robot": "Grasp f108-f160, carry, release on coaster f355-f367; sponge settled on coaster through f586-f615 Distractors static; no visible collisions"
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_005",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 5,
+   "seed": 100010,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 605,
+   "robot_duration_s": 20.17,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_005/",
+   "arena": "kitchen",
+   "distractors": [
+    "alphabet_soup",
+    "cream_cheese",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the sponge and places it on the coaster with one empty right hand. The end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "Only the sponge is handled. An empty right hand enters from the bottom-right (f_003-f_005), grasps the sponge next to the bowl (f_006-f_010), carries it left and places it on the coaster (f_011-f_020), then leaves empty (f_021-f_022). Frames f_023-f_031 are static. End state matches the robot's 20.1s frame: the sponge sits flat, centred on the coaster. The bowl, black cup and blue card stay where they were in f_001. First frame f_001 matches the robot's 0.0s layout with the robot removed: coaster, sponge, bowl, cup and card in the same places, same camera and lighting. Minor note: around 1.1-1.5s (f_008-f_009, 24fps crop) a skin-toned edge and shadow appear at the bottom-left corner and then leave. It touches nothing and does no work, so it does not break the single-acting-hand rule. No object duplicates, teleports or floats.",
+    "robot": "Grasp f120-f172, placed and released on coaster f387-f399; sponge pose steady through retreat and final second f575-f604 Distractors (cup, card, bowl) unmoved"
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_006",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 6,
+   "seed": 100012,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 576,
+   "robot_duration_s": 19.2,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_006/",
+   "arena": "living_room",
+   "distractors": [
+    "tomato_sauce",
+    "popcorn",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "One right hand moves the sponge onto the coaster cleanly and leaves empty. The end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "An empty right hand enters from the bottom-right (f_003-f_005), grasps the sponge next to the can (f_006-f_012), carries it to the coaster on the left (f_013-f_021), releases it and leaves empty past the bowl (f_022-f_024). Frames f_025-f_031 are static. End state: the sponge rests flat on the coaster, matching the robot's 19.1s frame. The bowl stays at the same spot (f_022 compared with f_001), and the can and the card at the left edge do not move. First frame matches the robot's 0.0s scene without the robot. One arm only (the dark area next to it in f_010 is its shadow), and there are no overlays, cuts, or objects that appear or vanish.",
+    "robot": "Two-finger grasp of the sponge at f120-f172, carried and lowered onto the coaster, released at f391. The sponge stays flat on the coaster from f437 to f575 with no slide or tip. Can, bowl and box do not move. There is no arm collision or swing. The sponge is visible in front view at grasp and release."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_007",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 7,
+   "seed": 100013,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 557,
+   "robot_duration_s": 18.57,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_007/",
+   "arena": "living_room",
+   "distractors": [
+    "tomato_sauce",
+    "white_bowl",
+    "butter",
+    "chocolate_pudding"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person carries the sponge across the table onto the coaster with one hand. The end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "An empty right hand (white sleeve) enters from the bottom (f_003-f_004), grasps the sponge on the left (f_005-f_013), carries it across the table to the coaster at the upper right (f_014-f_018), places it, adjusts it briefly by hand (f_022-f_025), then leaves empty at the bottom-right (f_026-f_027). End state (f_027-f_031): the sponge sits on the coaster, matching the robot's 18.5s frame. The small can next to the coaster, the black can, the bowl and the battery-like box stay where they were in f_001. The first frame matches the robot's 0.0s layout without the robot. There is a single hand, and no copies, teleports, overlays or cuts. The shadow direction is a rendering issue only.",
+    "robot": "Grasp at f105-f157, lifted and carried to the coaster, released at f371. The sponge stays on the coaster from f415 to f556 with no motion. Both boxes, the can and the bowl do not move. The goal stays visible throughout."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_008",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 8,
+   "seed": 100015,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 595,
+   "robot_duration_s": 19.83,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_008/",
+   "arena": "kitchen",
+   "distractors": [
+    "white_bowl",
+    "red_bowl"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person picks up the sponge and puts it on the coaster with one empty right hand. The end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "Task: in f_001 to f_031 the person picks up the single task object, the green sponge, from beside the two cans (f_005 to f_012). They carry it to the coaster (f_013 to f_020) and release it there (f_021). The last frames f_025 to f_031 show the sponge resting flat on the coaster, which matches robot 19.7s. Physics: the sponge moves only while the hand holds it. It does not appear, duplicate or float, and it rests stably after release from f_022 on. Hands: a single empty right hand enters from the bottom-right edge (f_003, f_004) and leaves empty (f_022 to f_024). No second hand appears. Scene: f_001 matches robot 0.0s with the robot removed (sponge, coaster and two cans in the same layout, same camera and lighting). The cans stay fixed throughout, and there are no overlays or cuts.",
+    "robot": "Grasp at f131-f183, carried and lowered, released at f404. The sponge sits centred on the coaster from f450 to f594, steady. The two bowls do not move. The light table scene is well exposed."
+   }
+  },
+  {
+   "id": "sponge_on_coaster/episode_009",
+   "task": "sponge_on_coaster",
+   "family": "place_on_surface",
+   "episode": 9,
+   "seed": 100016,
+   "instruction": "Put the sponge on the coaster.",
+   "fps": 30,
+   "robot_frames": 608,
+   "robot_duration_s": 20.27,
+   "human_duration_s": 5.17,
+   "views": {
+    "front": "robot_front.mp4",
+    "wrist": "robot_wrist.mp4"
+   },
+   "human": "human.mp4",
+   "thumb": "thumb.jpg",
+   "robot_thumb": "robot_thumb.jpg",
+   "lerobot": "lerobot/sponge_on_coaster/episode_009/",
+   "arena": "living_room",
+   "distractors": [
+    "white_bowl",
+    "alphabet_soup",
+    "popcorn",
+    "ramekin"
+   ],
+   "review": {
+    "task_adherence": 5,
+    "physics": 4,
+    "summary": "The person moves the sponge onto the coaster with one hand, and the end state matches the robot's, so it passes.",
+    "issues": [],
+    "verify": "Task: the person grasps the green sponge (f_005 to f_010) and carries it over the can and the small box (f_011 to f_013). They place it on the coaster (f_014 to f_022) and release it. The final frames f_023 to f_031 show the sponge lying flat on the coaster, long axis horizontal, which matches robot 20.2s. Physics: the sponge moves only while held and rests stably after release. Comparing f_001 with f_031 (cmp.jpg), the distractors stay put: the small box, the dark can and the two white cups are at the same pixel positions even though the arm passes over them. Hands: one empty right hand enters from the bottom edge (f_002, f_003) and exits empty (f_023, f_024). No second hand appears. Scene: f_001 matches robot 0.0s with the robot removed, and there are no new objects, text, overlays or cuts.",
+    "robot": "Grasp at f137-f189, carried to the coaster, released at f371. The sponge rests on the coaster from f424 to f593 without moving. The bowls, can and box do not move. There is no arm collision. The dark pattern on the sponge at f449-f461 is the gripper's shadow."
    }
   },
   {
