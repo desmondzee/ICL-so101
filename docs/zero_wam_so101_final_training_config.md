@@ -1,10 +1,23 @@
 # SO-101 Zero-WAM final training configuration
 
+This canonical file supersedes both `docs/zero_wam_so101_updated_config_pending_spatial.md` and the previous contents of this file.
+
 ## Objective
 
 Post-train Zero-WAM on 1,109 paired SO-101 simulated robot/human demonstrations. Measure held-out loss and closed-loop task success on 50 episodes from five task-disjoint validation tasks before training and again from the loss-selected trained checkpoint.
 
-This file specifies the intended run. It does not claim that training has started. No Modal job may resume until the latent inventory, loader smoke, initialization loss, and initialization rollouts pass.
+This file specifies the intended run; training has **not** started. No Modal training job may resume until all launch gates pass.
+
+## Final decisions
+
+- Effective batch **8 → 64** using `gradient_accumulation_steps: 8` at per-GPU microbatch 1 on 8 H100s. Keep **4,000 optimizer steps**, 200-step warmup, AdamW LR `1e-4`.
+- Robot spatial preprocessing is **resolved**: direct bilinear resize of each recorded 640×480 frame to H×W `[224, 288]` with `align_corners: false`; each camera is VAE-encoded separately to latent H×W `[14, 18]`, then the existing camera-latent concatenation applies. Evidence: released RoboTwin and RoboCOIN VAE reconstruction checks (`docs/zero_wam_spatial_preprocessing_tracker.md`).
+- Checkpoint-selection validation: **human ICL video + detailed human-video text present, short target-task text absent**. Training retains short target-task text with **40%** dropout and human ICL bundle with **10%** dropout.
+- Prefer **full robot episodes**, if the executable loader and memory support them; do not silently introduce temporal segmentation. **No length bucketing**; maintain task-balanced random sampling.
+- Use **one host containing 8× H100s** for FSDP (topology measured below).
+- Keep **absolute joint targets**, existing IFP weights, action normalization, robot 30 Hz → 15 FPS, and human ICL 12 FPS.
+- Retain original 640×480 robot recordings as the immutable source.
+
 
 ## Frozen provenance
 
@@ -40,9 +53,16 @@ robot_observations:
     - observation.images.front
     - observation.images.wrist
   camera_order: [front, wrist]
-  resolution_per_camera: [256, 256]
+  recorded_resolution_per_camera: [480, 640]   # source H,W; originals stay unchanged
+  resolution_per_camera: [224, 288]            # model input H,W
+  latent_resolution_per_camera: [14, 18]       # Wan VAE spatial downsample x16
+  spatial_preprocessing:
+    method: direct_resize
+    interpolation: bilinear
+    align_corners: false
   source_fps: 30
   frame_stride: 2
+  effective_model_video_fps: 15
   controls_per_latent_frame: 8
   wrist_absolute_near_plane_m: 0.02425
   camera_dropout:
@@ -50,7 +70,7 @@ robot_observations:
     wrist: 0.0
 ```
 
-The corrected wrist transform retains the camera mount and its shadow while removing direct mount pixels. Use the same transform for training videos, validation-loss videos, and online validation rendering.
+The corrected wrist transform retains the camera mount and its shadow while removing direct mount pixels. Source MP4s stay unchanged; train, validation, and online rendering all use the identical direct bilinear resize to `[224, 288]`.
 
 ## Text and human-video conditioning
 
@@ -63,7 +83,12 @@ target_task_text:
     - Put both mugs in the microwave.
 
 human_icl:
-  video_resolution: [320, 480]
+  video_resolution: [320, 448]
+  latent_resolution: [20, 28]
+  spatial_preprocessing:
+    method: direct_resize
+    interpolation: bilinear
+    align_corners: false
   video_fps: 12
   video_source: paired human.mp4
   text_source: source.json["human"]["prompt"]
@@ -73,6 +98,8 @@ human_icl:
       - reference-picture timestamp boilerplate
       - overall_soundscape
 ```
+
+Human ICL geometry follows the inspected released human latent artifacts (`[320, 448]` → latent `[20, 28]`), despite the public Robotwin config's stale/contradictory width of 480. This supersedes the prior 320×480 provisional encoding; incompatible human latents must be regenerated.
 
 The released model has two text routes:
 
@@ -123,7 +150,10 @@ action:
   representation: absolute_joint_targets
   arm_units: degrees
   gripper_units: 0_to_100
-  action_horizon: 8
+  actions_per_vae_latent_frame: 8
+  inference_latent_chunk_size: 2
+  actions_per_inference_prediction: 16
+  execution_rate_hz: 30
 ```
 
 ### Normalization
@@ -190,6 +220,7 @@ schedule:
 
 precision:
   parameters_and_activations: bfloat16
+  fsdp_gradient_reduce_dtype: float32
   loss_reductions: float32
 
 gradient:
@@ -207,13 +238,26 @@ ema:
 batch:
   per_gpu: 1
   gpu_count: 8
-  gradient_accumulation_steps: 1
-  effective_samples_per_optimizer_step: 8
+  gradient_accumulation_steps: 8
+  effective_samples_per_optimizer_step: 64
+  fsdp_reduce_scatter_each_microstep: true
+  suppress_gradient_sync_during_accumulation: false
 
 sampling:
   task_balanced: true
   choose_task: uniform_over_61_tasks
   choose_episode: uniform_within_selected_task
+  length_bucketing: false
+```
+
+Sampling means: pick a task uniformly, then pick an episode uniformly within that task. The current flattened `DistributedSampler` is **not** compliant with this; implement and verify a deterministic distributed task-balanced sampler before launch.
+
+```yaml
+sequence_policy:
+  preferred_unit: full_episode
+  use_full_episode_if_memory_permits: true
+  allow_unapproved_temporal_segmentation: false
+  require_actual_loader_support_verification: true
 
 training_robot_video_chunk_size:
   distribution: uniform_integer
@@ -221,7 +265,9 @@ training_robot_video_chunk_size:
   maximum: 4
 ```
 
-The upstream ICL trainer requires per-GPU batch size 1. Do not increase gradient accumulation merely to imitate an image-model batch size. First log token counts, gradient variance, memory, throughput, and task composition. Any batch/accumulation change requires a new frozen configuration and a step-budget adjustment.
+The upstream ICL trainer requires per-GPU batch size 1. The approved effective batch is 64: 8 GPUs concurrently process one example each over 8 sequential gradient-accumulation rounds per optimizer step. At 4,000 optimizer steps this corresponds to 256,000 sampled examples (with replacement), **not** distinct episodes. Reduce-scatter must run after every microstep so accumulated gradients remain sharded; the upstream behavior that suppresses gradient synchronization on microsteps 1–7 OOMs on the second longest-episode microstep. Loss scaling remains `1/8`, and the optimizer still steps only after microstep 8.
+
+Full-episode processing is a **preference, not yet verified feasible or implemented**. Verify the latent/action manifest and loader truly present entire episodes, and benchmark complete forward/backward (with IFP) across episode-length quantiles. Keep random prediction chunk sizes 1–4; these are not a mandate to crop trajectories. If full episodes fail memory or throughput gates, stop for explicit approval of a segmentation policy. Do not enable length bucketing.
 
 ## Data mixture
 
@@ -240,16 +286,23 @@ run:
   checkpoint_interval: 500
   checkpoints: [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000]
   first_review_gate_step: 500
+  resumable_state_required: [model, adamw_optimizer, lr_scheduler, optimizer_step,
+                             sampler_rng_and_state]
 
 modal:
-  gpu: H100
-  gpu_count: 8
+  gpu_request: "H100:8"
+  training_function_max_containers: 1
+  world_size: 8
   hard_max_gpu_containers: 8
   prohibit_overlapping_apps: true
   durable_volume: zero-wam-so101-sim
+  environment:
+    PYTORCH_ALLOC_CONF: expandable_segments:True
 ```
 
-The run must stop for review at step 500. Continuing requires acceptable training/validation loss, finite gradients, expected throughput/cost, and no data-loader or conditioning failure. The eight-GPU limit must be enforced in Modal configuration, not only by spawning eight calls.
+Resumable checkpoint state must include model, AdamW optimizer state, LR scheduler, optimizer step, and sampler RNG/state; upstream optimizer state save is currently disabled — this is **launch-blocking** until implemented and verified.
+
+The run must stop for review at step 500. Continuing requires acceptable training/validation loss, finite gradients, expected throughput/cost, and no data-loader or conditioning failure. Deployment is a single `H100:8` host: the measured topology probe confirmed a single hostname with unique CUDA devices 0–7 and 64 MiB all-reduce of ~0.360 ms (FP32) / ~0.342 ms (BF16) — intra-host class bandwidth; `nvidia-smi topo -m` link labels were unavailable in the container. Enforce one training host/container and an eight-H100 resource ceiling at the Modal configuration level, not merely by spawning eight calls.
 
 ## Validation loss
 
@@ -262,7 +315,9 @@ validation_loss:
   updates_enabled: false
   learning_rate: 0.0
   human_icl_dropout: 0.0
-  target_text_dropout: 0.0
+  target_text_dropout: 1.0  # primary checkpoint-selection loss: short target text OFF
+  human_icl_video: enabled
+  human_icl_detailed_text: enabled
   fixed_segments: true
   fixed_diffusion_timesteps: true
   fixed_noise_seeds: true
@@ -277,7 +332,7 @@ validation_loss:
     - bootstrap_95ci
 ```
 
-Select the final checkpoint by the lowest macro validation IFP-weighted total among finite, stable checkpoints. Do not select it using repeated closed-loop validation rollouts.
+Select the final checkpoint by the lowest macro validation IFP-weighted total **under deployment-matched conditioning** (human-video latent and detailed human text enabled; separate short target-task text disabled), among finite, stable checkpoints. Ensure `target_text_dropout: 1.0` actually produces the released-faithful no-short-text condition rather than another conditioning shortcut. Do not select using repeated closed-loop validation rollouts. Optionally report both-text-present loss separately as a diagnostic; never mix its values into primary checkpoint selection.
 
 ## Closed-loop evaluation
 
@@ -349,12 +404,25 @@ Log configuration and provenance before compute, then at minimum:
 - Modal app/call IDs and actual GPU topology
 - Closed-loop success metrics and artifact references
 
+## Spatial decision provenance
+
+Resolved per `docs/zero_wam_spatial_preprocessing_tracker.md` with durable reports `/sim/reports/spatial_decode_robotwin_ep42.json` and `/sim/reports/spatial_decode_robocoin_high345.json` on the `zero-wam-so101-sim` volume.
+
 ## Mandatory launch gates
 
-- [ ] Enforce Modal `max_containers=8` on every H100 function.
+- [x] **Robot image preprocessing resolved:** direct bilinear resize 640×480 → `[224, 288]` (`align_corners: false`), latent `[14, 18]` per camera then camera-latent concatenation; approved.
+- [ ] Re-encode all robot latents at 224×288 and all human latents at 320×448; inventory durable latents on CPU and encode only missing/invalid outputs.
+- [ ] After re-encoding, verify train, validation and online rendering use identical camera preprocessing.
+- [ ] Keep source robot videos at 640×480 and verify 30 Hz camera/action timestamps, 15 FPS sampled robot observations, VAE boundaries and 8 actions/latent frame.
+- [ ] Enforce one training host/container with eight GPUs; ensure other Modal functions cannot create overlapping H100 allocations.
 - [ ] Confirm no other Modal app is active.
+- [ ] Implement and verify the deterministic distributed task-balanced sampler (uniform task, uniform episode); current flattened `DistributedSampler` is not compliant.
+- [ ] Implement resumable checkpoint state (model + AdamW optimizer + LR scheduler + optimizer step + sampler RNG/state); upstream optimizer save is currently disabled — launch-blocking.
+- [ ] Benchmark representative and longest complete-episode forward/backward passes with full IFP; verify loader/manifest actually trains full episodes and stop for approval if segmentation is required.
+- [x] Verify one-sample-per-GPU, 8-rank FSDP and accumulation of 8 on the 64 longest episodes: successful only with reduce-scatter after every microstep and expandable CUDA segments; leave length bucketing disabled.
+- [ ] Implement the verified every-microstep reduce-scatter policy in the production trainer and regression-test gradient equivalence before launch.
+- [ ] Verify checkpoint-selection loss disables the short task text but keeps the human-video latent and detailed human text.
 - [ ] Replace provisional human latent text embeddings with detailed human-video descriptions.
-- [ ] Inventory existing durable latents on CPU and encode only missing/invalid outputs.
 - [ ] Verify exactly 1,109 train and 50 validation episodes, each with two robot latents and one human latent.
 - [ ] Pass deterministic upstream loader smoke with active action mask `[0,1,2,3,4,28]`.
 - [ ] Run and freeze initialization validation loss.

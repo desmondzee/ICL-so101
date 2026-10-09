@@ -108,6 +108,99 @@ Training may proceed only if all ranks share one host and NCCL uses the fastest 
 
 ## Phase 3 — full-episode memory feasibility
 
+### Bounded batch-64 benchmark — implemented, pending execution
+
+`zero_wam/so101_full_episode_benchmark.py` (torchrun, 8 ranks) +
+`zero_wam/modal_so101_benchmark.py` (one `H100:8` Modal function, `max_containers=1`,
+2 h timeout, 480 GiB). Protocol:
+
+- Frozen top-64 selection: all 1,109 train `meta/episodes.jsonl` rows sorted by source
+  `length` desc, ties by (task, episode); `selection_sha256` recorded in the report.
+- Upstream `Trainer` on the `va_robotwin_train_cfg` contract with SO-101 dataset paths,
+  batch 1, gradient accumulation 8, LR 0 (real AdamW step executes for optimizer-state
+  allocation; weights preserved), FSDP2/MCP/IFP/activation-checkpointing/FP32 reduction
+  unchanged, `drop_icl=0`, `droptext=0`, `num_steps=1`, checkpoint saving unused.
+- In-memory shape adaptation only: robot latent → `[48, F, 14, 36]`, human ICL →
+  `[48, T, 20, 28]`; provisional 256×256/320×480 latents are not regenerated or saved.
+- Item assignment `microstep*8 + rank` so each concurrent group has adjacent sorted
+  lengths; unresolved selected episodes (five missing top-64 per
+  `/sim/reports/top64_longest_inventory.json`) are synthesized as zero tensors at the
+  exact stride-2 / 1+4k latent frame count with mask channels `[0,1,2,3,4,28]`, marked
+  `synthetic`.
+- One real `_train_step(batch, microstep)` per microstep 0–7 (sync suppressed until the
+  8th, real optimizer boundary), timed per microstep. **Unprofiled pass** — no
+  `torch.profiler`; `profiler_enabled: false` in the report and no NCCL/operator claims.
+- Rank-local stage logging (selection, trainer init, item resolution, per-microstep,
+  gather) with per-rank `trainer_init_s` / `item_resolution_s` and separate total vs
+  compute wall time; rank-0 `nvidia-smi` 200 ms sampling starts only at compute start
+  so utilization excludes initialization.
+- Dataset construction restricted to the loader tasks — selected tasks having at
+  least one complete latent episode per the durable
+  `/sim/reports/top64_longest_inventory.json` (currently 7; missing selected
+  episodes/tasks are synthesized at exact target shape) — by excluding all other
+  task names through the upstream loader; dataset index cache enabled.
+- **CPU index preflight first** (`--prepare-indexes`, `cpu=32`, 128 GiB, data volume
+  only): builds the frozen selection, validates the top-64 inventory (one row per
+  selected episode, complete iff all artifacts exist), constructs the upstream
+  `MultiICLLeRobotLatentDataset` for the loader tasks, writes durable caches and an
+  atomic `index_preflight.json` (selected tasks, loader tasks, missing episode IDs,
+  inventory path). The `benchmark` entrypoint runs this synchronously before the H100
+  function — zero GPU allocation if it fails. The GPU run re-derives loader tasks and
+  missing IDs from the inventory and verifies them against the preflight report
+  *before* `init_distributed`; no rank-zero cache build or barrier.
+- The wrapper streams torchrun output line-by-line to Modal stdout and `torchrun.log`
+  (no RAM buffering), enforces a 90 min deadline (terminate then kill), and always
+  commits the volume.
+- Outputs under `/sim/reports/full_episode_batch64/`: `benchmark_report.json`
+  (atomic), `top64_selection.json`, `nvidia_smi_samples.csv`, `torchrun.log`; volume
+  committed even on failure.
+- **Follow-up (only after feasibility succeeds):** a separate lightweight profiler
+  pass profiling the final sync microstep only — `record_shapes=False`,
+  `profile_memory=False`, aggregated operator/NCCL table, no Chrome trace initially.
+
+Observed no-sync baseline on one Modal `H100:8` host:
+
+- CPU cache preflight completed; GPU trainer initialization was approximately 41 seconds.
+- With `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, the first concurrent group
+  of the eight longest episodes completed forward/backward in 205.3–205.4 seconds.
+- Microstep 2 OOMed during MCP forward while gradients from microstep 1 were retained:
+  GPUs reported approximately 76.7–77.5 GiB in use, 73.3–73.9 GiB allocated, and failed
+  requests of 2.84–2.93 GiB.
+- Therefore accumulation 8 with FSDP gradient synchronization disabled on microsteps
+  1–7 is not memory-feasible for the longest episodes.
+
+Next test: preserve effective batch 64 but force reduce-scatter after every microstep so
+only sharded gradients are retained. This trades additional intra-host communication for
+memory and preserves the averaged objective.
+
+Synchronized-accumulation result:
+
+- **Passed:** one complete effective-batch-64 optimizer boundary over the frozen 64
+  longest episodes on one Modal `H100:8` host.
+- Selection SHA256:
+  `fe7f63304ba8fa1fd627a2e3588a8b9e5c9c26f6890ff6479bc9a300aa0a5339`.
+- Eight ranks, eight microsteps, reduce-scatter after every microstep, LR 0 with a real
+  AdamW step and optimizer-state allocation; no step skipped and all gradient norms finite.
+- Trainer initialization: approximately 35.9 seconds/rank.
+- Compute wall time: **351.4 seconds**; total benchmark wall time **392.2 seconds**;
+  **0.182 samples/s** for this cold worst-case update.
+- First longest microstep: approximately 214.5–215.0 seconds; later microsteps ranged
+  approximately 11.3–39.3 seconds, with the final optimizer boundary 27.1–27.9 seconds.
+- Peak allocated: **50.4–55.7 GiB/rank**. Peak reserved: **62.2–67.4 GiB/rank**.
+  End allocated after optimizer step: approximately **14.8 GiB/rank**.
+- Sampled mean GPU utilization: **32.7–39.3%** by GPU; p50 0%, p95 100%. The workload is
+  bursty and does not sustain high utilization despite fast intra-host collectives.
+- Five unavailable selected episodes were represented by exact-length synthetic tensors;
+  the other 59 used real latent/action/ICL payloads. This is a shape/memory/throughput test,
+  not a loss-correctness result.
+- Durable report:
+  `/sim/reports/full_episode_batch64/benchmark_report.json`.
+
+Conclusion: effective batch 64 with full episodes is memory-feasible **only** when FSDP
+reduce-scatter runs on every accumulation microstep and expandable CUDA allocator segments
+are enabled. The production trainer must not suppress gradient synchronization for this
+configuration. Status: **memory feasibility passed; throughput optimization pending**.
+
 Build a frozen episode-length inventory from latent token shapes and actions. Select at minimum:
 
 - [ ] Median-length episode.
