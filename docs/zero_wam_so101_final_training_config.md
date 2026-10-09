@@ -433,6 +433,13 @@ wandb:
       - train/tokens_per_second
       - train/gpu_memory_allocated_gib
       - train/gpu_memory_reserved_gib
+      - train/episode_exposure_total_draws
+      - train/episode_exposure_unique_seen
+      - train/episode_exposure_unseen
+      - train/episode_exposure_min
+      - train/episode_exposure_max
+      - train/episode_exposure_mean
+      - train/episode_exposure_p95
     validation:
       - validation/video_loss
       - validation/action_loss
@@ -457,6 +464,10 @@ Log configuration and provenance before compute, then at minimum:
 - Learning rate and gradient norm
 - Skipped optimizer steps and NaN/Inf counts
 - Samples, tasks and tokens per update
+- Exact cumulative episode-level exposure counts as a checkpoint artifact, plus compact
+  WandB summaries (total draws, unique/unseen episodes, min/max/mean/median/p95). Keys
+  include the dataset source, task and episode ID so future data-mixture changes remain
+  comparable; do not create one WandB time series per episode.
 - Throughput and GPU memory
 - Validation metrics per checkpoint and task
 - Checkpoint and manifest hashes

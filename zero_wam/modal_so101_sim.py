@@ -1,8 +1,9 @@
 """Zero-WAM latent encoding for the converted SO-101 sim corpus on Modal.
 
 Uploads `data/zero_wam_sim` to the `zero-wam-so101-sim` volume at /sim/data, then encodes
-robot front+wrist latents (stride-2, 256x256, Wan VAE streaming, mu only, bf16) and paired
-human-demo latents (12 fps, 320x480) in the released .pth layout, sharded across 8 H100
+robot front+wrist latents (stride-2, direct bilinear resize to 224x288, Wan VAE
+streaming, mu only, bf16) and paired human-demo latents (12 fps, 320x448) in the
+released .pth layout, sharded across 8 H100
 workers by deterministic task partition. Followed by a CPU latent inventory and a
 loader-smoke pass instantiating upstream `MultiICLLeRobotLatentDataset` per split.
 
@@ -34,14 +35,16 @@ MODEL_DIR = f"{WEIGHTS}/zero-wam-pretrain"
 SIM = "/sim"
 DATA_DIR = f"{SIM}/data"
 REPORTS = f"{SIM}/reports"
+PROGRESS_DIR = f"{REPORTS}/progress"
 
 SPLITS = ("train", "val")
 CAMERAS = ("observation.images.front", "observation.images.wrist")
 NUM_SHARDS = 8
 FRAME_STRIDE = 2          # robot: every 2nd source frame -> 8 controls per latent frame
-HEIGHT, WIDTH = 256, 256  # robot latent source geometry (va_demo_cfg / settled contract)
-ICL_HEIGHT, ICL_WIDTH, ICL_FPS = 320, 480, 12  # pinned robotwin ICL geometry
-VAE_SPATIAL = 16          # Wan 2.2 VAE spatial downsample (upstream robotwin: 320x448 -> 20x28)
+HEIGHT, WIDTH = 224, 288  # final robot input HxW (direct bilinear 480x640 -> 224x288)
+ICL_HEIGHT, ICL_WIDTH, ICL_FPS = 320, 448, 12  # final human ICL HxW (released artifacts)
+VAE_SPATIAL = 16          # Wan 2.2 VAE spatial downsample -> robot 14x18, human 20x28
+ENCODING_GEOMETRY_VERSION = "so101-direct-resize-robot-224x288-human-320x448-v1"
 VAE_TEMPORAL = 4          # latent temporal frames = (len(ids)-1)//4 + 1
 VAE_CHANNELS = 48
 
@@ -137,14 +140,20 @@ def validate_robot_payload(payload: dict, frame_ids: list[int], source_sha: str)
     required = ("latent", "latent_num_frames", "latent_height", "latent_width",
                 "video_num_frames", "video_height", "video_width", "task",
                 "local_instruction", "local_instruction_emb", "text", "frame_ids",
-                "start_frame", "end_frame", "fps", "ori_fps", "source_video_sha256")
+                "start_frame", "end_frame", "fps", "ori_fps", "source_video_sha256",
+                "encoding_geometry_version")
     missing = [k for k in required if k not in payload]
     if missing:
         return f"missing keys {missing}"
+    if payload["encoding_geometry_version"] != ENCODING_GEOMETRY_VERSION:
+        return f"encoding_geometry_version {payload['encoding_geometry_version']}"
     if list(payload["frame_ids"]) != list(frame_ids):
         return "frame_ids mismatch"
     if payload.get("source_video_sha256") != source_sha:
         return "source_video_sha256 mismatch"
+    if int(payload["video_height"]) != HEIGHT or int(payload["video_width"]) != WIDTH:
+        return (f"video geometry {payload['video_height']}x{payload['video_width']} "
+                f"!= {HEIGHT}x{WIDTH}")
     f, h, w = (int(payload["latent_num_frames"]), int(payload["latent_height"]),
                int(payload["latent_width"]))
     lat = payload["latent"]
@@ -167,14 +176,21 @@ def validate_human_payload(payload: dict, frame_ids: list[int], source_sha: str,
                            local_instruction_sha256: str | None = None) -> str | None:
     required = ("latent", "latent_num_frames", "latent_height", "latent_width",
                 "text_emb", "text", "local_instruction", "local_instruction_sha256",
-                "frame_ids", "fps", "ori_fps", "source_video_sha256")
+                "frame_ids", "fps", "ori_fps", "source_video_sha256",
+                "video_num_frames", "video_height", "video_width",
+                "encoding_geometry_version")
     missing = [k for k in required if k not in payload]
     if missing:
         return f"missing keys {missing}"
+    if payload["encoding_geometry_version"] != ENCODING_GEOMETRY_VERSION:
+        return f"encoding_geometry_version {payload['encoding_geometry_version']}"
     if list(payload["frame_ids"]) != list(frame_ids):
         return "frame_ids mismatch"
     if payload.get("source_video_sha256") != source_sha:
         return "source_video_sha256 mismatch"
+    if int(payload["video_height"]) != ICL_HEIGHT or int(payload["video_width"]) != ICL_WIDTH:
+        return (f"video geometry {payload['video_height']}x{payload['video_width']} "
+                f"!= {ICL_HEIGHT}x{ICL_WIDTH}")
     if local_instruction is not None and \
             payload.get("local_instruction") != local_instruction:
         return "local_instruction text mismatch"
@@ -201,6 +217,34 @@ def validate_human_payload(payload: dict, frame_ids: list[int], source_sha: str,
     return None
 
 
+def atomic_json_write(path, payload: dict) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".partial")
+    tmp.write_text(json.dumps(payload, indent=1))
+    os.replace(tmp, path)
+
+
+def progress_aggregate(records: list[dict]) -> dict:
+    """Aggregate shard/phase progress records into totals — pure, testable."""
+    totals = {"tasks": 0, "episodes": 0, "artifacts": 0,
+              "completed_tasks": 0, "completed_episodes": 0,
+              "completed_artifacts": 0, "running": 0, "completed": 0, "failed": 0}
+    for r in records:
+        totals["tasks"] += int(r.get("total_tasks") or 0)
+        totals["episodes"] += int(r.get("total_episodes") or 0)
+        totals["artifacts"] += int(r.get("total_artifacts") or 0)
+        totals["completed_tasks"] += int(r.get("completed_tasks") or 0)
+        totals["completed_episodes"] += int(r.get("completed_episodes") or 0)
+        totals["completed_artifacts"] += int(r.get("completed_artifacts") or 0)
+        status = r.get("status")
+        if status in ("running", "completed", "failed"):
+            totals[status] += 1
+    totals["percent"] = (100.0 * totals["completed_artifacts"] / totals["artifacts"]
+                         if totals["artifacts"] else 0.0)
+    return totals
+
+
 def atomic_torch_save(payload: dict, path: Path) -> None:
     import torch
 
@@ -211,19 +255,36 @@ def atomic_torch_save(payload: dict, path: Path) -> None:
     os.replace(tmp, path)
 
 
+def manifest_instruction_errors(manifest: dict) -> list[str]:
+    """Every sample must carry a nonempty detailed human instruction whose stored
+    sha256 matches the text — checked before any GPU encoder launches."""
+    errs = []
+    for i, s in enumerate(manifest.get("samples", [])):
+        sid = s.get("sample", i)
+        text = s.get("human_local_instruction")
+        sha = s.get("human_local_instruction_sha256")
+        if not text:
+            errs.append(f"{sid}: empty human_local_instruction")
+        elif not sha or sha != hashlib.sha256(text.encode("utf-8")).hexdigest():
+            errs.append(f"{sid}: human_local_instruction_sha256 mismatch")
+    return errs
+
+
 # ----- Modal functions ---------------------------------------------------------------------------------
 
 
 @app.function(image=image, volumes={SIM: data_volume, WEIGHTS: weights_volume.read_only()},
               timeout=3600)
 def preflight() -> dict:
-    """Fail fast if the pinned checkpoint is absent or the upload is incomplete."""
+    """Fail fast if the pinned checkpoint is absent, the upload is incomplete, or any
+    manifest sample lacks a verified detailed human instruction."""
     missing = [d for d in ("vae", "tokenizer", "text_encoder")
                if not (Path(MODEL_DIR) / d).is_dir()]
     if missing:
         raise RuntimeError(f"checkpoint incomplete at {MODEL_DIR}: missing {missing} — "
                            "not downloading a different revision")
     counts = {}
+    instr_errors = []
     for split in SPLITS:
         root = Path(DATA_DIR) / split
         tasks = sorted(p.name for p in root.iterdir()
@@ -231,8 +292,19 @@ def preflight() -> dict:
                        and not p.name.endswith(".partial"))
         counts[split] = {"tasks": len(tasks)}
         manifest = root / "icl_manifest.json"
-        counts[split]["manifest_samples"] = (
-            len(json.loads(manifest.read_text())["samples"]) if manifest.is_file() else None)
+        if manifest.is_file():
+            payload = json.loads(manifest.read_text())
+            counts[split]["manifest_samples"] = len(payload["samples"])
+            errs = manifest_instruction_errors(payload)
+            counts[split]["instruction_errors"] = len(errs)
+            instr_errors += [f"{split}/{e}" for e in errs]
+        else:
+            counts[split]["manifest_samples"] = None
+            counts[split]["instruction_errors"] = None
+    if instr_errors:
+        raise RuntimeError(
+            f"{len(instr_errors)} manifest human_local_instruction failures, "
+            f"first: {instr_errors[:5]}")
     return {"model_dir": MODEL_DIR, "counts": counts}
 
 
@@ -322,7 +394,8 @@ def _encode_episode(vae, streaming, tokenizer, text_encoder, split: str, task: s
                    "fps": 30 / FRAME_STRIDE, "ori_fps": 30,
                    "source_video_sha256": sha,
                    "source_episode_id": f"{split}:{task}/episode_{ep:03d}",
-                   "transform_version": "absolute-near-plane-v3"}
+                   "transform_version": "absolute-near-plane-v3",
+                   "encoding_geometry_version": ENCODING_GEOMETRY_VERSION}
         atomic_torch_save(payload, out)
         out_record["robot"][camera] = [str(out), [c, f, h, w]]
 
@@ -345,6 +418,9 @@ def _encode_episode(vae, streaming, tokenizer, text_encoder, split: str, task: s
     hc, hf, hh, hw = hlat.shape
     payload = {"latent": rearrange(hlat, "c f h w -> (f h w) c").contiguous(),
                "latent_num_frames": hf, "latent_height": hh, "latent_width": hw,
+               "video_num_frames": len(hids), "video_height": ICL_HEIGHT,
+               "video_width": ICL_WIDTH,
+               "encoding_geometry_version": ENCODING_GEOMETRY_VERSION,
                "text_emb": _text_emb(tokenizer, text_encoder, detailed),
                "text": sample["human_text"], "local_instruction": detailed,
                "local_instruction_sha256": detailed_sha, "frame_ids": hids,
@@ -370,15 +446,37 @@ def encode_shard(shard: int) -> dict:
     text_encoder = load_text_encoder(f"{MODEL_DIR}/text_encoder",
                                      torch_dtype=torch.bfloat16, torch_device="cuda")
 
-    done, skipped, encoded = [], 0, 0
+    # deterministic totals for this shard across both splits, from manifests only
+    assignments = []            # [(split, task, n_episodes)]
     for split in SPLITS:
         split_root = Path(DATA_DIR) / split
         manifest = json.loads((split_root / "icl_manifest.json").read_text())
-        samples_by_name = {s["sample"]: s for s in manifest["samples"]}
-        # Task names come from the manifest — never from a directory listing, which would
-        # pick up generated dirs like human_latents created during the encode itself.
         tasks = sorted({s["robot_task_name"] for s in manifest["samples"]})
         for task in shard_partition(tasks).get(shard, []):
+            metas_file = split_root / task / "meta" / "episodes.jsonl"
+            n_eps = len([l for l in metas_file.read_text().splitlines() if l.strip()])
+            assignments.append((split, task, n_eps))
+    total_eps = sum(n for _, _, n in assignments)
+    progress_path = Path(PROGRESS_DIR) / f"encode_shard_{shard}.json"
+    prog = {"schema": 1, "phase": "encode", "shard": shard, "status": "running",
+            "total_tasks": len(assignments), "total_episodes": total_eps,
+            "total_artifacts": total_eps * 3, "completed_tasks": 0,
+            "completed_episodes": 0, "completed_artifacts": 0,
+            "current": None, "error": None,
+            "started_utc": datetime.now(timezone.utc).isoformat(),
+            "updated_utc": datetime.now(timezone.utc).isoformat()}
+
+    def _write_progress():
+        prog["updated_utc"] = datetime.now(timezone.utc).isoformat()
+        atomic_json_write(progress_path, prog)
+
+    done, skipped, encoded = [], 0, 0
+    try:
+        _write_progress()
+        for split, task, n_eps in assignments:
+            split_root = Path(DATA_DIR) / split
+            manifest = json.loads((split_root / "icl_manifest.json").read_text())
+            samples_by_name = {s["sample"]: s for s in manifest["samples"]}
             task_root = split_root / task
             metas = [json.loads(l) for l in
                      (task_root / "meta" / "episodes.jsonl").read_text().splitlines() if l.strip()]
@@ -394,9 +492,29 @@ def encode_shard(shard: int) -> dict:
                 n_skip = len(rec["skipped"])
                 skipped += n_skip
                 encoded += 3 - n_skip
+                prog["completed_episodes"] += 1
+                prog["completed_artifacts"] += 3
+                prog["current"] = f"{split}/{task}/episode_{meta['episode_index']:03d}"
+                _write_progress()
+            prog["completed_tasks"] += 1
+            prog["current"] = f"{split}/{task}"
+            _write_progress()
             data_volume.commit()
             done.append(f"{split}/{task}")
             print(f"[shard {shard}] done {split}/{task}", flush=True)
+        prog["status"] = "completed"
+        prog["current"] = None
+        _write_progress()
+        data_volume.commit()
+    except Exception as exc:
+        prog["status"] = "failed"
+        prog["error"] = repr(exc)
+        try:
+            _write_progress()
+            data_volume.commit()
+        except Exception:
+            pass
+        raise
     return {"shard": shard, "tasks": done, "encoded": encoded, "skipped": skipped}
 
 
@@ -408,73 +526,128 @@ def inventory_latents() -> dict:
     /sim/reports/latent_inventory.json atomically."""
     import torch
 
+    progress_path = Path(PROGRESS_DIR) / "inventory.json"
+    inv_prog = {"schema": 1, "phase": "inventory", "status": "running",
+                "total_episodes": 1159, "total_files": 1159 * 3,
+                "completed_episodes": 0, "completed_files": 0, "current": None,
+                "error": None,
+                "started_utc": datetime.now(timezone.utc).isoformat(),
+                "updated_utc": datetime.now(timezone.utc).isoformat()}
+
+    def _write_inv_progress():
+        inv_prog["updated_utc"] = datetime.now(timezone.utc).isoformat()
+        atomic_json_write(progress_path, inv_prog)
+
     failures, files, expected = [], {}, 0
     expected_paths = set()
-    for split in SPLITS:
-        split_root = Path(DATA_DIR) / split
-        manifest = json.loads((split_root / "icl_manifest.json").read_text())
-        by_task = {}
-        for sample in manifest["samples"]:
-            by_task.setdefault(sample["robot_task_name"], []).append(sample)
-        for task, samples in by_task.items():
-            task_root = split_root / task
-            metas = {int(m["episode_index"]): m for m in (
-                json.loads(l) for l in (task_root / "meta" / "episodes.jsonl").read_text().splitlines()
-                if l.strip())}
-            for sample in sorted(samples, key=lambda s: s["sample"]):
-                ep = int(sample["sample"].rsplit("episode_", 1)[1])
-                length = int(metas[ep]["length"])
-                expected += 1
-                for camera in CAMERAS:
-                    path = split_root / robot_latent_relpath(task, ep, length, camera)
-                    expected_paths.add(str(path))
-                    if not path.is_file():
-                        failures.append(f"missing {path}")
-                        continue
-                    payload = torch.load(path, map_location="cpu", weights_only=False)
-                    sha = sha256_file(task_root / "videos" / "chunk-000" / camera /
-                                      f"episode_{ep:06d}.mp4")
-                    reason = validate_robot_payload(payload, robot_frame_ids(length), sha)
-                    if reason:
-                        failures.append(f"{path}: {reason}")
-                    files[str(path)] = {"bytes": path.stat().st_size,
-                                        "sha256": sha256_file(path)}
-                hpath = split_root / human_latent_relpath(split, task, ep)
-                expected_paths.add(str(hpath))
-                if not hpath.is_file():
-                    failures.append(f"missing {hpath}")
-                    continue
-                hpayload = torch.load(hpath, map_location="cpu", weights_only=False)
-                hvideo = split_root / "human_data" / sample["human_video_path"]
-                hsha = sha256_file(hvideo)
-                reader, src_fps, _ = _video_frames(str(hvideo))
-                reason = validate_human_payload(
-                    hpayload, human_frame_ids(len(reader), src_fps), hsha,
-                    sample.get("human_local_instruction"),
-                    sample.get("human_local_instruction_sha256"))
-                if reason:
-                    failures.append(f"{hpath}: {reason}")
-                files[str(hpath)] = {"bytes": hpath.stat().st_size,
-                                     "sha256": sha256_file(hpath)}
-        # no extras
-        for pth in split_root.rglob("*.pth"):
-            if str(pth) not in expected_paths:
-                failures.append(f"unexpected {pth}")
-        for pth in split_root.rglob("*.partial"):
-            failures.append(f"stale partial {pth}")
+    _write_inv_progress()
+    data_volume.commit()
+    try:
+        for split in SPLITS:
+            split_root = Path(DATA_DIR) / split
+            manifest = json.loads((split_root / "icl_manifest.json").read_text())
+            by_task = {}
+            for sample in manifest["samples"]:
+                by_task.setdefault(sample["robot_task_name"], []).append(sample)
+            for task, samples in by_task.items():
+                task_root = split_root / task
+                metas = {int(m["episode_index"]): m for m in (
+                    json.loads(l) for l in (task_root / "meta" / "episodes.jsonl").read_text().splitlines()
+                    if l.strip())}
+                for sample in sorted(samples, key=lambda s: s["sample"]):
+                    ep = int(sample["sample"].rsplit("episode_", 1)[1])
+                    length = int(metas[ep]["length"])
+                    expected += 1
+                    for camera in CAMERAS:
+                        path = split_root / robot_latent_relpath(task, ep, length, camera)
+                        expected_paths.add(str(path))
+                        if not path.is_file():
+                            failures.append(f"missing {path}")
+                            continue
+                        payload = torch.load(path, map_location="cpu", weights_only=False)
+                        sha = sha256_file(task_root / "videos" / "chunk-000" / camera /
+                                          f"episode_{ep:06d}.mp4")
+                        reason = validate_robot_payload(payload, robot_frame_ids(length), sha)
+                        if reason:
+                            failures.append(f"{path}: {reason}")
+                        files[str(path)] = {"bytes": path.stat().st_size,
+                                            "sha256": sha256_file(path)}
+                        inv_prog["completed_files"] += 1
+                    hpath = split_root / human_latent_relpath(split, task, ep)
+                    expected_paths.add(str(hpath))
+                    if not hpath.is_file():
+                        failures.append(f"missing {hpath}")
+                    else:
+                        hpayload = torch.load(hpath, map_location="cpu", weights_only=False)
+                        hvideo = split_root / "human_data" / sample["human_video_path"]
+                        hsha = sha256_file(hvideo)
+                        reader, src_fps, _ = _video_frames(str(hvideo))
+                        reason = validate_human_payload(
+                            hpayload, human_frame_ids(len(reader), src_fps), hsha,
+                            sample.get("human_local_instruction"),
+                            sample.get("human_local_instruction_sha256"))
+                        if reason:
+                            failures.append(f"{hpath}: {reason}")
+                        files[str(hpath)] = {"bytes": hpath.stat().st_size,
+                                             "sha256": sha256_file(hpath)}
+                        inv_prog["completed_files"] += 1
+                    inv_prog["completed_episodes"] += 1
+                    inv_prog["current"] = f"{split}/{task}/episode_{ep:03d}"
+                    if inv_prog["completed_episodes"] % 25 == 0:
+                        _write_inv_progress()
+                        data_volume.commit()
+            # no extras
+            for pth in split_root.rglob("*.pth"):
+                if str(pth) not in expected_paths:
+                    failures.append(f"unexpected {pth}")
+            for pth in split_root.rglob("*.partial"):
+                failures.append(f"stale partial {pth}")
+        inv_prog["status"] = "completed"
+        inv_prog["current"] = None
+    except Exception as exc:
+        inv_prog["status"] = "failed"
+        inv_prog["error"] = repr(exc)
+        try:
+            _write_inv_progress()
+            data_volume.commit()
+        except Exception:
+            pass
+        raise
     report = {"created_utc": datetime.now(timezone.utc).isoformat(),
               "expected_episodes": expected, "files": len(files), "failures": failures,
-              "total_bytes": sum(f["bytes"] for f in files.values()), "ok": not failures}
+              "total_bytes": sum(f["bytes"] for f in files.values()), "ok": not failures,
+              "expected_robot_video_geometry": [HEIGHT, WIDTH],
+              "expected_robot_latent_geometry": [HEIGHT // VAE_SPATIAL,
+                                               WIDTH // VAE_SPATIAL],
+              "expected_human_video_geometry": [ICL_HEIGHT, ICL_WIDTH],
+              "expected_human_latent_geometry": [ICL_HEIGHT // VAE_SPATIAL,
+                                                ICL_WIDTH // VAE_SPATIAL],
+              "encoding_geometry_version": ENCODING_GEOMETRY_VERSION}
     out = Path(REPORTS) / "latent_inventory.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".json.partial")
     tmp.write_text(json.dumps({"summary": {k: v for k, v in report.items() if k != "failures"},
                                "files": files, "failures": failures}, indent=1))
     os.replace(tmp, out)
+    _write_inv_progress()
     data_volume.commit()
     report["report"] = str(out)
     report["report_sha256"] = sha256_file(out)
     return report
+
+
+@app.function(image=image, cpu=1, timeout=600, memory=2048,
+              volumes={SIM: data_volume})
+def progress_snapshot() -> dict:
+    """Read all durable progress files and return per-record + aggregate status."""
+    root = Path(PROGRESS_DIR)
+    records = []
+    for p in sorted(root.glob("*.json")):
+        try:
+            records.append(json.loads(p.read_text()))
+        except (OSError, json.JSONDecodeError):
+            continue                     # atomic writer guards this; skip stale readers
+    return {"records": records, "aggregate": progress_aggregate(records)}
 
 
 @app.function(image=image, cpu=32, timeout=4 * 3600, memory=131072,
@@ -782,6 +955,64 @@ def prepare() -> None:
     print(json.dumps(preflight.remote(), indent=2))
 
 
+def _phase_metrics(snap: dict, phase: str) -> dict:
+    recs = [r for r in snap["records"] if r.get("phase") == phase]
+    eps = sum(int(r.get("completed_episodes") or 0) for r in recs)
+    tot_eps = sum(int(r.get("total_episodes") or 0) for r in recs)
+    done = sum(int(r.get("completed_artifacts", r.get("completed_files")) or 0)
+               for r in recs)
+    tot = sum(int(r.get("total_artifacts", r.get("total_files")) or 0)
+              for r in recs)
+    tasks = sum(int(r.get("completed_tasks") or 0) for r in recs)
+    pct = 100.0 * done / tot if tot else (100.0 * eps / tot_eps if tot_eps else 0.0)
+    return {"episodes": eps, "total_episodes": tot_eps, "files": done,
+            "total_files": tot, "tasks": tasks, "percent": pct,
+            "statuses": [r.get("status") for r in recs]}
+
+
+def _start_progress_poller(run, phase: str, interval_s: float = 30.0):
+    """Daemon thread polling durable progress; prints one line and logs WandB
+    metrics only when they change. Survives local disconnect (durable files)."""
+    import threading
+
+    stop = threading.Event()
+    state = {"last": None}
+
+    def _poll():
+        while not stop.wait(interval_s):
+            try:
+                snap = progress_snapshot.remote()
+                m = _phase_metrics(snap, phase)
+                running = m["statuses"].count("running")
+                failed = m["statuses"].count("failed")
+                print(f"[progress] {phase}: {m['episodes']}/{m['total_episodes']} eps, "
+                      f"{m['files']}/{m['total_files']} files "
+                      f"({m['percent']:.1f}%), running={running} failed={failed}",
+                      flush=True)
+                metrics = {f"data_prep/{phase}_episodes": m["episodes"],
+                           f"data_prep/{phase}_percent": m["percent"]}
+                if phase == "encode":
+                    metrics[f"data_prep/{phase}_tasks_completed"] = m["tasks"]
+                    metrics[f"data_prep/{phase}_artifacts"] = m["files"]
+                    for r in snap["records"]:
+                        if r.get("phase") == "encode" and "shard" in r and \
+                                r.get("total_artifacts"):
+                            metrics[f"data_prep/shard{r['shard']}_percent"] = (
+                                100.0 * r["completed_artifacts"]
+                                / r["total_artifacts"])
+                else:
+                    metrics[f"data_prep/{phase}_files"] = m["files"]
+                if metrics != state["last"]:
+                    run.log(metrics)
+                    state["last"] = metrics
+            except Exception as exc:
+                print(f"[progress] poll error: {exc!r}", flush=True)
+
+    thread = threading.Thread(target=_poll, daemon=True)
+    thread.start()
+    return stop, thread
+
+
 @app.local_entrypoint()
 def encode(wait: bool = True) -> None:
     """Spawn the 8 shard encoders. Prints Modal call IDs; re-run resumes via payload checks."""
@@ -794,22 +1025,33 @@ def encode(wait: bool = True) -> None:
     if not wait:
         run.finish()
         return
-    totals = {"encoded": 0, "skipped": 0, "tasks": 0}
-    for shard, call in enumerate(calls):
-        result = call.get(timeout=12 * 3600)
-        print(json.dumps(result, indent=2), flush=True)
-        totals["encoded"] += result["encoded"]
-        totals["skipped"] += result["skipped"]
-        totals["tasks"] += len(result["tasks"])
-        run.log({"encoded": totals["encoded"], "skipped": totals["skipped"],
-                 "tasks_completed": totals["tasks"]})
+    stop, poller = _start_progress_poller(run, "encode")
+    try:
+        totals = {"encoded": 0, "skipped": 0, "tasks": 0}
+        for shard, call in enumerate(calls):
+            result = call.get(timeout=12 * 3600)
+            print(json.dumps(result, indent=2), flush=True)
+            totals["encoded"] += result["encoded"]
+            totals["skipped"] += result["skipped"]
+            totals["tasks"] += len(result["tasks"])
+            run.log({"encoded": totals["encoded"], "skipped": totals["skipped"],
+                     "tasks_completed": totals["tasks"]})
+    finally:
+        stop.set()
+        poller.join(timeout=30)
     run.finish()
 
 
 @app.local_entrypoint()
 def verify() -> None:
     run = _wandb_run()
-    result = inventory_latents.remote()
+    call = inventory_latents.spawn()
+    stop, poller = _start_progress_poller(run, "inventory")
+    try:
+        result = call.get(timeout=6 * 3600)
+    finally:
+        stop.set()
+        poller.join(timeout=30)
     print(json.dumps(result, indent=2))
     run.log({"latent_inventory_ok": result["ok"], "expected_episodes": result["expected_episodes"],
              "latent_files": result["files"], "latent_total_bytes": result["total_bytes"],
