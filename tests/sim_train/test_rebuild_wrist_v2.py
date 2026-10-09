@@ -286,7 +286,7 @@ def _fake_bucket(tmp_path):
 def test_freeze_refuses_on_incomplete_verify(tmp_path, monkeypatch):
     bucket, ids = _fake_bucket(tmp_path)
     monkeypatch.setattr(rw, "_verify_all",
-                        lambda root: {"checked": 2, "ok": 1,
+                        lambda root, *a, **k: {"checked": 2, "ok": 1,
                                       "failures": [{"id": ids[1], "errors": ["stale"]}]})
     with pytest.raises(RuntimeError, match="freeze refused"):
         rw.freeze_overlay(bucket)
@@ -296,7 +296,7 @@ def test_freeze_refuses_on_incomplete_verify(tmp_path, monkeypatch):
 def test_freeze_writes_index_readme_inventory(tmp_path, monkeypatch):
     bucket, ids = _fake_bucket(tmp_path)
     monkeypatch.setattr(rw, "_verify_all",
-                        lambda root: {"checked": 2, "ok": 2, "failures": []})
+                        lambda root, *a, **k: {"checked": 2, "ok": 2, "failures": []})
     result = rw.freeze_overlay(bucket)
     assert result["ok"] and result["episodes"] == 2
 
@@ -334,3 +334,107 @@ def test_freeze_writes_index_readme_inventory(tmp_path, monkeypatch):
     assert inventory["totals"] == {"files": len(paths),
                                    "bytes": sum(f["bytes"] for f in inventory["files"])}
     assert {"index.json", "README.md"} <= set(paths)
+
+
+# ----- val_v3 overlay ----------------------------------------------------------------------------
+
+
+def _fake_val_bucket(tmp_path, n=50):
+    """Tiny bucket with a sim_val_v2-style source index (source.json only, no episode.json)."""
+    bucket = tmp_path / "bucket"
+    src_root = bucket / rw.VAL_SOURCE_DIR / "episodes"
+    ids = [f"val_task/episode_{i:03d}" for i in range(n)]
+    for i, rel in enumerate(ids):
+        source = src_root / rel
+        source.mkdir(parents=True)
+        (source / "source.json").write_text(json.dumps({"seed": i}))
+        pq.write_table(pa.table({"action": [[0.0] * 6 for _ in range(N_ACTIONS)]}),
+                       source / rw.PARQUET_NAME)
+    (bucket / rw.VAL_SOURCE_DIR / "index.json").write_text(json.dumps(
+        {"episodes_total": n, "tasks_total": 1, "episodes": [{"id": rel} for rel in ids]}))
+    return bucket, ids
+
+
+def test_val_rebuild_index_maps_paths_and_meta(tmp_path, monkeypatch):
+    """50-entry index: jobs map to val_v3/episodes/<id> and carry split=val + wrist_v3.json."""
+    bucket, ids = _fake_val_bucket(tmp_path)
+    source_root = bucket / rw.VAL_SOURCE_DIR
+    out_root = bucket / rw.VAL_OUTPUT_DIRNAME
+    calls = []
+    monkeypatch.setattr(rw, "_replay_job", lambda job: (calls.append(job), {"id": job[0], "status": "rebuilt"})[1])
+    summary = rw.rebuild_index(source_root, out_root, split="val",
+                               meta_name=rw.VAL_META_NAME, workers=1, encoder="libx264")
+    assert summary["total"] == len(ids) == 50 and summary["ok"]
+    assert len(calls) == 50
+    rel, src, dst, split, meta_name, encoder = calls[0]
+    assert rel == ids[0] and split == "val" and meta_name == rw.VAL_META_NAME
+    assert src == str(source_root / "episodes" / ids[0])
+    assert dst == str(out_root / "episodes" / ids[0])
+
+
+def test_verify_output_reads_val_meta_name(tmp_path):
+    """verify_output honours meta_name=wrist_v3.json (and its val auto-split detection)."""
+    bucket, ids = _fake_val_bucket(tmp_path, n=1)
+    source = bucket / rw.VAL_SOURCE_DIR / "episodes" / ids[0]
+    output = bucket / rw.VAL_OUTPUT_DIRNAME / "episodes" / ids[0]
+    output.mkdir(parents=True)
+    video = output / rw.VIDEO_NAME
+    enc = rw._VideoEncoder(video, "libx264")
+    for _ in range(N_ACTIONS):
+        enc.write(np.full((rw.HEIGHT, rw.WIDTH, 3), 60, np.uint8))
+    enc.close()
+    doc = {"schema": "wrist_v2/1", "split": "val", "task": "val_task",
+           "episode": ids[0].split("/")[1], "seed": 0,
+           **rw._expected(rw._episode_meta(source, "val")),
+           "output": {"file": rw.VIDEO_NAME, "sha256": rw._sha256_file(video),
+                      "frames": N_ACTIONS, "fps": rw.FPS, "width": rw.WIDTH,
+                      "height": rw.HEIGHT, "pix_fmt": "yuv420p", "encoder": "libx264"}}
+    (output / rw.VAL_META_NAME).write_text(json.dumps(doc))
+    assert rw.verify_output(source, output, rw.VAL_META_NAME)["ok"]
+    # default meta_name (wrist_v2.json) does not see the val doc
+    missing = rw.verify_output(source, output)
+    assert not missing["ok"] and any("wrist_v2.json" in e for e in missing["errors"])
+
+
+def test_freeze_val_refusal_and_artifacts(tmp_path, monkeypatch):
+    bucket, ids = _fake_val_bucket(tmp_path, n=2)
+    source_root = bucket / rw.VAL_SOURCE_DIR / "episodes"
+    for i, rel in enumerate(ids):
+        output = bucket / rw.VAL_OUTPUT_DIRNAME / "episodes" / rel
+        output.mkdir(parents=True)
+        video = output / rw.VIDEO_NAME
+        enc = rw._VideoEncoder(video, "libx264")
+        for _ in range(N_ACTIONS):
+            enc.write(np.full((rw.HEIGHT, rw.WIDTH, 3), 60, np.uint8))
+        enc.close()
+        source = source_root / rel
+        doc = {"schema": "wrist_v2/1", "split": "val", "task": "val_task",
+               "episode": rel.split("/")[1], "seed": i,
+               **rw._expected(rw._episode_meta(source, "val")),
+               "output": {"file": rw.VIDEO_NAME, "sha256": rw._sha256_file(video),
+                          "frames": N_ACTIONS, "fps": rw.FPS, "width": rw.WIDTH,
+                          "height": rw.HEIGHT, "pix_fmt": "yuv420p", "encoder": "libx264"}}
+        (output / rw.VAL_META_NAME).write_text(json.dumps(doc))
+
+    monkeypatch.setattr(rw, "_verify_all",
+                        lambda root, *a, **k: {"checked": 2, "ok": 1, "failures": [{"id": ids[1], "errors": ["x"]}]})
+    with pytest.raises(RuntimeError, match="freeze refused"):
+        rw.freeze_overlay(bucket, overlay="val")
+    assert not (bucket / rw.VAL_OUTPUT_DIRNAME / "index.json").exists()
+
+    monkeypatch.setattr(rw, "_verify_all",
+                        lambda root, *a, **k: {"checked": 2, "ok": 2, "failures": []})
+    result = rw.freeze_overlay(bucket, overlay="val")
+    assert result["ok"] and result["episodes"] == 2
+    root = bucket / rw.VAL_OUTPUT_DIRNAME
+    index = json.loads((root / "index.json").read_text())
+    assert index["version"] == "val_v3" and index["source_prefix"] == rw.VAL_SOURCE_DIR
+    assert [e["id"] for e in index["episodes"]] == ids
+    ep = index["episodes"][0]
+    assert ep["metadata"] == f"episodes/{ids[0]}/{rw.VAL_META_NAME}"
+    assert ep["source"] == f"{rw.VAL_SOURCE_DIR}/episodes/{ids[0]}"
+    readme = (root / "README.md").read_text()
+    assert rw.VAL_SOURCE_DIR in readme and "verify-val" in readme
+    inventory = json.loads((root / "inventory.json").read_text())
+    paths = [f["path"] for f in inventory["files"]]
+    assert paths == sorted(paths) and "inventory.json" not in paths

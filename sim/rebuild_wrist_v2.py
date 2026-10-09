@@ -55,6 +55,8 @@ VAL_SOURCE_DIR = "sim_val_v2"
 TRAIN_META_FILES = ("episode.json", "source.json")
 VAL_META_FILES = ("source.json",)
 OUTPUT_DIRNAME = "train_v2"
+VAL_OUTPUT_DIRNAME = "val_v3"
+VAL_META_NAME = "wrist_v3.json"
 
 PILOT_VAL_EPISODE = ("sort_blocks", "episode_005")
 PILOT_TRAIN_EPISODE = ("push_cube_into_tape_square", "episode_005")
@@ -368,7 +370,7 @@ def _expected(meta: dict) -> dict:
     }
 
 
-def verify_output(source_dir: Path, output_dir: Path) -> dict:
+def verify_output(source_dir: Path, output_dir: Path, meta_name: str = META_NAME) -> dict:
     """Check one output dir against its source. Returns ``{ok, checks, errors}``; never writes."""
     source_dir, output_dir = Path(source_dir), Path(output_dir)
     split = "train" if (source_dir / "episode.json").is_file() else "val"
@@ -380,7 +382,7 @@ def verify_output(source_dir: Path, output_dir: Path) -> dict:
         return {"ok": False, "split": split, "task": source_dir.parent.name,
                 "episode": source_dir.name, "errors": [f"source metadata unreadable: {exc}"],
                 "checks": checks}
-    video, document = output_dir / VIDEO_NAME, output_dir / META_NAME
+    video, document = output_dir / VIDEO_NAME, output_dir / meta_name
     if not video.is_file():
         errors.append(f"missing {video}")
     if not document.is_file():
@@ -411,7 +413,7 @@ def verify_output(source_dir: Path, output_dir: Path) -> dict:
         want_sha = recorded.get("output", {}).get("sha256")
         checks["output_sha256"] = {"ok": actual_sha == want_sha, "recorded": want_sha}
         if actual_sha != want_sha:
-            errors.append("output sha256 does not match wrist_v2.json")
+            errors.append(f"output sha256 does not match {meta_name}")
         try:
             streams = _ffprobe(video)["streams"]
             if len(streams) != 1 or streams[0]["codec_type"] != "video":
@@ -443,8 +445,8 @@ def output_dir_for(output_root: Path, split: str, task: str, episode: str) -> Pa
 
 
 def replay_episode(source_dir: Path, output_dir: Path, *, split: str, encoder: str = "auto",
-                   sheet: bool = False) -> dict:
-    """Regenerate one episode's wrist video without the camera-mount visual.
+                   sheet: bool = False, meta_name: str = META_NAME) -> dict:
+    """Regenerate one episode's wrist video with the normalized absolute near plane.
 
     Reads the packaged ``action`` rows, resets the exact env/seed (+ packaged visual_config for
     train), renders the wrist frame for each row, then steps ``env.from_lerobot_joints(action)`` —
@@ -453,7 +455,7 @@ def replay_episode(source_dir: Path, output_dir: Path, *, split: str, encoder: s
     """
     meta = _episode_meta(Path(source_dir), split)
     output_dir = Path(output_dir)
-    prior = verify_output(source_dir, output_dir)
+    prior = verify_output(source_dir, output_dir, meta_name)
     if prior["ok"] and (not sheet or (output_dir / SHEET_NAME).is_file()):
         return {"status": "skipped", "reason": "valid output exists", "task": meta["task"],
                 "episode": meta["episode"], "output_dir": str(output_dir)}
@@ -507,7 +509,7 @@ def replay_episode(source_dir: Path, output_dir: Path, *, split: str, encoder: s
                    "frames": len(actions), "fps": FPS, "width": WIDTH, "height": HEIGHT,
                    "pix_fmt": "yuv420p", "encoder": codec},
     }
-    _atomic_json(output_dir / META_NAME, document)
+    _atomic_json(output_dir / meta_name, document)
     if sheet:
         _write_sheet(sampled, output_dir / SHEET_NAME, f"{meta['task']}/{meta['episode']}")
     return {"status": "rebuilt", "task": meta["task"], "episode": meta["episode"],
@@ -520,9 +522,10 @@ def replay_episode(source_dir: Path, output_dir: Path, *, split: str, encoder: s
 
 
 def _replay_job(payload):
-    rel, source_dir, output_dir, encoder = payload
+    rel, source_dir, output_dir, split, meta_name, encoder = payload
     try:
-        result = replay_episode(source_dir, output_dir, split="train", encoder=encoder)
+        result = replay_episode(source_dir, output_dir, split=split, encoder=encoder,
+                                meta_name=meta_name)
         return {"id": rel, **result}
     except Exception as exc:
         return {"id": rel, "status": "failed", "error": f"{type(exc).__name__}: {exc}"}
@@ -536,11 +539,12 @@ WORKER_MAX_TASKS = 15
 MAX_POOL_RESTARTS = 4
 
 
-def rebuild_train(source_root: Path, output_root: Path, *, workers: int, encoder: str = "auto") -> dict:
+def rebuild_index(source_root: Path, output_root: Path, *, split: str, meta_name: str = META_NAME,
+                  workers: int = 1, encoder: str = "auto") -> dict:
     """Replay every episode in ``source_root/index.json`` into ``output_root/episodes/``.
 
-    ``--workers N`` uses spawned processes; each worker re-checks resume state itself, so an
-    interrupted bulk run can simply be re-run. ``workers <= 1`` stays in-process.
+    ``workers > 1`` uses spawned processes in bounded batches; each worker re-checks resume state
+    itself, so an interrupted bulk run can simply be re-run. ``workers <= 1`` stays in-process.
     """
     source_root, output_root = Path(source_root), Path(output_root)
     index = json.loads((source_root / "index.json").read_text())
@@ -548,7 +552,7 @@ def rebuild_train(source_root: Path, output_root: Path, *, workers: int, encoder
     for entry in index["episodes"]:
         rel = entry["id"]
         jobs[rel] = (rel, str(source_root / "episodes" / rel),
-                     str(output_root / "episodes" / rel), encoder)
+                     str(output_root / "episodes" / rel), split, meta_name, encoder)
     results: dict[str, dict] = {}
     if workers <= 1:
         for job in jobs.values():
@@ -591,14 +595,21 @@ def rebuild_train(source_root: Path, output_root: Path, *, workers: int, encoder
     return summary
 
 
-def _verify_all(bucket_root: Path) -> dict:
+def rebuild_train(source_root: Path, output_root: Path, *, workers: int, encoder: str = "auto") -> dict:
+    """Train overlay rebuild — delegates to :func:`rebuild_index` with train settings."""
+    return rebuild_index(source_root, output_root, split="train", meta_name=META_NAME,
+                         workers=workers, encoder=encoder)
+
+
+def _verify_all(bucket_root: Path, source_dir: str = TRAIN_SOURCE_DIR,
+                output_dirname: str = OUTPUT_DIRNAME, meta_name: str = META_NAME) -> dict:
     bucket_root = Path(bucket_root)
-    index = json.loads((bucket_root / TRAIN_SOURCE_DIR / "index.json").read_text())
+    index = json.loads((bucket_root / source_dir / "index.json").read_text())
     report = {"checked": 0, "ok": 0, "failures": []}
     for entry in index["episodes"]:
         rel = entry["id"]
-        outcome = verify_output(bucket_root / TRAIN_SOURCE_DIR / "episodes" / rel,
-                                bucket_root / OUTPUT_DIRNAME / "episodes" / rel)
+        outcome = verify_output(bucket_root / source_dir / "episodes" / rel,
+                                bucket_root / output_dirname / "episodes" / rel, meta_name)
         report["checked"] += 1
         if outcome["ok"]:
             report["ok"] += 1
@@ -610,11 +621,16 @@ def _verify_all(bucket_root: Path) -> dict:
 # ----- release freeze ------------------------------------------------------------------------------
 
 
-def _readme() -> str:
-    return """# train_v2 — clean wrist-video overlay for sim_train_v1
+def _readme(source: str, version: str, meta_name: str, episodes: int, tasks: int,
+            include_probe: bool) -> str:
+    probe = ("""- `validation_probe/` — regenerated wrist video for `sim_val_v2/episodes/
+  sort_blocks/episode_005` kept as transform evidence. It is **not** a training episode and is
+  absent from `index.json`.
+""" if include_probe else "")
+    return f"""# {version} — clean wrist-video overlay for {source}
 
-This is a **slim wrist-video overlay**, not a standalone release. Combine it with `sim_train_v1`:
-every field, episode metadata, front video, human video and parquet comes from `sim_train_v1`
+This is a **slim wrist-video overlay**, not a standalone release. Combine it with `{source}`:
+every field, episode metadata, front video, human video and parquet comes from `{source}`
 unchanged — the overlay replaces only `episodes/<task>/<episode>/robot_wrist.mp4`.
 
 ## What changed and why
@@ -637,53 +653,65 @@ predates the mid-v1 distractor change are replayed with the matching legacy dist
 
 - `episodes/<task>/<episode>/robot_wrist.mp4` — regenerated wrist video: H.264, 640x480, 30 fps,
   yuv420p, exactly one frame per packaged `action` row.
-- `episodes/<task>/<episode>/wrist_v2.json` — per-episode provenance: source parquet and metadata
-  SHA256, model SHA256, transform version, hidden-geom provenance, layout check, output
+- `episodes/<task>/<episode>/{meta_name}` — per-episode provenance: source parquet and metadata
+  SHA256, model SHA256, transform version, mount/near-plane provenance, layout check, output
   SHA256/frame count/encoder.
-- `validation_probe/` — regenerated wrist video for `sim_val_v2/episodes/sort_blocks/episode_005`
-  kept as transform evidence. It is **not** a training episode and is absent from `index.json`.
-- `index.json` — release index (schema `wrist_v2/index/1`), 1,109 episodes in `sim_train_v1`
-  index order.
+{probe}- `index.json` — release index (schema `wrist_v2/index/1`), {episodes} episodes across
+  {tasks} tasks in `{source}` index order.
 - `inventory.json` — every release file with size + SHA256 (schema `wrist_v2/inventory/1`).
 
 ## Verify locally
 
 ```bash
-MUJOCO_GL=egl uv run python -m sim.rebuild_wrist_v2 verify --bucket-root <bucket_root>
+MUJOCO_GL=egl uv run python -m sim.rebuild_wrist_v2 {'verify' if include_probe else 'verify-val'} --bucket-root <bucket_root>
 ```
 
 `verify` re-checks every output against the source index: hashes, frame counts, ffprobe decode.
-The source `sim_train_v1` tree is immutable and is never modified by this pipeline.
+The source `{source}` tree is immutable and is never modified by this pipeline.
 """
 
 
-def freeze_overlay(bucket_root: Path) -> dict:
+_OVERLAYS = {
+    "train": {"source": TRAIN_SOURCE_DIR, "output": OUTPUT_DIRNAME, "meta": META_NAME,
+              "version": "train_v2",
+              "name": "SO-101 simulated training pairs — clean wrist-video overlay",
+              "include_probe": True},
+    "val": {"source": VAL_SOURCE_DIR, "output": VAL_OUTPUT_DIRNAME, "meta": VAL_META_NAME,
+            "version": "val_v3",
+            "name": "SO-101 simulated validation pairs — clean wrist-video overlay",
+            "include_probe": False},
+}
+
+
+def freeze_overlay(bucket_root: Path, overlay: str = "train") -> dict:
     """Freeze the overlay: full verify gate, then index.json, README.md, inventory.json.
 
     Refuses to write anything unless verification is checked == ok == episode count.
     Write order is index.json, README.md, inventory.json (last, so it covers the first two);
     the inventory excludes itself to avoid a self-hash paradox. Episode artifacts are untouched.
     """
+    cfg = _OVERLAYS[overlay]
+    source_name, out_name, meta_name = cfg["source"], cfg["output"], cfg["meta"]
     bucket_root = Path(bucket_root)
-    source_index_path = bucket_root / TRAIN_SOURCE_DIR / "index.json"
+    source_index_path = bucket_root / source_name / "index.json"
     source_index = json.loads(source_index_path.read_text())
     expected = len(source_index["episodes"])
-    report = _verify_all(bucket_root)
+    report = _verify_all(bucket_root, source_name, out_name, meta_name)
     if not (report["checked"] == report["ok"] == expected):
         raise RuntimeError(
             f"freeze refused: verify checked={report['checked']} ok={report['ok']} "
             f"expected={expected}; fix or rebuild before freezing")
-    out_root = bucket_root / OUTPUT_DIRNAME
+    out_root = bucket_root / out_name
     episodes = []
     for entry in source_index["episodes"]:
         rel = entry["id"]
-        doc = json.loads((out_root / "episodes" / rel / META_NAME).read_text())
+        doc = json.loads((out_root / "episodes" / rel / meta_name).read_text())
         out = doc["output"]
         episodes.append({
             "id": rel,
-            "source": f"{TRAIN_SOURCE_DIR}/episodes/{rel}",
+            "source": f"{source_name}/episodes/{rel}",
             "video": f"episodes/{rel}/{VIDEO_NAME}",
-            "metadata": f"episodes/{rel}/{META_NAME}",
+            "metadata": f"episodes/{rel}/{meta_name}",
             "sha256": out["sha256"],
             "frames": out["frames"],
             "fps": out["fps"],
@@ -695,11 +723,11 @@ def freeze_overlay(bucket_root: Path) -> dict:
         })
     index = {
         "schema": "wrist_v2/index/1",
-        "name": "SO-101 simulated training pairs — clean wrist-video overlay",
-        "version": "train_v2",
+        "name": cfg["name"],
+        "version": cfg["version"],
         "transform_version": TRANSFORM_VERSION,
         "created_utc": _utcnow(),
-        "source_prefix": TRAIN_SOURCE_DIR,
+        "source_prefix": source_name,
         "source_index_sha256": _sha256_file(source_index_path),
         "model_sha256": _sha256_file(get_so101_mujoco_model_path()),
         "episodes_total": source_index.get("episodes_total"),
@@ -711,7 +739,11 @@ def freeze_overlay(bucket_root: Path) -> dict:
 
     readme_path = out_root / "README.md"
     readme_tmp = readme_path.with_name("README.md.tmp")
-    readme_tmp.write_text(_readme())
+    readme_tmp.write_text(_readme(source_name, cfg["version"], meta_name,
+                                  source_index.get("episodes_total") or expected,
+                                  source_index.get("tasks_total") or len(
+                                      {e["id"].split("/")[0] for e in episodes}),
+                                  cfg["include_probe"]))
     os.replace(readme_tmp, readme_path)
 
     entries = []
@@ -758,12 +790,13 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sim.rebuild_wrist_v2",
                                      description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("pilot", "rebuild", "verify", "freeze"):
+    for name in ("pilot", "rebuild", "verify", "freeze",
+                 "rebuild-val", "verify-val", "freeze-val"):
         p = sub.add_parser(name)
         p.add_argument("--bucket-root", required=True, type=Path)
-        if name in ("pilot", "rebuild"):
+        if name in ("pilot", "rebuild", "rebuild-val"):
             p.add_argument("--encoder", default="auto", choices=("auto", "nvenc", "libx264"))
-        if name == "rebuild":
+        if name in ("rebuild", "rebuild-val"):
             p.add_argument("--workers", type=int, default=1)
     args = parser.parse_args(argv)
     if args.command == "pilot":
@@ -778,6 +811,21 @@ def main(argv=None) -> int:
         return 0 if summary["ok"] else 1
     if args.command == "freeze":
         summary = freeze_overlay(args.bucket_root)
+        print(json.dumps(summary, indent=2))
+        return 0 if summary["ok"] else 1
+    if args.command == "rebuild-val":
+        summary = rebuild_index(args.bucket_root / VAL_SOURCE_DIR,
+                                args.bucket_root / VAL_OUTPUT_DIRNAME,
+                                split="val", meta_name=VAL_META_NAME,
+                                workers=args.workers, encoder=args.encoder)
+        print(json.dumps(summary, indent=2))
+        return 0 if summary["ok"] else 1
+    if args.command == "verify-val":
+        report = _verify_all(args.bucket_root, VAL_SOURCE_DIR, VAL_OUTPUT_DIRNAME, VAL_META_NAME)
+        print(json.dumps(report, indent=2))
+        return 0 if report["checked"] and report["checked"] == report["ok"] else 1
+    if args.command == "freeze-val":
+        summary = freeze_overlay(args.bucket_root, overlay="val")
         print(json.dumps(summary, indent=2))
         return 0 if summary["ok"] else 1
     report = _verify_all(args.bucket_root)
