@@ -431,13 +431,13 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
                     metrics[
                         f"validation/action_endpoint_{metric}_{statistic}"
                     ] = distribution[statistic]
-            gripper = report["action_endpoint"]["physical_by_channel"][
-                "gripper_0_100"]
-            for metric in ("mae", "rmse"):
-                for statistic in ("mean", "q05", "median", "q95"):
-                    metrics[
-                        f"validation/gripper_{metric}_{statistic}"
-                    ] = gripper[metric][statistic]
+            for channel, channel_metrics in report[
+                "action_endpoint"]["physical_by_channel"].items():
+                for metric in ("mae", "rmse"):
+                    for statistic in ("mean", "q05", "median", "q95"):
+                        metrics[
+                            f"validation/action_{channel}_{metric}_{statistic}"
+                        ] = channel_metrics[metric][statistic]
             trainer.wandb.log(metrics, step=int(step))
     dist.barrier()
     return report

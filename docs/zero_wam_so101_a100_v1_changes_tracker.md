@@ -74,6 +74,8 @@ The v1 run also changes observability as follows:
       prediction and report normalized MAE/RMSE distributions.
 - [x] Denormalize endpoint errors and report per-channel MAE/RMSE in joint degrees
       and gripper 0-100 units.
+- [x] Publish mean, q05, median, and q95 MAE/RMSE for each of the five joints and
+      the gripper to WandB, with units encoded in metric names.
 - [x] Report normalized MAE/RMSE separately for control offsets 0-15.
 - [x] Use continuous gripper MAE/RMSE in physical 0-100 actuator units rather than
       thresholding the potentially continuous target into arbitrary open/closed
