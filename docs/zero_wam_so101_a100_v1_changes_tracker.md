@@ -127,11 +127,14 @@ The v1 run also changes observability as follows:
 
 ## v1 launch record
 
-- Code revision: `____________________________________________________________`
-- New config SHA256: `________________________________________________________`
-- Initialization checkpoint/hash: `___________________________________________`
-- Fresh launch command: `_____________________________________________________`
-- UTC resume time: `__________________________________________________________`
-- New run/WandB IDs: `________________________________________________________`
+- Code revision: `9fc4cd9b710b0d0f1082004f4b730bc54cef2598`
+- New config SHA256:
+  `3a2f2949c1b20ae6f299b86f12629490ede4fee49b158e6c3e1c23bc9fb74c2f`
+- Initialization checkpoint/hash: `data/models/zero-wam-pretrain`; immutable model
+  tree hash is included in the config identity.
+- Fresh launch command:
+  `scripts/run_zero_wam_so101_a100.sh start so101-sft-a100-b16-lr1e5-v1-500 500 2 1e-5 10 100`
+- UTC resume time: `2026-10-10T20:26:19Z`
+- New run/WandB IDs: `so101-sft-a100-b16-lr1e5-v1-500` / `3ed7a335`
 - Initial sample IDs/LR verification: `_______________________________________`
 - First validation-only step/report: `_______________________________________`
