@@ -30,6 +30,7 @@ data/HumanGen/**/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/*
 !data/HumanGen/human_latents/robotwin/run_robotwin_20260728_013720_robotwin_n1000/samples/273_robotwin_Use_an_arm_to_place_the_empty_cup_on_the_coaster/generated_video_kling-v3.pth
 .DS_Store
 .env
+wandb/
 outputs/*
 !outputs/zero_wam/
 outputs/zero_wam/*
