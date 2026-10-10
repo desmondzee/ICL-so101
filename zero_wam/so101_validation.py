@@ -22,6 +22,14 @@ from zero_wam.training_checkpoint import capture_rng_state, restore_rng_state
 
 VALIDATION_SCHEMA = 1
 VALIDATION_SEED = 20261010
+ACTION_CHANNELS = {
+    0: "shoulder_pan_deg",
+    1: "shoulder_lift_deg",
+    2: "elbow_flex_deg",
+    3: "wrist_flex_deg",
+    4: "wrist_roll_deg",
+    28: "gripper_0_100",
+}
 
 
 def sha256_file(path: Path) -> str:
@@ -107,8 +115,9 @@ def _val_config(train_config, loader_root, latent_root):
     cfg.expected_num_train_tasks = 5
     cfg.enable_dataset_index_cache = True
     cfg.rebuild_dataset_index_cache = False
-    from wan_va.configs.va_robotwin_cfg import load_robotwin_norm_stat
-    cfg.norm_stat = load_robotwin_norm_stat(loader_root / "val" / "meta" / "action_stats.json")
+    from zero_wam.so101_a100_train import load_so101_norm_stat
+    cfg.norm_stat = load_so101_norm_stat(
+        loader_root / "val" / "meta" / "action_stats.json")
     return cfg
 
 
@@ -161,7 +170,18 @@ def distributed_validation_schedule(num_samples: int, world: int, rank: int):
     ]
 
 
+def validation_due(step: int, interval: int, validated_steps) -> bool:
+    return (
+        int(step) > 0
+        and int(interval) > 0
+        and int(step) % int(interval) == 0
+        and int(step) not in validated_steps
+    )
+
+
 def _evaluate_one(trainer, item, seed: int):
+    from einops import rearrange
+
     _seed_everything(seed)
     with torch.no_grad():
         batch = trainer.convert_input_format(_batch(item))
@@ -169,6 +189,32 @@ def _evaluate_one(trainer, item, seed: int):
         if input_dict["icl_latent_dict"] is None:
             raise RuntimeError("validation unexpectedly dropped human ICL")
         output = trainer.transformer(input_dict, train_mode=True)
+        action_pred = rearrange(
+            output[1],
+            "b (f n) c -> b c f n 1",
+            f=input_dict["action_dict"]["targets"].shape[-3],
+        ).float()
+        action_target = input_dict["action_dict"]["targets"].float()
+        action_noisy = input_dict["action_dict"]["noisy_latents"].float()
+        action_mask = input_dict["action_dict"]["actions_mask"].bool()
+        sigma = (
+            input_dict["action_dict"]["timesteps"].float()
+            / float(trainer.train_scheduler_action.num_train_timesteps)
+        )[:, None, :, None, None]
+        clean_action = action_noisy - sigma * action_target
+        predicted_clean_action = action_noisy - sigma * action_pred
+        endpoint_error = predicted_clean_action - clean_action
+        if endpoint_error.shape[-2] != 8:
+            raise RuntimeError(
+                "deployment-matched validation requires eight controls per "
+                f"latent frame, got {endpoint_error.shape}"
+            )
+        endpoint = _action_endpoint_metrics(
+            endpoint_error=endpoint_error,
+            clean_action=clean_action,
+            action_mask=action_mask,
+            norm_stat=trainer.config.norm_stat,
+        )
         video, action, mcp = trainer.compute_loss(input_dict, output)
         # compute_loss divides all components by the training accumulation count.
         scale = float(trainer.gradient_accumulation_steps)
@@ -183,6 +229,7 @@ def _evaluate_one(trainer, item, seed: int):
         "mcp_losses": [float(loss) for loss in mcp],
         "mcp_weighted_total": float(weighted_mcp),
         "total": float(total),
+        "action_endpoint": endpoint,
     }
     if not all(np.isfinite(value) for value in
                [values["video_loss"], values["action_loss"],
@@ -191,16 +238,89 @@ def _evaluate_one(trainer, item, seed: int):
     return values
 
 
+def _masked_values(tensor, mask):
+    values = tensor.masked_select(mask)
+    if values.numel() == 0:
+        raise ValueError("action endpoint metric has an empty mask")
+    return values.double()
+
+
+def _mae_rmse(values):
+    return {
+        "mae": float(values.abs().mean()),
+        "rmse": float(values.square().mean().sqrt()),
+    }
+
+
+def _action_endpoint_metrics(*, endpoint_error, clean_action, action_mask, norm_stat):
+    """Convert one-step flow x0 reconstruction error into deployable action units."""
+    from einops import rearrange
+
+    if not torch.isfinite(_masked_values(endpoint_error, action_mask)).all():
+        raise FloatingPointError("nonfinite action endpoint reconstruction error")
+    overall = _mae_rmse(_masked_values(endpoint_error, action_mask))
+    q01 = torch.as_tensor(
+        norm_stat["q01"], device=endpoint_error.device, dtype=torch.float64)
+    q99 = torch.as_tensor(
+        norm_stat["q99"], device=endpoint_error.device, dtype=torch.float64)
+    half_range = (q99 - q01) / 2.0
+    channels = {}
+    for channel, name in ACTION_CHANNELS.items():
+        channel_mask = action_mask[:, channel]
+        normalized = _masked_values(
+            endpoint_error[:, channel], channel_mask)
+        channels[name] = _mae_rmse(normalized * half_range[channel])
+
+    flattened_error = rearrange(
+        endpoint_error, "b c f n one -> b c (f n) one")
+    flattened_mask = rearrange(
+        action_mask, "b c f n one -> b c (f n) one")
+    offsets = []
+    for offset in range(16):
+        offset_error = flattened_error[:, :, offset::16]
+        offset_mask = flattened_mask[:, :, offset::16]
+        offsets.append({
+            "offset": offset,
+            **_mae_rmse(_masked_values(
+                offset_error,
+                offset_mask,
+            )),
+        })
+
+    gripper = 28
+    gripper_mask = action_mask[:, gripper]
+    gripper_true = _masked_values(clean_action[:, gripper], gripper_mask) >= 0
+    gripper_pred = _masked_values(
+        clean_action[:, gripper] + endpoint_error[:, gripper],
+        gripper_mask,
+    ) >= 0
+    return {
+        "normalized": overall,
+        "physical_by_channel": channels,
+        "normalized_by_control_offset": offsets,
+        "gripper_binary_accuracy": float(
+            (gripper_true == gripper_pred).double().mean()),
+    }
+
+
+def _distribution(values):
+    values = np.asarray(values, dtype=np.float64)
+    return {
+        "mean": float(values.mean()),
+        "std": float(values.std(ddof=1)),
+        "q05": float(np.quantile(values, 0.05)),
+        "median": float(np.median(values)),
+        "q95": float(np.quantile(values, 0.95)),
+        "min": float(values.min()),
+        "max": float(values.max()),
+    }
+
+
 def _aggregate(rows: list[dict]) -> dict:
     metrics = ("video_loss", "action_loss", "mcp_weighted_total", "total")
     overall = {}
     for metric in metrics:
-        values = np.asarray([row[metric] for row in rows], dtype=np.float64)
-        overall[metric] = {
-            "mean": float(values.mean()), "std": float(values.std(ddof=1)),
-            "median": float(np.median(values)), "min": float(values.min()),
-            "max": float(values.max()),
-        }
+        overall[metric] = _distribution([row[metric] for row in rows])
     per_task = {}
     grouped = defaultdict(list)
     for row in rows:
@@ -214,7 +334,42 @@ def _aggregate(rows: list[dict]) -> dict:
         metric: float(np.mean([values[metric] for values in per_task.values()]))
         for metric in metrics
     }
-    return {"overall": overall, "per_task": per_task, "macro_task_mean": macro}
+    endpoint = {
+        "normalized_mae": _distribution([
+            row["action_endpoint"]["normalized"]["mae"] for row in rows]),
+        "normalized_rmse": _distribution([
+            row["action_endpoint"]["normalized"]["rmse"] for row in rows]),
+        "gripper_binary_accuracy": _distribution([
+            row["action_endpoint"]["gripper_binary_accuracy"] for row in rows]),
+        "physical_by_channel": {},
+        "normalized_by_control_offset": [],
+    }
+    for name in ACTION_CHANNELS.values():
+        endpoint["physical_by_channel"][name] = {
+            metric: _distribution([
+                row["action_endpoint"]["physical_by_channel"][name][metric]
+                for row in rows
+            ])
+            for metric in ("mae", "rmse")
+        }
+    for offset in range(16):
+        endpoint["normalized_by_control_offset"].append({
+            "offset": offset,
+            **{
+                metric: _distribution([
+                    row["action_endpoint"]["normalized_by_control_offset"][
+                        offset][metric]
+                    for row in rows
+                ])
+                for metric in ("mae", "rmse")
+            },
+        })
+    return {
+        "overall": overall,
+        "per_task": per_task,
+        "macro_task_mean": macro,
+        "action_endpoint": endpoint,
+    }
 
 
 def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
@@ -224,8 +379,10 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
     scheduler_before = json.dumps(trainer.lr_scheduler.state_dict(), sort_keys=True)
     optimizer_step_before = int(trainer.step)
     drop_icl_before = float(trainer.config.drop_icl)
+    frame_chunk_before = int(trainer.config.frame_chunk_size)
     trainer.transformer.eval()
     trainer.config.drop_icl = 0.0
+    trainer.config.frame_chunk_size = 2
     local_rows = []
     try:
         # FSDP forward executes collectives, so every rank must make the same
@@ -246,6 +403,7 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
             })
     finally:
         trainer.config.drop_icl = drop_icl_before
+        trainer.config.frame_chunk_size = frame_chunk_before
         trainer.transformer.train(was_training)
         restore_rng_state(rng)
     if int(trainer.step) != optimizer_step_before:
@@ -274,13 +432,31 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
                 f"validation/{key}": value
                 for key, value in report["macro_task_mean"].items()
             }
+            for metric, distribution in report["overall"].items():
+                for statistic in ("q05", "median", "q95"):
+                    metrics[
+                        f"validation/{metric}_{statistic}"
+                    ] = distribution[statistic]
+            for metric in ("normalized_mae", "normalized_rmse"):
+                distribution = report["action_endpoint"][metric]
+                for statistic in ("mean", "q05", "median", "q95"):
+                    metrics[
+                        f"validation/action_endpoint_{metric}_{statistic}"
+                    ] = distribution[statistic]
+            metrics["validation/gripper_binary_accuracy_mean"] = report[
+                "action_endpoint"]["gripper_binary_accuracy"]["mean"]
             trainer.wandb.log(metrics, step=int(step))
     dist.barrier()
     return report
 
 
-def install_validation(trainer, loader_root, latent_root, run_dir):
-    """Run step-0 validation and validate after every checkpoint save."""
+def install_validation(
+    trainer, loader_root, latent_root, run_dir, validation_interval=500
+):
+    """Run deterministic validation independently of checkpoint cadence."""
+    validation_interval = int(validation_interval)
+    if validation_interval <= 0:
+        raise ValueError("validation_interval must be positive")
     manifest_path = Path(run_dir) / "validation_manifest.json"
     if dist.get_rank() == 0:
         manifest = freeze_validation_manifest(loader_root, latent_root, manifest_path)
@@ -292,12 +468,27 @@ def install_validation(trainer, loader_root, latent_root, run_dir):
     dataset = build_validation_dataset(trainer, loader_root, latent_root)
     output_dir = Path(run_dir) / "validation"
     evaluate_validation(trainer, dataset, manifest, output_dir, trainer.step)
+    validated_steps = {int(trainer.step)}
 
     original_save = trainer.save_checkpoint
 
     def save_and_validate(self):
         original_save()
-        evaluate_validation(self, dataset, manifest, output_dir, self.step)
+        step = int(self.step)
+        if step not in validated_steps:
+            evaluate_validation(self, dataset, manifest, output_dir, step)
+            validated_steps.add(step)
 
     trainer.save_checkpoint = types.MethodType(save_and_validate, trainer)
+    original_get_next_batch = trainer._get_next_batch
+
+    def validate_then_get_next_batch(self):
+        step = int(self.step)
+        if validation_due(step, validation_interval, validated_steps):
+            evaluate_validation(self, dataset, manifest, output_dir, step)
+            validated_steps.add(step)
+        return original_get_next_batch()
+
+    trainer._get_next_batch = types.MethodType(
+        validate_then_get_next_batch, trainer)
     return manifest

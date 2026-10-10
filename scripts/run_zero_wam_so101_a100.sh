@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Zero-WAM SO-101 ICL sim training launcher for the local 8xA100 node.
 #
-#   scripts/run_zero_wam_so101_a100.sh start RUN_ID [NUM_STEPS] [ACCUM_STEPS]
+#   scripts/run_zero_wam_so101_a100.sh start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL]
 #   scripts/run_zero_wam_so101_a100.sh resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS]
 #   scripts/run_zero_wam_so101_a100.sh status RUN_ID
 #   scripts/run_zero_wam_so101_a100.sh stop RUN_ID
@@ -20,7 +20,7 @@ RUN_BASE="$REPO/outputs/zero_wam/sim_training"
 PREFLIGHT="$REPO/outputs/zero_wam/a100_preflight"
 
 usage() {
-    echo "usage: $0 start RUN_ID [NUM_STEPS] [ACCUM_STEPS] | resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] | status RUN_ID | stop RUN_ID" >&2
+    echo "usage: $0 start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] | resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] | status RUN_ID | stop RUN_ID" >&2
     exit 2
 }
 
@@ -92,13 +92,18 @@ cmd_start() {
     local run_id="${1:?RUN_ID required}"
     local num_steps="${2:-4000}"
     local accum_steps="${3:-8}"
+    local learning_rate="${4:-1e-4}"
+    local warmup_steps="${5:-200}"
+    local validation_interval="${6:-500}"
     local run_dir="$RUN_BASE/$run_id"
     local pidfile
     pidfile=$(pid_file_for "$run_id")
 
     if [[ ! "$num_steps" =~ ^[0-9]+$ || ! "$accum_steps" =~ ^[0-9]+$ \
-        || "$accum_steps" -lt 1 ]]; then
-        echo "NUM_STEPS and ACCUM_STEPS must be positive integers" >&2
+        || "$accum_steps" -lt 1 || ! "$warmup_steps" =~ ^[0-9]+$ \
+        || ! "$validation_interval" =~ ^[0-9]+$ \
+        || "$validation_interval" -lt 1 ]]; then
+        echo "NUM_STEPS, ACCUM_STEPS, WARMUP, and VAL_INTERVAL must be valid positive integers" >&2
         exit 1
     fi
     if pid=$(live_pid "$run_id"); then
@@ -111,7 +116,10 @@ cmd_start() {
     fi
 
     mkdir -p "$run_dir"
-    launch_torchrun "$run_id" "$run_dir" "$pidfile" "$num_steps" "$accum_steps"
+    launch_torchrun "$run_id" "$run_dir" "$pidfile" "$num_steps" "$accum_steps" \
+        --learning-rate "$learning_rate" \
+        --warmup-steps "$warmup_steps" \
+        --validation-interval "$validation_interval"
 }
 
 cmd_resume() {

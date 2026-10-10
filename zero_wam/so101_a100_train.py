@@ -33,6 +33,7 @@ EXPECTED_TRAIN_TASKS = 61
 DATASET_NAME = "so101_simulated_icl"
 CAMERAS = ("observation.images.front", "observation.images.wrist")
 HEIGHT, WIDTH, ACTION_DIM, ACTION_PER_FRAME = 224, 288, 30, 8
+ACTION_LAYOUT = (14, 14, 2)
 
 # run-dir files the wrapper script legitimately creates before python starts
 _INFRA_FILES = {"run.log", "run.pid"}
@@ -62,6 +63,27 @@ def release_sha256(root):
     if not path.is_file():
         raise FileNotFoundError(f"missing release manifest: {path}")
     return sha256_file(path)
+
+
+def load_so101_norm_stat(path):
+    """Map five SO-101 joints and one gripper into the released 30-D layout."""
+    payload = json.loads(Path(path).read_text())
+    stats = payload["norm_stats"]
+    hand = stats["action.hand.position"]
+    effector = stats["action.effector.position"]
+    if len(hand["q01"]) != 5 or len(effector["q01"]) != 1:
+        raise ValueError("expected five SO-101 joints and one gripper channel")
+
+    def padded(which):
+        return (
+            list(hand[which])
+            + [0.0] * (ACTION_LAYOUT[0] - len(hand[which]))
+            + [0.0] * ACTION_LAYOUT[1]
+            + list(effector[which])
+            + [0.0] * (ACTION_LAYOUT[2] - len(effector[which]))
+        )
+
+    return {"q01": padded("q01"), "q99": padded("q99")}
 
 
 def tree_manifest_sha256(root):
@@ -115,6 +137,9 @@ def config_identity_payload(
     world_size,
     seed,
     gradient_accumulation_steps,
+    learning_rate=1e-4,
+    warmup_steps=200,
+    validation_interval=500,
     num_steps=None,
     save_interval=None,
     repo_root=REPO_ROOT,
@@ -155,10 +180,10 @@ def config_identity_payload(
             "init_worker": 1,
         },
         "hyperparameters": {
-            "learning_rate": 1e-4,
+            "learning_rate": float(learning_rate),
             "betas": [0.9, 0.95],
             "weight_decay": 0.01,
-            "warmup_steps": 200,
+            "warmup_steps": int(warmup_steps),
             "batch_size": 1,
             "drop_icl": 0.1,
             "droptext_target": 0.4,
@@ -172,6 +197,7 @@ def config_identity_payload(
             "skip_step_grad_norm_multiplier": 20.0,
             "gc_interval": 50,
             "save_interval": save_interval,
+            "validation_interval": int(validation_interval),
             "seed": seed,
             "world_size": world_size,
             "gradient_accumulation_steps": gradient_accumulation_steps,
@@ -247,6 +273,9 @@ def build_run_manifest(
         },
         "num_steps": int(args.num_steps),
         "save_interval": int(args.save_interval),
+        "validation_interval": int(args.validation_interval),
+        "learning_rate": float(args.learning_rate),
+        "warmup_steps": int(args.warmup_steps),
         "seed": int(args.seed),
         "gradient_accumulation_steps": int(args.gradient_accumulation_steps),
         "effective_batch": EXPECTED_WORLD_SIZE
@@ -306,6 +335,9 @@ def parse_args(argv=None):
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--num-steps", type=int, default=4000)
     parser.add_argument("--save-interval", type=int, default=500)
+    parser.add_argument("--validation-interval", type=int, default=500)
+    parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--warmup-steps", type=int, default=200)
     parser.add_argument(
         "--gradient-accumulation-steps",
         type=int,
@@ -367,11 +399,11 @@ def _build_config(args, rank, local_rank, world, stack):
     config.resume_from = args.resume_from
     config.num_steps = int(args.num_steps)
     config.save_interval = int(args.save_interval)
-    config.learning_rate = 1e-4
+    config.learning_rate = float(args.learning_rate)
     config.beta1 = 0.9
     config.beta2 = 0.95
     config.weight_decay = 0.01
-    config.warmup_steps = 200
+    config.warmup_steps = int(args.warmup_steps)
     config.batch_size = 1
     config.gradient_accumulation_steps = int(args.gradient_accumulation_steps)
     config.drop_icl = 0.1
@@ -421,9 +453,9 @@ def _build_config(args, rank, local_rank, world, stack):
     ds.expected_num_train_tasks = EXPECTED_TRAIN_TASKS
     ds.enable_dataset_index_cache = True
     ds.rebuild_dataset_index_cache = False
-    ds.norm_stat = stack["load_robotwin_norm_stat"](
-        loader_root / "train" / "meta" / "action_stats.json"
-    )
+    ds.norm_stat = load_so101_norm_stat(
+        loader_root / "train" / "meta" / "action_stats.json")
+    config.norm_stat = deepcopy(ds.norm_stat)
     config.dataset_sources = [
         {"name": DATASET_NAME, "weight": 1.0, "config": ds}
     ]
@@ -550,6 +582,9 @@ def main(argv=None):
         seed=args.seed,
         gradient_accumulation_steps=int(args.gradient_accumulation_steps),
         save_interval=int(args.save_interval),
+        learning_rate=float(args.learning_rate),
+        warmup_steps=int(args.warmup_steps),
+        validation_interval=int(args.validation_interval),
     )
     config_sha = config_sha256(payload)
 
@@ -625,6 +660,7 @@ def main(argv=None):
             loader_root=args.loader_root,
             latent_root=args.latent_root,
             run_dir=run_dir,
+            validation_interval=args.validation_interval,
         )
 
         trainer.train()

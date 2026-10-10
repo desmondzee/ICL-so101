@@ -23,16 +23,18 @@ resume the step-500 optimizer state because warmup and peak LR are changing.
 
 ## v1 change boundary
 
-- [ ] Reach optimizer step 500 with finite losses and no repeated skipped steps.
-- [ ] Complete `checkpoint_step_500`, including transformer, AdamW, scheduler,
+- [x] Reach optimizer step 500 with finite losses and no repeated skipped steps.
+- [x] Complete `checkpoint_step_500`, including transformer, AdamW, scheduler,
       rank-local RNG, task-balanced sampler, exact 1,109-episode exposure ledger,
       config hash, and WandB run ID.
-- [ ] Complete deterministic validation at step 500.
+- [x] Complete deterministic validation at step 500.
 - [ ] Verify checkpoint atomicity and exact-load the transformer.
-- [ ] Record step-500 validation overall, macro-task, and per-task metrics.
-- [ ] Compare step 500 with the frozen step-0 baseline.
-- [ ] Record the continue/stop decision before changing the launcher.
-- [ ] Stop the v0 process only after the checkpoint and validation reports are durable.
+- [x] Record step-500 validation overall, macro-task, and per-task metrics.
+- [x] Compare step 500 with the frozen step-0 baseline: macro total `0.545217` to
+      `0.489130` (-10.3%); action `0.009799` to `0.003601` (-63.3%).
+- [x] Record the decision: preserve v0 as the high-LR reference and launch a fresh
+      lower-LR v1 comparison.
+- [x] Stop the v0 process only after the checkpoint and validation reports are durable.
 
 ## Planned v1 changes
 
@@ -48,57 +50,80 @@ The user froze the following v1 optimizer changes on 2026-10-10:
 
 The v1 run also changes observability as follows:
 
-- [ ] Add explicit `--validation-interval`, default 500.
-- [ ] Set the v1 validation interval to 100 optimizer steps, including steps 0, 100,
+- [x] Add explicit `--validation-interval`, default 500.
+- [x] Set the v1 validation interval to 100 optimizer steps, including steps 0, 100,
       200, 300, 400, and 500.
-- [ ] Keep full resumable checkpoints at steps 500, 1000, ..., 4000.
-- [ ] Run validation independently of checkpoint writing every 100 steps through
+- [x] Keep full resumable checkpoints at steps 500, 1000, ..., 4000.
+- [x] Run validation independently of checkpoint writing every 100 steps through
       4000.
-- [ ] Keep v0 and v1 validation reports under separate immutable run roots.
-- [ ] Continue using the same frozen 50-episode validation manifest, per-episode seeds,
+- [x] Keep v0 and v1 validation reports under separate immutable run roots.
+- [x] Continue using the same frozen 50-episode validation manifest, per-episode seeds,
       conditioning, aggregation, and manifest hash.
 - [ ] Prove each validation pass restores model mode, RNG, scheduler, sampler, loader,
       and exposure state exactly.
-- [ ] Log each validation row to both `metrics.jsonl` and the existing WandB run.
-- [ ] Keep full per-episode validation JSON reports append-only under `validation/`.
+- [x] Log each validation row to both `metrics.jsonl` and the new v1 WandB run.
+- [x] Keep full per-episode validation JSON reports append-only under `validation/`.
 - [ ] Keep checkpoint selection restricted to full 500-step checkpoints unless a
       separate model snapshot policy is explicitly approved.
+- [x] Report mean, standard deviation, q05, median, q95, minimum, and maximum for
+      total, video, action, and MCP validation losses.
+- [x] Fix validation to the deployment chunk of two latent frames x eight controls
+      (16 absolute controls, approximately 0.53 seconds), rather than sampling a
+      random training chunk length.
+- [x] Reconstruct the clean absolute-action endpoint from each fixed-noise flow
+      prediction and report normalized MAE/RMSE distributions.
+- [x] Denormalize endpoint errors and report per-channel MAE/RMSE in joint degrees
+      and gripper 0-100 units.
+- [x] Report normalized MAE/RMSE separately for control offsets 0-15 and binary
+      gripper open/close accuracy.
+- [x] Publish the principal action endpoint and loss quantiles to local JSONL and
+      WandB; retain the full per-episode/channel/offset detail in validation JSON.
+- [x] Treat one-step clean-action reconstruction as a diagnostic, not a substitute
+      for periodic full action-flow denoising or eventual closed-loop rollout.
+- [ ] Add fixed-subset full 50-step action denoising metrics after the v1 launch if
+      they can be implemented without delaying or perturbing the core comparison.
 
 ## Comparison identity
 
-- [ ] Create a new run ID and WandB run linked to v0 as an LR/warmup comparison.
-- [ ] Require a new config hash; never treat v1 as a strict resume of v0.
+- [x] Create a new run ID and WandB run linked to v0 as an LR/warmup comparison.
+- [x] Require a new config hash; never treat v1 as a strict resume of v0.
 - [ ] Exact-load the same initialization checkpoint used by v0.
-- [ ] Prove initial model hash, sampler seed/order, validation manifest, and step-0
-      validation are identical to v0.
+- [ ] Prove initial model hash, sampler seed/order, and validation manifest are
+      identical to v0. The v1 step-0 scalar loss is intentionally not numerically
+      identical because v1 fixes validation chunking to the deployment horizon; use
+      the v1 step-0 report as the new-protocol baseline.
 - [ ] Record only these intended scientific differences: peak LR `1e-5`, warmup 10,
       and validation interval 100.
 - [ ] Compare v0 and v1 at equal optimizer steps and equal episode exposure.
 
 ## v1 validation gates
 
-- [ ] Unit-test interval scheduling: step 0, every requested validation interval, and
+- [x] Unit-test interval scheduling: step 0, every requested validation interval, and
       no duplicate execution at checkpoint boundaries.
-- [ ] Unit-test that checkpoint interval remains 500 when validation interval is 100.
+- [x] Unit-test that checkpoint interval remains 500 when validation interval is 100.
 - [ ] Unit-test exact state restoration around non-checkpoint validation.
-- [ ] Run an eight-rank fresh-run smoke with peak LR `1e-5` and warmup 10.
+- [x] Run an eight-rank fresh-run smoke with peak LR `1e-5` and warmup 10:
+      `a100-v1-validation-action-smoke-v3`, WandB `419959e8`.
 - [ ] Confirm one non-checkpoint validation report and WandB row.
 - [ ] Confirm exact exposure counts are unchanged by validation.
 - [ ] Confirm no full checkpoint is written at a validation-only boundary.
-- [ ] Re-run focused trainer, validation, checkpoint, and launcher tests.
+- [x] Re-run focused trainer, validation, checkpoint, and launcher tests: 71 passed.
 
 ## Step-500 decision record
 
-- Step reached UTC: `__________________________________________________________`
-- Checkpoint path: `___________________________________________________________`
-- Checkpoint/training-state SHA256: `__________________________________________`
-- Exposure total/unique/unseen: `_____________________________________________`
-- Step-500 validation manifest SHA256: `______________________________________`
-- Macro total/video/action/MCP: `_____________________________________________`
-- Change from step 0: `_______________________________________________________`
-- NaN/Inf/skipped-step audit: `_______________________________________________`
+- Step reached UTC: `2026-10-10T19:20Z`
+- Checkpoint path: `outputs/zero_wam/sim_training/so101-sft-a100-b16-4k-20261010/checkpoints/checkpoint_step_500`
+- Checkpoint/training-state SHA256:
+  `6c03814689ed0fa9290c5a3d20a526971b9aba9cb543de47ec5bd638c687fe6a`
+- Exposure total/unique/unseen: `8000 / 1102 / 7`
+- Step-500 validation manifest SHA256:
+  `d309785c3cd73e721c81537a2ac39c19d3d618a5f87de8ff0f1dc84260324cdf`
+- Macro total/video/action/MCP:
+  `0.489130 / 0.159244 / 0.003601 / 0.326286`
+- Change from step 0: `-10.3% / -10.8% / -63.3% / -8.6%`
+- NaN/Inf/skipped-step audit: `none`
 - Throughput and projected completion: `_____________________________________`
-- Decision and rationale: `__________________________________________________`
+- Decision and rationale: `launch fresh v1 at 1e-5/10-step warmup; preserve v0`
 
 ## v1 launch record
 

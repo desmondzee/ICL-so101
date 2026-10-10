@@ -1,14 +1,17 @@
 import json
 
 import pytest
+import torch
 
 from zero_wam.so101_validation import (
+    _action_endpoint_metrics,
     _aggregate,
     build_validation_manifest,
     deterministic_seed,
     distributed_validation_schedule,
     freeze_validation_manifest,
     manifest_sha256,
+    validation_due,
 )
 
 
@@ -75,12 +78,56 @@ def test_aggregate_macro_is_equal_task_weighted():
                 "sample_id": f"{task}-{index}", "task": task,
                 "video_loss": value, "action_loss": value + 1,
                 "mcp_weighted_total": value + 2, "total": value + 3,
+                "action_endpoint": {
+                    "normalized": {"mae": value / 10, "rmse": value / 5},
+                    "gripper_binary_accuracy": 1.0,
+                    "physical_by_channel": {
+                        name: {"mae": value, "rmse": value + 1}
+                        for name in (
+                            "shoulder_pan_deg", "shoulder_lift_deg",
+                            "elbow_flex_deg", "wrist_flex_deg",
+                            "wrist_roll_deg", "gripper_0_100",
+                        )
+                    },
+                    "normalized_by_control_offset": [
+                        {"offset": offset, "mae": value, "rmse": value + 1}
+                        for offset in range(16)
+                    ],
+                },
             })
     result = _aggregate(rows)
     assert result["macro_task_mean"]["video_loss"] == 2.0
     assert result["overall"]["video_loss"]["mean"] == 2.0
     assert result["per_task"]["a"]["total"] == 4.0
     assert result["per_task"]["b"]["total"] == 6.0
+    assert result["overall"]["video_loss"]["q05"] == 1.0
+    assert result["overall"]["video_loss"]["q95"] == 3.0
+    assert result["action_endpoint"]["normalized_mae"]["median"] == 0.2
+
+
+def test_action_endpoint_metrics_physical_units_offsets_and_gripper():
+    error = torch.zeros(1, 30, 2, 8, 1)
+    clean = torch.zeros_like(error)
+    mask = torch.zeros_like(error, dtype=torch.bool)
+    for channel in (0, 1, 2, 3, 4, 28):
+        mask[:, channel] = True
+        error[:, channel] = 0.1
+    clean[:, 28] = -0.05
+    stats = {
+        "q01": [-100.0] * 28 + [0.0, 0.0],
+        "q99": [100.0] * 28 + [100.0, 0.0],
+    }
+    result = _action_endpoint_metrics(
+        endpoint_error=error,
+        clean_action=clean,
+        action_mask=mask,
+        norm_stat=stats,
+    )
+    assert result["normalized"]["mae"] == pytest.approx(0.1)
+    assert result["physical_by_channel"]["shoulder_pan_deg"]["mae"] == pytest.approx(10)
+    assert result["physical_by_channel"]["gripper_0_100"]["mae"] == pytest.approx(5)
+    assert len(result["normalized_by_control_offset"]) == 16
+    assert result["gripper_binary_accuracy"] == 0.0
 
 
 def test_distributed_schedule_pads_equal_fsdp_forward_counts():
@@ -90,3 +137,12 @@ def test_distributed_schedule_pads_equal_fsdp_forward_counts():
             for slot in schedule if not slot["padding"]]
     assert sorted(real) == list(range(50))
     assert sum(slot["padding"] for schedule in schedules for slot in schedule) == 6
+
+
+def test_validation_due_interval_and_checkpoint_deduplication():
+    validated = {0}
+    assert not validation_due(99, 100, validated)
+    assert validation_due(100, 100, validated)
+    validated.add(100)
+    assert not validation_due(100, 100, validated)
+    assert validation_due(500, 100, validated)

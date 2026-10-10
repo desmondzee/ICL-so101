@@ -22,6 +22,7 @@ def _ns(**kw):
     base = dict(
         loader_root="/l", latent_root="/z", model_path="/m",
         run_root="/r", run_id="rid", num_steps=4000, save_interval=500,
+        validation_interval=500, learning_rate=1e-4, warmup_steps=200,
         resume_from=None, seed=42, wandb_project="p", wandb_group="g",
         disable_wandb=False, gradient_accumulation_steps=8,
     )
@@ -45,6 +46,28 @@ def test_release_sha256(tmp_path):
     assert tr.release_sha256(tmp_path) == hashlib.sha256(b'{"a": 1}').hexdigest()
     with pytest.raises(FileNotFoundError):
         tr.release_sha256(tmp_path / "nope")
+
+
+def test_load_so101_norm_stat_uses_released_30d_layout(tmp_path):
+    path = tmp_path / "stats.json"
+    path.write_text(json.dumps({
+        "norm_stats": {
+            "action.hand.position": {
+                "q01": [-1, -2, -3, -4, -5],
+                "q99": [1, 2, 3, 4, 5],
+            },
+            "action.effector.position": {
+                "q01": [0],
+                "q99": [100],
+            },
+        },
+    }))
+    stats = tr.load_so101_norm_stat(path)
+    assert len(stats["q01"]) == len(stats["q99"]) == 30
+    assert stats["q01"][:5] == [-1, -2, -3, -4, -5]
+    assert stats["q99"][28] == 100
+    assert all(value == 0 for value in stats["q01"][5:28])
+    assert stats["q01"][29] == stats["q99"][29] == 0
 
 
 def test_tree_manifest_sha256_stable_and_sensitive(tmp_path):
@@ -105,6 +128,16 @@ def test_config_identity_changes_on_accumulation(tmp_path):
         _identity(tmp_path, gradient_accumulation_steps=2)
     )
     assert a != b
+
+
+def test_config_identity_changes_on_optimizer_and_validation_cadence(tmp_path):
+    base = tr.config_sha256(_identity(tmp_path))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, learning_rate=1e-5))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, warmup_steps=10))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, validation_interval=100))
 
 
 def test_config_identity_records_effective_batch(tmp_path):
@@ -189,6 +222,9 @@ def test_run_manifest_accumulation_values(tmp_path):
     )
     assert manifest["gradient_accumulation_steps"] == 2
     assert manifest["effective_batch"] == 16
+    assert manifest["learning_rate"] == 1e-4
+    assert manifest["warmup_steps"] == 200
+    assert manifest["validation_interval"] == 500
 
 
 def test_run_manifest_nonsecret(tmp_path):
