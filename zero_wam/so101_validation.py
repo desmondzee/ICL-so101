@@ -211,7 +211,6 @@ def _evaluate_one(trainer, item, seed: int):
             )
         endpoint = _action_endpoint_metrics(
             endpoint_error=endpoint_error,
-            clean_action=clean_action,
             action_mask=action_mask,
             norm_stat=trainer.config.norm_stat,
         )
@@ -252,41 +251,7 @@ def _mae_rmse(values):
     }
 
 
-def _gripper_binary_metrics(confusion):
-    """Class-balanced gripper metrics with closed defined as the positive class."""
-    tp, fp = confusion["closed_tp"], confusion["closed_fp"]
-    tn, fn = confusion["closed_tn"], confusion["closed_fn"]
-    total = tp + fp + tn + fn
-
-    def ratio(numerator, denominator):
-        return float(numerator / denominator) if denominator else 0.0
-
-    closed_precision = ratio(tp, tp + fp)
-    closed_recall = ratio(tp, tp + fn)
-    open_recall = ratio(tn, tn + fp)
-    closed_f1 = ratio(2 * tp, 2 * tp + fp + fn)
-    open_f1 = ratio(2 * tn, 2 * tn + fp + fn)
-    denominator = math.sqrt(
-        (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-    return {
-        **confusion,
-        "accuracy": ratio(tp + tn, total),
-        "majority_baseline_accuracy": ratio(max(tp + fn, tn + fp), total),
-        "closed_prevalence": ratio(tp + fn, total),
-        "closed_precision": closed_precision,
-        "closed_recall": closed_recall,
-        "closed_f1": closed_f1,
-        "open_recall": open_recall,
-        "open_f1": open_f1,
-        "macro_f1": (closed_f1 + open_f1) / 2.0,
-        "balanced_accuracy": (closed_recall + open_recall) / 2.0,
-        "matthews_correlation": (
-            float((tp * tn - fp * fn) / denominator) if denominator else 0.0
-        ),
-    }
-
-
-def _action_endpoint_metrics(*, endpoint_error, clean_action, action_mask, norm_stat):
+def _action_endpoint_metrics(*, endpoint_error, action_mask, norm_stat):
     """Convert one-step flow x0 reconstruction error into deployable action units."""
     from einops import rearrange
 
@@ -321,25 +286,10 @@ def _action_endpoint_metrics(*, endpoint_error, clean_action, action_mask, norm_
             )),
         })
 
-    gripper = 28
-    gripper_mask = action_mask[:, gripper]
-    gripper_true_closed = _masked_values(
-        clean_action[:, gripper], gripper_mask) < 0
-    gripper_pred_closed = _masked_values(
-        clean_action[:, gripper] + endpoint_error[:, gripper],
-        gripper_mask,
-    ) < 0
-    confusion = {
-        "closed_tp": int((gripper_true_closed & gripper_pred_closed).sum()),
-        "closed_fp": int((~gripper_true_closed & gripper_pred_closed).sum()),
-        "closed_tn": int((~gripper_true_closed & ~gripper_pred_closed).sum()),
-        "closed_fn": int((gripper_true_closed & ~gripper_pred_closed).sum()),
-    }
     return {
         "normalized": overall,
         "physical_by_channel": channels,
         "normalized_by_control_offset": offsets,
-        "gripper_binary": _gripper_binary_metrics(confusion),
     }
 
 
@@ -382,11 +332,6 @@ def _aggregate(rows: list[dict]) -> dict:
         "physical_by_channel": {},
         "normalized_by_control_offset": [],
     }
-    confusion = {
-        key: sum(row["action_endpoint"]["gripper_binary"][key] for row in rows)
-        for key in ("closed_tp", "closed_fp", "closed_tn", "closed_fn")
-    }
-    endpoint["gripper_binary"] = _gripper_binary_metrics(confusion)
     for name in ACTION_CHANNELS.values():
         endpoint["physical_by_channel"][name] = {
             metric: _distribution([
@@ -486,12 +431,13 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
                     metrics[
                         f"validation/action_endpoint_{metric}_{statistic}"
                     ] = distribution[statistic]
-            gripper = report["action_endpoint"]["gripper_binary"]
-            for metric in (
-                "matthews_correlation", "macro_f1", "balanced_accuracy",
-                "closed_precision", "closed_recall", "majority_baseline_accuracy",
-            ):
-                metrics[f"validation/gripper_{metric}"] = gripper[metric]
+            gripper = report["action_endpoint"]["physical_by_channel"][
+                "gripper_0_100"]
+            for metric in ("mae", "rmse"):
+                for statistic in ("mean", "q05", "median", "q95"):
+                    metrics[
+                        f"validation/gripper_{metric}_{statistic}"
+                    ] = gripper[metric][statistic]
             trainer.wandb.log(metrics, step=int(step))
     dist.barrier()
     return report
