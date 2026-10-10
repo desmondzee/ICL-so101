@@ -10,6 +10,7 @@ state. Atomic `training_state.pt` under each `checkpoint_step_<N>` dir.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import types
@@ -20,6 +21,8 @@ import torch
 SCHEMA_VERSION = 1
 STATE_FILENAME = "training_state.pt"
 _CKPT_MARK = "_resumable_checkpointing_installed"
+
+logger = logging.getLogger(__name__)
 
 
 def _dist():
@@ -200,6 +203,116 @@ def load_training_state(trainer, checkpoint_dir, expected_config_sha256,
     return trainer.step
 
 
+def episode_rows_from_ledger(ledger: dict) -> list[dict]:
+    """Exact episode rows from the aggregated ledger.
+
+    Ledger keys are ``<source>/<task>/episode_<index>``; values are integer
+    draw counts (zeros included). Raises rather than guessing on any key or
+    value that does not carry all four fields.
+    """
+    rows = []
+    for sample_id, count in ledger.items():
+        parts = str(sample_id).split("/")
+        stem = parts[-1] if len(parts) >= 3 else ""
+        if len(parts) < 3 or not stem.startswith("episode_"):
+            raise ValueError(
+                f"exposure ledger key is not "
+                f"'<source>/<task>/episode_<index>': {sample_id!r}")
+        task = "/".join(parts[1:-1])
+        try:
+            episode_index = int(stem.removeprefix("episode_"))
+        except ValueError as exc:
+            raise ValueError(
+                f"exposure ledger key has no integer episode index: "
+                f"{sample_id!r}") from exc
+        if not task:
+            raise ValueError(f"exposure ledger key has empty task: {sample_id!r}")
+        if isinstance(count, bool) or not isinstance(count, (int, float)) \
+                or not float(count).is_integer():
+            raise ValueError(
+                f"exposure ledger count is not an integer: "
+                f"{sample_id!r}={count!r}")
+        rows.append({"task": task, "episode_index": episode_index,
+                     "sample_id": str(sample_id), "count": int(count)})
+    return rows
+
+
+def task_rows_from_episode_rows(rows: list[dict]) -> list[dict]:
+    """Exact per-task aggregation of episode rows."""
+    counts = {}
+    for row in rows:
+        counts.setdefault(row["task"], []).append(row["count"])
+    out = []
+    for task in sorted(counts):
+        values = counts[task]
+        total = sum(values)
+        out.append({"task": task, "total_draws": total,
+                    "episodes": len(values),
+                    "unique_seen": sum(1 for c in values if c > 0),
+                    "min": min(values), "max": max(values),
+                    "mean": total / len(values)})
+    return out
+
+
+def publish_episode_exposure(trainer, checkpoint_dir, step, config_sha256):
+    """Rank-0 WandB publish of the already-written episode_exposure.json.
+
+    Reads the local artifact verbatim — never recomputes sampler state.
+    Returns {"episodes", "tasks"} row counts. Raises on malformed payloads;
+    the caller decides whether to warn-and-continue.
+    """
+    exposure_path = Path(checkpoint_dir) / "episode_exposure.json"
+    payload = json.loads(exposure_path.read_text())
+    summary = payload.get("summary")
+    ledger = payload.get("ledger")
+    if not isinstance(summary, dict) or not isinstance(ledger, dict):
+        raise ValueError(
+            f"unexpected episode_exposure.json shape in {exposure_path}: "
+            "expected 'summary' and 'ledger' dicts")
+    rows = episode_rows_from_ledger(ledger)
+    task_rows = task_rows_from_episode_rows(rows)
+    if not rows:
+        raise ValueError(f"empty exposure ledger in {exposure_path}")
+
+    wandb = trainer.wandb
+    metrics = {
+        f"exposure/{k}": summary[k]
+        for k in ("total_draws", "unique_seen", "unseen", "min", "median",
+                  "mean", "p95", "max")
+    }
+    episode_table = wandb.Table(
+        columns=["task", "episode_index", "sample_id", "count"],
+        data=[[r["task"], r["episode_index"], r["sample_id"], r["count"]]
+              for r in rows])
+    task_table = wandb.Table(
+        columns=["task", "total_draws", "episodes", "unique_seen", "min",
+                 "max", "mean"],
+        data=[[t["task"], t["total_draws"], t["episodes"], t["unique_seen"],
+               t["min"], t["max"], t["mean"]] for t in task_rows])
+    metrics["exposure/episodes"] = episode_table
+    metrics["exposure/tasks"] = task_table
+    metrics["exposure/task_draws"] = wandb.plot.bar(
+        task_table, "task", "total_draws",
+        title="Episode draws per task")
+    metrics["exposure/episode_count_distribution"] = wandb.plot.histogram(
+        episode_table, "count",
+        title="Episode draw count distribution")
+    wandb.log(metrics, step=step, commit=False)
+
+    run_id = Path(trainer.save_dir).parent.name
+    artifact = wandb.Artifact(
+        f"{run_id}-episode-exposure-step-{step:08d}",
+        type="episode-exposure",
+        metadata={"run_id": run_id, "optimizer_step": step,
+                  "config_sha256": config_sha256,
+                  "total_draws": summary["total_draws"],
+                  "unique_seen": summary["unique_seen"]})
+    artifact.add_file(str(exposure_path))
+    wandb.log_artifact(
+        artifact, aliases=[f"step-{step}", "latest"])
+    return {"episodes": len(rows), "tasks": len(task_rows)}
+
+
 def install_resumable_checkpointing(trainer, config_sha256, wandb_run_id):
     """Wrap trainer.save_checkpoint so the existing periodic calls produce both
     upstream model safetensors and full training state. Idempotent."""
@@ -218,6 +331,15 @@ def install_resumable_checkpointing(trainer, config_sha256, wandb_run_id):
                 raise RuntimeError(
                     f"upstream save produced no transformer dir at {ckpt_dir}")
         save_training_state(trainer, ckpt_dir, config_sha256, wandb_run_id)
+        if rank == 0 and getattr(trainer, "wandb", None) is not None:
+            try:
+                publish_episode_exposure(
+                    trainer, ckpt_dir, int(trainer.step), config_sha256)
+            except Exception as exc:
+                # dashboard failure must never invalidate the local checkpoint
+                logger.warning(
+                    "episode exposure WandB publish failed at step %s: %s",
+                    trainer.step, exc)
 
     trainer.save_checkpoint = types.MethodType(wrapped, trainer)
     setattr(trainer, _CKPT_MARK, True)

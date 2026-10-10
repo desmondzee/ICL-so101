@@ -4,6 +4,7 @@ shell script's static contract. No GPU, no torchrun, no upstream import.
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -247,6 +248,111 @@ def test_script_exists_and_contract():
 def test_script_preflight_gate():
     s = _script()
     assert "host_inventory.json" in s and "loader_smoke.json" in s
+
+
+# ---- LocalMetricsWandbProxy ---------------------------------------------------
+
+
+class _FakeWandbModule:
+    def __init__(self):
+        self.log_calls = []
+        self.Table = object()
+        self.Artifact = object()
+        self.finish = "finish-attr"
+        self.run = "run-attr"
+
+    def log(self, data, step=None, commit=None, **kwargs):
+        self.log_calls.append((data, step, commit, kwargs))
+        return "logged"
+
+
+def test_jsonl_proxy_append_only_multiple_rows(tmp_path):
+    mod = _FakeWandbModule()
+    proxy = tr.LocalMetricsWandbProxy(mod, tmp_path / "run" / "metrics.jsonl")
+    proxy.log({"loss": 1.5, "name": "s"}, step=3)
+    proxy.log({"loss": 1.2}, step=4, commit=False, extra="x")
+    proxy.log({"m": 1}, step=None)
+    lines = proxy.jsonl_path.read_text().splitlines()
+    assert len(lines) == 3
+    rec0 = json.loads(lines[0])
+    assert rec0["schema"] == 1 and rec0["step"] == 3
+    assert rec0["commit"] is None and rec0["data"] == {"loss": 1.5, "name": "s"}
+    assert json.loads(lines[1])["commit"] is False
+    assert json.loads(lines[2])["step"] is None
+    for line in lines:
+        assert json.loads(line)["ts_utc"].endswith("+00:00")
+
+
+def test_jsonl_proxy_scalar_filtering_and_non_scalar_keys(tmp_path):
+    proxy = tr.LocalMetricsWandbProxy(
+        _FakeWandbModule(), tmp_path / "run" / "metrics.jsonl")
+    sentinel_table = object()
+    proxy.log({"exposure/z_table": sentinel_table,
+               "exposure/a_chart": object(),
+               "exposure/total_draws": 1024,
+               "exposure/mean": 0.92,
+               "exposure/tag": "x",
+               "exposure/null_v": None,
+               "exposure/bad_nan": float("nan")})
+    rec = json.loads(proxy.jsonl_path.read_text().splitlines()[0])
+    assert rec["data"] == {
+        "exposure/total_draws": 1024,
+        "exposure/mean": 0.92,
+        "exposure/tag": "x",
+        "exposure/null_v": None,
+    }
+    assert rec["non_scalar_keys"] == [
+        "exposure/a_chart", "exposure/bad_nan", "exposure/z_table"]
+
+
+def test_jsonl_proxy_fsync_real_file(tmp_path, monkeypatch):
+    fsynced = []
+    real_fsync = os.fsync
+
+    def spy(fd):
+        fsynced.append(fd)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", spy)
+    proxy = tr.LocalMetricsWandbProxy(
+        _FakeWandbModule(), tmp_path / "run" / "metrics.jsonl")
+    proxy.log({"x": 1}, step=0)
+    assert len(fsynced) == 1
+    # durable without any explicit close: a fresh read sees the line
+    assert json.loads(open(proxy.jsonl_path).read().splitlines()[0])[
+        "data"] == {"x": 1}
+    proxy.log({"y": 2}, step=1)
+    assert len(fsynced) == 2
+    assert len(proxy.jsonl_path.read_text().splitlines()) == 2
+
+
+def test_jsonl_proxy_exact_delegation_and_attrs(tmp_path):
+    mod = _FakeWandbModule()
+    proxy = tr.LocalMetricsWandbProxy(mod, tmp_path / "run" / "metrics.jsonl")
+    data = {"loss": 0.1}
+    out = proxy.log(data, step=7, commit=False, sync=False)
+    assert out == "logged"
+    (d, step, commit, kwargs), = mod.log_calls
+    assert d is data and step == 7 and commit is False
+    assert kwargs == {"sync": False}
+    # non-log attributes delegate unchanged
+    assert proxy.Table is mod.Table
+    assert proxy.Artifact is mod.Artifact
+    assert proxy.finish == mod.finish
+    # path lives under the run root
+    assert proxy.jsonl_path == tmp_path / "run" / "metrics.jsonl"
+    assert proxy.jsonl_path.parent == tmp_path / "run"
+
+
+def test_jsonl_proxy_write_failure_raises(tmp_path):
+    proxy = tr.LocalMetricsWandbProxy(
+        _FakeWandbModule(), tmp_path / "no_such_dir" / "run")
+    # constructor creates the parent; remove it to force a write failure
+    import shutil
+
+    shutil.rmtree(proxy.jsonl_path.parent)
+    with pytest.raises(OSError):
+        proxy.log({"x": 1})
 
 
 def test_script_resume_interface():

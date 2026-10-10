@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import sys
 from copy import deepcopy
@@ -449,6 +450,53 @@ def _latest_checkpoint_dir(save_dir):
     return candidates[-1] if candidates else None
 
 
+class LocalMetricsWandbProxy:
+    """Rank-0 wandb proxy: every log() call is first appended to a local
+    JSONL under the run dir, then delegated with the original arguments.
+
+    All non-log attributes (Table, Artifact, plot, log_artifact, finish, run)
+    delegate untouched to the wrapped module.
+    """
+
+    def __init__(self, module, jsonl_path):
+        self._module = module
+        self._jsonl_path = Path(jsonl_path)
+        self._jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def jsonl_path(self):
+        return self._jsonl_path
+
+    def __getattr__(self, name):
+        return getattr(self._module, name)
+
+    def log(self, data, step=None, commit=None, **kwargs):
+        scalars = {}
+        non_scalar = []
+        for key, value in data.items():
+            if value is None or isinstance(value, (bool, int, str)) or (
+                    isinstance(value, float) and math.isfinite(value)):
+                scalars[str(key)] = value
+            else:
+                non_scalar.append(str(key))
+        record = {
+            "schema": 1,
+            "ts_utc": _utcnow(),
+            "step": int(step) if step is not None else None,
+            "commit": commit,
+            "data": scalars,
+        }
+        if non_scalar:
+            record["non_scalar_keys"] = sorted(non_scalar)
+        line = json.dumps(record, sort_keys=True) + "\n"
+        # durable local metrics are required — any write failure propagates
+        with self._jsonl_path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return self._module.log(data, step=step, commit=commit, **kwargs)
+
+
 def _wandb_attach_rank0(trainer, args, manifest, wandb_run_id, resuming):
     """Rank-0-only wandb init + attach; other ranks keep enable_wandb False."""
     import wandb
@@ -463,7 +511,9 @@ def _wandb_attach_rank0(trainer, args, manifest, wandb_run_id, resuming):
         resume="must" if resuming else "never",
         config=manifest,
     )
-    trainer.wandb = wandb
+    run_dir = Path(args.run_root) / args.run_id
+    trainer.wandb = LocalMetricsWandbProxy(
+        wandb, run_dir / "metrics.jsonl")
     trainer.config.enable_wandb = True
 
 

@@ -10,11 +10,12 @@ The canonical model, data, objective, and evaluation settings remain in
 history and is not the launch checklist for this host.
 
 **Current state (2026-10-10): A100 data, environment, loader, production training,
-checkpoint, resume, WandB, and deterministic held-out-loss paths are implemented.
-Batch-64 and batch-16 qualification runs completed successfully. Validation smoke v1
-exposed and fixed unequal FSDP forward counts; v2 is running with equal padded rounds.
-The 4,000-step run has not started. Closed-loop initialization
-rollouts remain launch-blocking.**
+checkpoint, resume, local JSONL, WandB, exposure-ledger publishing, and deterministic
+held-out-loss paths are implemented. Batch-64 and batch-16 qualification runs completed
+successfully. Validation smoke v1 exposed and fixed unequal FSDP forward counts; v2
+completed end to end. The user explicitly deferred CPU simulator replay and closed-loop
+rollouts until after SFT so the A100s can be used for training. The 4,000-step run has
+not started.**
 
 ## Frozen experiment contract
 
@@ -33,9 +34,9 @@ rollouts remain launch-blocking.**
       and four MCP/IFP terms weighted `[0.5,0.25,0.15,0.1]`.
 - [x] Optimizer protocol: AdamW, BF16 parameters/activations, FP32 loss reductions,
       LR `1e-4`, 200 optimizer-step warmup, constant LR, maximum 4,000 optimizer steps.
-- [ ] Select the final effective batch. Batch 64 (eight ranks x eight accumulation
-      microsteps) and batch 16 (eight ranks x two microsteps) both passed 16-step
-      qualification; comparative noise evidence is recorded below.
+- [x] Select effective batch 16: eight ranks x two accumulation microsteps. Both batch
+      64 and batch 16 passed 16-step qualification; batch 16 is noisier but finite and
+      stable, and reduces the projected 4,000-step compute by approximately 4x.
 - [x] Sampling: uniform over tasks then uniform over episodes within a task; no length
       bucketing and no temporal segmentation.
 - [x] Checkpoints and inline validation: optimizer steps
@@ -62,12 +63,14 @@ part of the frozen scientific contract.
 - [ ] Save immutable machine evidence under the run root: hostname, UTC time,
       `nvidia-smi -q`, topology, driver, CUDA runtime, PyTorch, NCCL, FlashAttention,
       CPU, RAM, mount capacity, and Git revision/dirty state.
-- [ ] Run an eight-rank NCCL sanity test and record FP32 and BF16 64 MiB all-reduce
-      latency/bandwidth on this host.
-- [ ] Confirm no unrelated process uses GPU memory or compute immediately before each
+- [x] Run an eight-rank 64 MiB NCCL all-reduce benchmark: FP32 mean/p95
+      `0.750/0.913 ms`; BF16 mean/p95 `0.723/0.858 ms`; report saved in
+      `outputs/zero_wam/a100_preflight/nccl_allreduce_64mib.json`.
+- [x] Confirm no unrelated process uses GPU memory or compute immediately before each
       benchmark and launch.
 - [ ] Record the provider instance ID/type, hourly price, interruption policy, and
-      persistent-storage behavior without storing credentials.
+      persistent-storage behavior without storing credentials. Provider billing
+      metadata is not exposed in the host; this is a reporting gap, not a code gate.
 
 The prior H100 feasibility and topology results are historical evidence only. They do
 not satisfy any A100 benchmark or launch gate.
@@ -115,7 +118,9 @@ Expected immutable source prefixes:
 - [x] Download the pinned initialization checkpoint to
       `data/models/zero-wam-pretrain` (23 files, approximately 35 GB).
 - [x] Hash the complete model tree into each run's immutable config identity.
-- [ ] Exact-load audit the initialization checkpoint; require no missing, unexpected,
+- [x] Exact-load audit the initialization checkpoint: `WanICLTransformer3DModel`,
+      no missing, unexpected, mismatched, or error keys; evidence in
+      `outputs/zero_wam/a100_preflight/model_exact_load.json`.
       or mismatched model keys.
 - [x] Pin the executable training environment in `.venv-zero-wam`: Python 3.12,
       PyTorch 2.9.0+cu126, Transformers 4.55.2, Diffusers 0.36.0,
@@ -126,8 +131,8 @@ Expected immutable source prefixes:
       A100 compute capability 8.0.
 - [x] Set `PYTORCH_ALLOC_CONF=expandable_segments:True`.
 - [x] Set and record deterministic sampler and validation seeds.
-- [ ] Confirm all run outputs, checkpoints, logs, and WandB metadata are written to
-      storage that survives instance termination.
+- [x] Confirm run outputs, checkpoints, logs, and WandB metadata use `/root`'s
+      19-TiB mounted storage; 19 TiB available at final preflight.
 
 ## A100 production implementation
 
@@ -150,11 +155,13 @@ Expected immutable source prefixes:
       run produces the same next sample IDs, LR, and optimizer state after resume.
 - [x] Implement rank-0-only WandB logging with distributed metric reduction and
       `resume="must"`.
-- [ ] Implement append-only local JSONL metrics and tee stdout/stderr to durable logs.
+- [x] Implement append-only, fsync-per-row local `metrics.jsonl` and tee stdout/stderr
+      to durable `run.log`.
 - [x] Implement inline eight-rank deterministic validation at steps
       `0,500,1000,...,4000`.
-- [ ] Complete the live validation smoke proving validation performs no optimizer or
-      scheduler update and restores model mode, RNG, sampler, and loader state exactly.
+- [x] Complete `a100-validation-smoke-v2`: deterministic step-0 and step-1 reports,
+      one optimizer step, full checkpoint, clean WandB finish, and no state mutation
+      outside the intended optimizer update.
 - [ ] Add signal-aware shutdown: finish or discard the current microstep safely, save
       only at a clean optimizer boundary, and record the termination reason.
 - [x] Provide explicit start, status, stop, and staged resume commands suitable for an
@@ -225,6 +232,11 @@ Batch 16 is materially noisier but remained stable. Mean rank-max gaps increased
 selection must account for the changed exposure budget: 4,000 steps process 256,000
 episodes at batch 64 but 64,000 at batch 16.
 
+Decision: use batch 16 for the 4,000-step SFT run. The exact cumulative 64,000-draw
+mixture is persisted at every checkpoint as a 1,109-row ledger and published to WandB
+as episode/task tables, task bars, a count histogram, scalar coverage summaries, and a
+versioned JSON artifact.
+
 If the longest episodes do not fit, stop for an explicit scientific-protocol decision.
 Do not silently reduce the effective batch, shorten episodes, disable MCP/IFP, enable
 length bucketing, or change precision.
@@ -236,17 +248,21 @@ length bucketing, or change precision.
       manifest drift on rerun.
 - [x] Configure released-faithful conditioning: human latent and detailed human text on;
       short target-task text off.
-- [ ] Complete the active `a100-validation-smoke` run and publish initialization
+- [x] Complete `a100-validation-smoke-v2` and publish initialization
       validation loss at optimizer step 0 with overall,
       macro-task, and per-task metrics with the frozen manifest hash.
-- [ ] Implement and verify closed-loop evaluation for all five held-out task classes.
+- [ ] Implement and verify closed-loop evaluation for all five held-out task classes
+      after SFT. Explicitly deferred by the user on 2026-10-10 to prioritize A100
+      training; this no longer blocks the optimizer launch.
 - [ ] Freeze the 50-rollout manifest with simulator/model seeds, horizons, prompts,
       source hashes, and success predicates.
 - [ ] Replay packaged validation actions to prove each configured success predicate is
-      reachable.
+      reachable. A CPU replay was started then stopped at the user's request; media,
+      hashes, frame counts, and decode integrity are independently 50/50 verified.
 - [ ] Run all 50 initialization closed-loop rollouts before training.
 - [ ] Freeze initialization summaries and artifact hashes before allowing optimizer
-      step 1.
+      step 1. Deferred by explicit user decision; the post-SFT report must state that
+      no pre-SFT closed-loop baseline was collected.
 
 ## Final preflight
 
