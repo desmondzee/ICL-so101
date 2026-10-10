@@ -2,8 +2,9 @@
 
 Purpose: track the bounded changes made after the first 500 optimizer steps of
 `so101-sft-a100-b16-4k-20261010`. The current process remains unchanged through its
-first atomic checkpoint and deterministic validation at step 500. This document
-defines the continuation work; it does not retroactively change steps 1-500.
+first atomic checkpoint and deterministic validation at step 500. The v1 comparison
+will then start fresh from the same released initialization checkpoint; it will not
+resume the step-500 optimizer state because warmup and peak LR are changing.
 
 ## Current v0 run
 
@@ -35,16 +36,25 @@ defines the continuation work; it does not retroactively change steps 1-500.
 
 ## Planned v1 changes
 
-The v1 continuation changes observability only. It must not alter model parameters,
-optimizer state, LR/scheduler state, sampled-data sequence, RNG state, exposure
-counts, loss definitions, conditioning, effective batch, or total target step.
+The user froze the following v1 optimizer changes on 2026-10-10:
+
+- Peak LR: `1e-5` rather than `1e-4`.
+- Linear warmup: 10 steps rather than 200.
+- Start from the same `zero-wam-pretrain` initialization, seed, and initial sampler
+  state. Do not apply a new warmup to the v0 step-500 optimizer state.
+- Keep effective batch, data, losses, conditioning, flow schedules, dropout, MCP,
+  clipping, and task-balanced sampling unchanged so the optimizer change remains
+  interpretable.
+
+The v1 run also changes observability as follows:
 
 - [ ] Add explicit `--validation-interval`, default 500.
-- [ ] Set the v1 continuation validation interval to 100 optimizer steps.
+- [ ] Set the v1 validation interval to 100 optimizer steps, including steps 0, 100,
+      200, 300, 400, and 500.
 - [ ] Keep full resumable checkpoints at steps 500, 1000, ..., 4000.
-- [ ] Run validation independently of checkpoint writing at steps
-      600, 700, 800, 900, then every 100 steps through 4000.
-- [ ] Do not rewrite or duplicate the already-published step-0 or step-500 reports.
+- [ ] Run validation independently of checkpoint writing every 100 steps through
+      4000.
+- [ ] Keep v0 and v1 validation reports under separate immutable run roots.
 - [ ] Continue using the same frozen 50-episode validation manifest, per-episode seeds,
       conditioning, aggregation, and manifest hash.
 - [ ] Prove each validation pass restores model mode, RNG, scheduler, sampler, loader,
@@ -54,25 +64,16 @@ counts, loss definitions, conditioning, effective batch, or total target step.
 - [ ] Keep checkpoint selection restricted to full 500-step checkpoints unless a
       separate model snapshot policy is explicitly approved.
 
-## Resume compatibility
+## Comparison identity
 
-The current config identity includes the Git revision and dirty-diff hash. A code
-change therefore intentionally fails strict resume unless it is handled as an audited
-compatible migration.
-
-- [ ] Separate the immutable scientific/training identity from the operational-code
-      identity without weakening checks on data, model, optimizer, scheduler,
-      conditioning, sampler, batch, LR, or losses.
-- [ ] Define a one-time migration record containing old/new Git revisions, old/new
-      config hashes, checkpoint path, training-state hash, and the exact allowed
-      observability-only diff.
-- [ ] Require an explicit CLI migration flag naming that record; never silently accept
-      config drift.
-- [ ] Load and verify step-500 model/optimizer/scheduler/RNG/sampler/exposure state.
-- [ ] Prove the next sampled episode IDs and LR match the uninterrupted expectation.
-- [ ] Resume the same WandB ID with `resume="must"`.
-- [ ] Preserve the original run ID or record an explicit linked continuation ID; do
-      not create an unlinked metric series.
+- [ ] Create a new run ID and WandB run linked to v0 as an LR/warmup comparison.
+- [ ] Require a new config hash; never treat v1 as a strict resume of v0.
+- [ ] Exact-load the same initialization checkpoint used by v0.
+- [ ] Prove initial model hash, sampler seed/order, validation manifest, and step-0
+      validation are identical to v0.
+- [ ] Record only these intended scientific differences: peak LR `1e-5`, warmup 10,
+      and validation interval 100.
+- [ ] Compare v0 and v1 at equal optimizer steps and equal episode exposure.
 
 ## v1 validation gates
 
@@ -80,7 +81,7 @@ compatible migration.
       no duplicate execution at checkpoint boundaries.
 - [ ] Unit-test that checkpoint interval remains 500 when validation interval is 100.
 - [ ] Unit-test exact state restoration around non-checkpoint validation.
-- [ ] Run an eight-rank continuation smoke from a disposable checkpoint.
+- [ ] Run an eight-rank fresh-run smoke with peak LR `1e-5` and warmup 10.
 - [ ] Confirm one non-checkpoint validation report and WandB row.
 - [ ] Confirm exact exposure counts are unchanged by validation.
 - [ ] Confirm no full checkpoint is written at a validation-only boundary.
@@ -101,11 +102,11 @@ compatible migration.
 
 ## v1 launch record
 
-- Old/new Git revisions: `____________________________________________________`
-- Migration record path/SHA256: `____________________________________________`
-- Resume checkpoint: `_______________________________________________________`
-- Continuation command: `____________________________________________________`
+- Code revision: `____________________________________________________________`
+- New config SHA256: `________________________________________________________`
+- Initialization checkpoint/hash: `___________________________________________`
+- Fresh launch command: `_____________________________________________________`
 - UTC resume time: `__________________________________________________________`
-- Run/WandB IDs: `____________________________________________________________`
-- First resumed sample IDs/LR verification: `_______________________________`
+- New run/WandB IDs: `________________________________________________________`
+- Initial sample IDs/LR verification: `_______________________________________`
 - First validation-only step/report: `_______________________________________`
