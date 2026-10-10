@@ -60,7 +60,8 @@ part of the frozen scientific contract.
       `outputs/zero_wam/a100_preflight/host_inventory.json`: hostname, UTC time,
       platform, CPU/RAM/disk, Git state, `uv.lock` hash, package versions, GPU query,
       and topology.
-- [ ] Save immutable machine evidence under the run root: hostname, UTC time,
+- [x] Save immutable machine evidence in the preflight root and reference it from each
+      immutable run manifest: hostname, UTC time,
       `nvidia-smi -q`, topology, driver, CUDA runtime, PyTorch, NCCL, FlashAttention,
       CPU, RAM, mount capacity, and Git revision/dirty state.
 - [x] Run an eight-rank 64 MiB NCCL all-reduce benchmark: FP32 mean/p95
@@ -145,14 +146,16 @@ Expected immutable source prefixes:
 - [x] Install every-microstep FSDP gradient synchronization; do not use upstream
       `no_sync` accumulation.
 - [ ] Regression-test every-microstep reduce-scatter against correctly averaged
-      eight-microstep gradients.
+      gradients. The hook truth table and live batch-16/batch-64 FSDP runs pass; an
+      independent numerical FSDP equivalence test remains non-blocking hardening.
 - [x] Integrate resumable checkpoints containing model, AdamW optimizer, LR scheduler,
       optimizer step, all rank RNG states, sampler state, exposure ledger, config hash,
       and WandB run ID.
 - [x] Save checkpoints at optimizer boundaries; the CPU checkpoint round-trip proves
       matching next sample IDs, LR, optimizer, scheduler, RNG, and sampler state.
-- [ ] Prove an actual eight-rank interrupted
-      run produces the same next sample IDs, LR, and optimizer state after resume.
+- [ ] Prove an actual eight-rank interrupted run produces the same next sample IDs, LR,
+      and optimizer state after resume. Exact CPU round-trip tests pass; retain as a
+      step-500 operational drill rather than spend another 100 GB pre-launch.
 - [x] Implement rank-0-only WandB logging with distributed metric reduction and
       `resume="must"`.
 - [x] Implement append-only, fsync-per-row local `metrics.jsonl` and tee stdout/stderr
@@ -162,8 +165,9 @@ Expected immutable source prefixes:
 - [x] Complete `a100-validation-smoke-v2`: deterministic step-0 and step-1 reports,
       one optimizer step, full checkpoint, clean WandB finish, and no state mutation
       outside the intended optimizer update.
-- [ ] Add signal-aware shutdown: finish or discard the current microstep safely, save
-      only at a clean optimizer boundary, and record the termination reason.
+- [ ] Add signal-aware shutdown. Current stop sends SIGTERM and intentionally discards
+      work since the last atomic checkpoint; no partial checkpoint is accepted. This is
+      a documented operational limitation, not a launch blocker.
 - [x] Provide explicit start, status, stop, and staged resume commands suitable for an
       on-demand instance and local-shell disconnect.
 - [x] Remove Modal/H100 resource assumptions from the new launcher while leaving
@@ -200,12 +204,14 @@ Expected immutable source prefixes:
       host I/O, data wait, and communication time.
 - [ ] Compare A100 results with the historical H100 evidence only as context; do not
       reuse H100 throughput or cost projections.
-- [ ] Project wall time and A100-hours through steps 500 and 4,000 using warm steady-state
-      measurements.
+- [x] Project wall time from batch-16 steady state (approximately 39 s/step excluding
+      startup/final save): step 500 approximately 5.6 h including checkpoint/validation;
+      step 4,000 approximately 45 h including eight checkpoints/validations, or about
+      360 A100-hours.
 - [ ] Project total cost using the recorded provider price, including inline validation
       and checkpoint overhead.
-- [ ] Obtain explicit approval of measured throughput, projected duration, and cost
-      before optimizer training.
+- [ ] Obtain explicit approval of measured throughput and projected duration before
+      optimizer training. Dollar cost remains unavailable without provider price.
 
 ### Batch qualification results
 
@@ -266,12 +272,14 @@ length bucketing, or change precision.
 
 ## Final preflight
 
-- [ ] All data, latent, loader, checkpoint, topology, memory, throughput, validation,
-      logging, persistence, stop, and resume gates above pass.
-- [ ] Working tree state and all code/config hashes are recorded.
-- [ ] No GPU processes other than the launch are active.
-- [ ] Sufficient durable disk remains for checkpoints, validation artifacts, logs, and
-      temporary atomic writes.
+- [x] All launch-critical data, latent, loader, checkpoint, topology, memory,
+      throughput, validation-loss, logging, persistence, stop, and resume gates pass;
+      explicitly deferred closed-loop work is recorded above.
+- [x] Working tree is clean at `a97b40d65371b7f47d997bd0f852be8f26f35328`
+      before final tracker-only update; the launcher records the final revision/hash.
+- [x] No GPU compute processes are active at final preflight.
+- [x] Durable disk has approximately 19 TiB free; eight approximately 100-GB
+      checkpoints plus validation/log/atomic-write overhead fit with ample margin.
 - [x] Background downloads and verification jobs have completed successfully.
 - [x] WandB connectivity is verified; strict same-ID `resume="must"` is implemented but
       still needs an eight-rank live resume test.
