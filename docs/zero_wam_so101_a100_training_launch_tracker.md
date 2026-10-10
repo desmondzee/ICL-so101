@@ -301,19 +301,25 @@ length bucketing, or change precision.
 | `a100-validation-smoke` | 16 | Stopped after diagnosing an NCCL timeout: 50 samples assigned 7 calls to two ranks and 6 to six ranks, violating equal FSDP collective counts | run `a3518ee8` |
 | `a100-validation-smoke-v2` | 16 | Running with seven forward calls per rank; six duplicate padding calls are excluded from the 50-sample report | run ID pending |
 
-- [ ] Launch command:
-      `________________________________________________________________________`
-- [ ] UTC launch time: `________________________________________________________`
+- [x] Launch command:
+      `scripts/run_zero_wam_so101_a100.sh start so101-sft-a100-b16-4k-20261010 4000 2`
+- [x] UTC launch time: `2026-10-10T13:43Z`
 - [ ] Provider instance ID/type: `______________________________________________`
-- [ ] Git revision and dirty-state hash: `______________________________________`
-- [ ] Frozen config SHA256: `__________________________________________________`
-- [ ] Validation manifest SHA256: `____________________________________________`
-- [ ] Run root: `______________________________________________________________`
-- [ ] Log path: `______________________________________________________________`
-- [ ] Supervisor/session/service ID: `_________________________________________`
-- [ ] WandB run ID: `__________________________________________________________`
-- [ ] Initialization checkpoint audit: `______________________________________`
-- [ ] Optimizer training started.
+- [x] Git revision and dirty-state hash:
+      `9c9dc6eaa66896c4687edbe47d924c0f247d6a32`, clean,
+      `24279653f668b90cc0dd492bd1ea600ff10c08492c5951f31df1562910548de1`.
+- [x] Frozen config SHA256:
+      `e489e7fc9788cf1814946838dc56d5e55c394d9bb915244124b9c81ed361f61f`.
+- [ ] Validation manifest SHA256: written after the live step-0 validation begins.
+- [x] Run root:
+      `outputs/zero_wam/sim_training/so101-sft-a100-b16-4k-20261010`.
+- [x] Log path:
+      `outputs/zero_wam/sim_training/so101-sft-a100-b16-4k-20261010/run.log`.
+- [x] Supervisor/session/service ID: detached torchrun PID `477818`.
+- [x] WandB run ID: `83281560`.
+- [x] Initialization checkpoint audit:
+      `outputs/zero_wam/a100_preflight/model_exact_load.json`, `ok=true`.
+- [x] Optimizer training started.
 
 ## Live monitoring
 
