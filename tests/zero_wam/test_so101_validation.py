@@ -6,6 +6,7 @@ import torch
 from zero_wam.so101_validation import (
     _action_endpoint_metrics,
     _aggregate,
+    _gripper_binary_metrics,
     build_validation_manifest,
     deterministic_seed,
     distributed_validation_schedule,
@@ -80,7 +81,10 @@ def test_aggregate_macro_is_equal_task_weighted():
                 "mcp_weighted_total": value + 2, "total": value + 3,
                 "action_endpoint": {
                     "normalized": {"mae": value / 10, "rmse": value / 5},
-                    "gripper_binary_accuracy": 1.0,
+                    "gripper_binary": {
+                        "closed_tp": 4, "closed_fp": 1,
+                        "closed_tn": 4, "closed_fn": 1,
+                    },
                     "physical_by_channel": {
                         name: {"mae": value, "rmse": value + 1}
                         for name in (
@@ -103,6 +107,8 @@ def test_aggregate_macro_is_equal_task_weighted():
     assert result["overall"]["video_loss"]["q05"] == 1.0
     assert result["overall"]["video_loss"]["q95"] == 3.0
     assert result["action_endpoint"]["normalized_mae"]["median"] == 0.2
+    assert result["action_endpoint"]["gripper_binary"][
+        "matthews_correlation"] == pytest.approx(0.6)
 
 
 def test_action_endpoint_metrics_physical_units_offsets_and_gripper():
@@ -127,7 +133,19 @@ def test_action_endpoint_metrics_physical_units_offsets_and_gripper():
     assert result["physical_by_channel"]["shoulder_pan_deg"]["mae"] == pytest.approx(10)
     assert result["physical_by_channel"]["gripper_0_100"]["mae"] == pytest.approx(5)
     assert len(result["normalized_by_control_offset"]) == 16
-    assert result["gripper_binary_accuracy"] == 0.0
+    assert result["gripper_binary"]["accuracy"] == 0.0
+    assert result["gripper_binary"]["closed_fn"] == 16
+
+
+def test_gripper_mcc_exposes_majority_accuracy():
+    result = _gripper_binary_metrics({
+        "closed_tp": 0, "closed_fp": 0, "closed_tn": 97, "closed_fn": 3,
+    })
+    assert result["accuracy"] == pytest.approx(0.97)
+    assert result["majority_baseline_accuracy"] == pytest.approx(0.97)
+    assert result["closed_recall"] == 0.0
+    assert result["macro_f1"] < 0.5
+    assert result["matthews_correlation"] == 0.0
 
 
 def test_distributed_schedule_pads_equal_fsdp_forward_counts():

@@ -76,6 +76,13 @@ The v1 run also changes observability as follows:
       and gripper 0-100 units.
 - [x] Report normalized MAE/RMSE separately for control offsets 0-15 and binary
       gripper open/close accuracy.
+- [x] Replace raw gripper accuracy as the primary binary metric with aggregate
+      Matthews correlation coefficient (MCC), using closed as the positive class.
+      Also retain TP/FP/TN/FN, class prevalence, majority baseline, class-specific
+      precision/recall/F1, macro F1, and balanced accuracy.
+- [ ] Recompute the expanded class-balanced gripper metrics for the retained v1
+      checkpoint; the already-running process loaded the earlier accuracy-only
+      evaluator before this metric was added.
 - [x] Publish the principal action endpoint and loss quantiles to local JSONL and
       WandB; retain the full per-episode/channel/offset detail in validation JSON.
 - [x] Treat one-step clean-action reconstruction as a diagnostic, not a substitute
