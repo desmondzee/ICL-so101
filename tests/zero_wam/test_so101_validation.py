@@ -6,6 +6,7 @@ from zero_wam.so101_validation import (
     _aggregate,
     build_validation_manifest,
     deterministic_seed,
+    distributed_validation_schedule,
     freeze_validation_manifest,
     manifest_sha256,
 )
@@ -80,3 +81,12 @@ def test_aggregate_macro_is_equal_task_weighted():
     assert result["overall"]["video_loss"]["mean"] == 2.0
     assert result["per_task"]["a"]["total"] == 4.0
     assert result["per_task"]["b"]["total"] == 6.0
+
+
+def test_distributed_schedule_pads_equal_fsdp_forward_counts():
+    schedules = [distributed_validation_schedule(50, 8, rank) for rank in range(8)]
+    assert {len(schedule) for schedule in schedules} == {7}
+    real = [slot["source_position"] for schedule in schedules
+            for slot in schedule if not slot["padding"]]
+    assert sorted(real) == list(range(50))
+    assert sum(slot["padding"] for schedule in schedules for slot in schedule) == 6

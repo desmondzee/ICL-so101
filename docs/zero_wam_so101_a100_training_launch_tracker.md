@@ -11,8 +11,9 @@ history and is not the launch checklist for this host.
 
 **Current state (2026-10-10): A100 data, environment, loader, production training,
 checkpoint, resume, WandB, and deterministic held-out-loss paths are implemented.
-Batch-64 and batch-16 qualification runs completed successfully. A one-step validation
-smoke is running; the 4,000-step run has not started. Closed-loop initialization
+Batch-64 and batch-16 qualification runs completed successfully. Validation smoke v1
+exposed and fixed unequal FSDP forward counts; v2 is running with equal padded rounds.
+The 4,000-step run has not started. Closed-loop initialization
 rollouts remain launch-blocking.**
 
 ## Frozen experiment contract
@@ -273,7 +274,8 @@ length bucketing, or change precision.
 | `a100-multihour-16step` | 64 | Success: 16/16 steps, no nonfinite/skipped step, full resumable checkpoint | run `352ef90f` |
 | `a100-multihour-64step` | 64 | Intentionally stopped around step 7 to avoid redundant qualification compute; no checkpoint | run `8663a6b8` |
 | `a100-batch16-16step` | 16 | Success: 16/16 steps, no nonfinite/skipped step, full resumable checkpoint | run `66709412` |
-| `a100-validation-smoke` | 16 | Running: deterministic step-0 validation, one train step, checkpoint, step-1 validation | run `a3518ee8` |
+| `a100-validation-smoke` | 16 | Stopped after diagnosing an NCCL timeout: 50 samples assigned 7 calls to two ranks and 6 to six ranks, violating equal FSDP collective counts | run `a3518ee8` |
+| `a100-validation-smoke-v2` | 16 | Running with seven forward calls per rank; six duplicate padding calls are excluded from the 50-sample report | run ID pending |
 
 - [ ] Launch command:
       `________________________________________________________________________`

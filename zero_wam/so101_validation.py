@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import random
 import types
@@ -145,6 +146,21 @@ def _batch(item: dict) -> dict:
             for key, value in item.items()}
 
 
+def distributed_validation_schedule(num_samples: int, world: int, rank: int):
+    """Equal-length per-rank schedule required by FSDP forward collectives."""
+    if num_samples <= 0 or world <= 0 or not 0 <= rank < world:
+        raise ValueError("invalid distributed validation dimensions")
+    rounds = math.ceil(num_samples / world)
+    return [
+        {
+            "source_position": (round_index * world + rank) % num_samples,
+            "padding": round_index * world + rank >= num_samples,
+            "round": round_index,
+        }
+        for round_index in range(rounds)
+    ]
+
+
 def _evaluate_one(trainer, item, seed: int):
     _seed_everything(seed)
     with torch.no_grad():
@@ -212,11 +228,22 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
     trainer.config.drop_icl = 0.0
     local_rows = []
     try:
-        for position in range(rank, len(manifest["samples"]), world):
-            spec = manifest["samples"][position]
+        # FSDP forward executes collectives, so every rank must make the same
+        # number of model calls. Pad the final distributed round to world size
+        # and discard those duplicate rows from the reported 50.
+        schedule = distributed_validation_schedule(
+            len(manifest["samples"]), world, rank)
+        for slot in schedule:
+            round_index = slot["round"]
+            is_padding = slot["padding"]
+            source_position = slot["source_position"]
+            spec = manifest["samples"][source_position]
             item = dataset[_dataset_index(dataset, spec["task"], spec["episode_index"])]
             values = _evaluate_one(trainer, item, spec["random_seed"])
-            local_rows.append({**spec, **values, "rank": rank})
+            local_rows.append({
+                **spec, **values, "rank": rank, "padding": is_padding,
+                "validation_round": round_index,
+            })
     finally:
         trainer.config.drop_icl = drop_icl_before
         trainer.transformer.train(was_training)
@@ -228,7 +255,7 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
 
     gathered = [None] * world
     dist.all_gather_object(gathered, local_rows)
-    rows = sorted([row for shard in gathered for row in shard],
+    rows = sorted([row for shard in gathered for row in shard if not row["padding"]],
                   key=lambda row: row["sample_id"])
     if len(rows) != 50 or len({row["sample_id"] for row in rows}) != 50:
         raise RuntimeError("validation did not produce exactly 50 unique samples")
