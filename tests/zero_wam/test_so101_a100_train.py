@@ -218,13 +218,15 @@ def test_failed_payload():
 def test_run_manifest_accumulation_values(tmp_path):
     manifest = tr.build_run_manifest(
         args=_ns(gradient_accumulation_steps=2), config_sha="c",
-        wandb_run_id="w1", preflight_dir=Path("outputs/zero_wam"),
+        wandb_run_id="w1", scientific_config={"hyperparameters": {"x": 1}},
+        preflight_dir=Path("outputs/zero_wam"),
     )
     assert manifest["gradient_accumulation_steps"] == 2
     assert manifest["effective_batch"] == 16
     assert manifest["learning_rate"] == 1e-4
     assert manifest["warmup_steps"] == 200
     assert manifest["validation_interval"] == 500
+    assert manifest["scientific_config"]["hyperparameters"]["x"] == 1
 
 
 def test_run_manifest_nonsecret(tmp_path):

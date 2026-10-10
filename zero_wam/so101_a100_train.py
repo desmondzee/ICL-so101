@@ -256,7 +256,8 @@ def load_resume_metadata(run_dir, config_sha):
 
 
 def build_run_manifest(
-    *, args, config_sha, wandb_run_id, preflight_dir=PREFLIGHT_ARTIFACTS
+    *, args, config_sha, wandb_run_id, scientific_config=None,
+    preflight_dir=PREFLIGHT_ARTIFACTS
 ):
     """Nonsecret launch manifest persisted under the run root."""
     return {
@@ -264,6 +265,7 @@ def build_run_manifest(
         "run_id": args.run_id,
         "created_utc": _utcnow(),
         "config_sha256": config_sha,
+        "scientific_config": scientific_config,
         "wandb_run_id": wandb_run_id,
         "wandb": {
             "project": args.wandb_project,
@@ -612,6 +614,7 @@ def main(argv=None):
                 manifest = build_run_manifest(
                     args=args, config_sha=config_sha,
                     wandb_run_id=wandb_run_id_local,
+                    scientific_config=payload,
                 )
                 atomic_write_json(run_dir / "run_manifest.json", manifest)
                 (run_dir / "wandb_run_id.txt").write_text(
