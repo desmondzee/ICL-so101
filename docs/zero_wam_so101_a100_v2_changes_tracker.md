@@ -106,13 +106,25 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 - [ ] Retain the frozen 50-episode, five-task validation manifest and deterministic
       per-episode seeds.
 - [ ] Retain q05, median, q95, mean, standard deviation, min, and max for all losses.
-- [ ] Retain clean-action endpoint normalized MAE/RMSE.
+- [ ] Retain one-forward clean-action endpoint MAE/RMSE only as a teacher-forced
+      flow-denoising diagnostic. It receives noisy target actions and a clean
+      target-action conditioning stream, so it is not the primary controller metric.
 - [ ] Retain per-joint MAE/RMSE in degrees for all five joints.
 - [ ] Retain gripper MAE/RMSE in physical 0-100 units.
 - [ ] Retain action error by control offset 0-15.
 - [ ] Publish per-channel mean/q05/median/q95 metrics to WandB.
 - [ ] Recompute the updated continuous physical metrics for v1 step 500 before final
       v1-v2 comparison.
+- [ ] Before checkpoint selection, run recorded-observation generative action
+      validation through the exact deployment cache/inference path: seeded Gaussian
+      action noise, 50 action-denoising steps, and no target actions beyond previously
+      executed history available at the chunk boundary.
+- [ ] Freeze sample/chunk anchors and noise seeds in an immutable manifest. Compare
+      each generated 16-control chunk against the held-out demonstration and report
+      normalized and per-channel physical MAE/RMSE, offsets 0-15, per-task aggregates,
+      and the executable 16-control persistence baseline.
+- [ ] Evaluate initialization and every candidate checkpoint with the same generative
+      manifest before selecting a checkpoint.
 - [ ] Treat closed-loop rollout success as deferred; do not equate validation loss
       with task success.
 
