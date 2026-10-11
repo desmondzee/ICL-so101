@@ -115,11 +115,11 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 - [ ] Publish per-channel mean/q05/median/q95 metrics to WandB.
 - [ ] Recompute the updated continuous physical metrics for v1 step 500 before final
       v1-v2 comparison.
-- [ ] Before checkpoint selection, run recorded-observation generative action
+- [x] Before checkpoint selection, run recorded-observation generative action
       validation through the exact deployment cache/inference path: seeded Gaussian
       action noise, 50 action-denoising steps, and no target actions beyond previously
       executed history available at the chunk boundary.
-- [ ] Match deployment chunk-causal attention exactly:
+- [x] Match deployment chunk-causal attention exactly:
       - keep the full, separate human ICL demonstration visible;
       - cache only held-out robot observations and executed actions strictly before the
         scoring boundary;
@@ -128,18 +128,18 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
       - allow those 16 noisy tokens to attend bidirectionally within the jointly
         denoised chunk;
       - reveal the 16 target actions only after generation, for metric computation.
-- [ ] Treat each frozen boundary as an independent single-chunk, open-loop action
+- [x] Treat each frozen boundary as an independent single-chunk, open-loop action
       validation: generate and score exactly one 16-control chunk, then stop. Do not
       execute the actions, advance the environment, reveal the next observation, or
       interpret this metric as rollout success.
-- [ ] Reuse the human ICL cache and each boundary's robot-prefix cache across all 50
+- [x] Reuse the human ICL cache and each boundary's robot-prefix cache across all 50
       action-denoising steps. Parallelize independent boundaries where possible without
       changing the deployed cache or attention semantics.
-- [ ] Freeze sample/chunk anchors and noise seeds in an immutable manifest. Compare
+- [x] Freeze sample/chunk anchors and noise seeds in an immutable manifest. Compare
       each generated 16-control chunk against the held-out demonstration and report
       normalized and per-channel physical MAE/RMSE, offsets 0-15, per-task aggregates,
       and the executable 16-control persistence baseline.
-- [ ] Evaluate initialization and every candidate checkpoint with the same generative
+- [x] Evaluate initialization and every candidate checkpoint with the same generative
       manifest before selecting a checkpoint.
 - [ ] Treat closed-loop rollout success as deferred; do not equate validation loss
       with task success.
@@ -217,3 +217,19 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 - Final checkpoint hashes: `__________________________________________________`
 - Bucket verification: `______________________________________________________`
 - Decision and rationale: `__________________________________________________`
+
+### Corrected chunk-causal validation
+
+- Manifest:
+  `87fe453cc14a6d5f40085a6f234863ccb6c3d39ccb0f5aa003c76a9a296da937`
+- Persistence mean physical MAE: `1.42046`
+- Initialization: `12.19111`
+- V0 step 500: `1.08292`
+- V1 step 500: `0.67502`
+- V2b step 500: `0.67196`
+- V2b-minus-V1 paired mean: `-0.00306`; bootstrap 95% interval
+  `[-0.02212, 0.01553]`
+- Conclusion: V1 and V2b are tied overall at step 500. V2b improves four arm-joint
+  MAEs but regresses wrist-roll and gripper MAE relative to V1.
+- Full report:
+  `docs/results/zero_wam_chunk_causal_validation/report.md`
