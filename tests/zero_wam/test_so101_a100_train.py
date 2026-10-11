@@ -25,6 +25,7 @@ def _ns(**kw):
         validation_interval=500, learning_rate=1e-4, warmup_steps=200,
         resume_from=None, seed=42, wandb_project="p", wandb_group="g",
         disable_wandb=False, gradient_accumulation_steps=8,
+        lr_scheduler="constant", final_learning_rate=0.0,
     )
     base.update(kw)
     import argparse
@@ -106,6 +107,11 @@ def test_config_identity_excludes_num_steps(tmp_path):
     a = tr.config_sha256(_identity(tmp_path, num_steps=4000))
     b = tr.config_sha256(_identity(tmp_path, num_steps=8000))
     assert a == b
+    cosine_a = tr.config_sha256(
+        _identity(tmp_path, num_steps=1000, lr_scheduler_type="cosine"))
+    cosine_b = tr.config_sha256(
+        _identity(tmp_path, num_steps=2000, lr_scheduler_type="cosine"))
+    assert cosine_a != cosine_b
 
 
 def test_config_identity_changes_on_inputs(tmp_path):
@@ -144,6 +150,76 @@ def test_config_identity_records_effective_batch(tmp_path):
     p = _identity(tmp_path, gradient_accumulation_steps=2)
     assert p["hyperparameters"]["gradient_accumulation_steps"] == 2
     assert p["hyperparameters"]["effective_batch"] == 16
+
+
+def test_config_identity_changes_on_scheduler_and_final_lr(tmp_path):
+    base = tr.config_sha256(_identity(tmp_path))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, lr_scheduler_type="cosine"))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, final_learning_rate=1e-6))
+    p = _identity(tmp_path, lr_scheduler_type="cosine",
+                  final_learning_rate=1e-6)
+    assert p["hyperparameters"]["lr_scheduler_type"] == "cosine"
+    assert p["hyperparameters"]["final_learning_rate"] == 1e-6
+
+
+# ---- lr_multiplier ------------------------------------------------------------
+
+
+def _v2(step):
+    return tr.lr_multiplier(
+        step, scheduler_type="cosine", warmup_steps=10, total_steps=1000,
+        peak_lr=1e-5, final_lr=1e-6)
+
+
+def test_lr_multiplier_exact_schedule():
+    import math as _m
+
+    assert _v2(0) == pytest.approx(0.1)           # update 1: 1/warmup
+    assert _v2(5) == pytest.approx(0.6)
+    assert _v2(9) == pytest.approx(1.0)           # update 10: peak
+    # first post-warmup update: progress 1/990
+    assert _v2(10) == pytest.approx(
+        0.1 + 0.9 * 0.5 * (1.0 + _m.cos(_m.pi * (1 / 990))))
+    # step 504: progress 495/990 = 0.5 -> cos term zero
+    assert _v2(504) == pytest.approx(0.1 + 0.9 * 0.5)
+    # step 998: progress 989/990, near final
+    assert _v2(998) == pytest.approx(
+        0.1 + 0.9 * 0.5 * (1.0 + _m.cos(_m.pi * (989 / 990))))
+    assert _v2(999) == pytest.approx(0.1)         # update 1000: final LR
+
+
+def test_lr_multiplier_constant_and_warmup():
+    m = tr.lr_multiplier
+    kw = dict(scheduler_type="constant", warmup_steps=10, total_steps=1000,
+              peak_lr=1e-4, final_lr=0.0)
+    assert m(0, **kw) == pytest.approx(0.1)
+    assert m(9, **kw) == pytest.approx(1.0)
+    assert m(10, **kw) == pytest.approx(1.0)
+    assert m(999, **kw) == pytest.approx(1.0)
+    # zero warmup: first update is peak
+    assert tr.lr_multiplier(
+        0, scheduler_type="constant", warmup_steps=0, total_steps=100,
+        peak_lr=1e-4, final_lr=0.0) == pytest.approx(1.0)
+
+
+def test_lr_multiplier_rejects_invalid():
+    m = tr.lr_multiplier
+    kw = dict(scheduler_type="cosine", warmup_steps=10, total_steps=1000,
+              peak_lr=1e-5, final_lr=1e-6)
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "final_lr": 2e-5})          # final > peak
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "peak_lr": 0.0})            # nonpositive peak
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "final_lr": -1e-6})         # negative final
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "warmup_steps": 1000})      # warmup >= total
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "warmup_steps": -1})
+    with pytest.raises(ValueError):
+        m(0, **{**kw, "scheduler_type": "linear"})
 
 
 # ---- run-directory gating -----------------------------------------------------
@@ -239,6 +315,9 @@ def test_run_manifest_nonsecret(tmp_path):
     assert manifest["wandb_run_id"] == "w1"
     assert manifest["gradient_accumulation_steps"] == 8
     assert manifest["effective_batch"] == 64
+    assert manifest["lr_scheduler_type"] == "constant"
+    assert manifest["final_learning_rate"] == 0.0
+    assert manifest["lr_schedule_steps"] is None
     for marker in ("WANDB_API_KEY", "api_key", "token", "secret"):
         assert marker not in text
     assert manifest["preflight_artifacts"]["host_inventory"].endswith(
@@ -260,7 +339,11 @@ def test_script_exists_and_contract():
     assert "--standalone --nproc_per_node=8" in s
     assert '--gradient-accumulation-steps "$accum_steps"' in s
     assert 'accum_steps="${3:-8}"' in s
-    assert "[NUM_STEPS] [ACCUM_STEPS]" in s
+    assert '[NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR]' in s
+    assert '--lr-scheduler "$scheduler"' in s
+    assert '--final-learning-rate "$final_lr"' in s
+    assert 'scheduler="${7:-constant}"' in s
+    assert 'final_lr="${8:-0.0}"' in s
     assert "expandable_segments:True" in s
     assert "TOKENIZERS_PARALLELISM=false" in s
     assert "nohup" in s and "run.pid" in s

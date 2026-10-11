@@ -35,6 +35,38 @@ CAMERAS = ("observation.images.front", "observation.images.wrist")
 HEIGHT, WIDTH, ACTION_DIM, ACTION_PER_FRAME = 224, 288, 30, 8
 ACTION_LAYOUT = (14, 14, 2)
 
+def lr_multiplier(step, *, scheduler_type, warmup_steps, total_steps,
+                  peak_lr, final_lr):
+    """One-indexed warmup + constant/cosine decay multiplier for LambdaLR.
+
+    Warmup update `w` (LambdaLR step w-1) reaches w/warmup_steps; cosine
+    progress 0 starts at the first post-warmup step and 1 at total_steps-1.
+    """
+    step = int(step)
+    warmup_steps = int(warmup_steps)
+    total_steps = int(total_steps)
+    if not 0 <= final_lr <= peak_lr or peak_lr <= 0:
+        raise ValueError(
+            f"need 0 <= final_lr <= peak_lr and peak_lr > 0, got "
+            f"final_lr={final_lr} peak_lr={peak_lr}")
+    if not 0 <= warmup_steps < total_steps:
+        raise ValueError(
+            f"need 0 <= warmup_steps < total_steps, got "
+            f"warmup_steps={warmup_steps} total_steps={total_steps}")
+    if scheduler_type not in {"constant", "cosine"}:
+        raise ValueError(f"unknown scheduler_type: {scheduler_type!r}")
+    if step < warmup_steps:
+        return float(step + 1) / float(max(1, warmup_steps))
+    if scheduler_type == "constant":
+        return 1.0
+    progress = min(
+        max((step - warmup_steps + 1) / (total_steps - warmup_steps), 0.0),
+        1.0)
+    minimum = final_lr / peak_lr
+    return minimum + (1.0 - minimum) * 0.5 * (1.0 + math.cos(
+        math.pi * progress))
+
+
 # run-dir files the wrapper script legitimately creates before python starts
 _INFRA_FILES = {"run.log", "run.pid"}
 _RUN_SENTINELS = {
@@ -140,16 +172,19 @@ def config_identity_payload(
     learning_rate=1e-4,
     warmup_steps=200,
     validation_interval=500,
+    lr_scheduler_type="constant",
+    final_learning_rate=0.0,
     num_steps=None,
     save_interval=None,
     repo_root=REPO_ROOT,
 ):
     """Canonical dict covering scientific settings + immutable input identity.
 
-    `num_steps` is deliberately excluded from the hash payload so a run can be
-    resumed to a later target; it is still recorded in the manifest.
+    `num_steps` is excluded for constant-LR runs so they can be extended. It is
+    part of cosine-schedule identity because changing it changes every decay LR.
     """
-    del num_steps  # excluded by contract
+    schedule_steps = (
+        int(num_steps) if str(lr_scheduler_type) == "cosine" else None)
     return {
         "schema": 1,
         "inputs": {
@@ -198,6 +233,9 @@ def config_identity_payload(
             "gc_interval": 50,
             "save_interval": save_interval,
             "validation_interval": int(validation_interval),
+            "lr_scheduler_type": str(lr_scheduler_type),
+            "final_learning_rate": float(final_learning_rate),
+            "lr_schedule_steps": schedule_steps,
             "seed": seed,
             "world_size": world_size,
             "gradient_accumulation_steps": gradient_accumulation_steps,
@@ -278,6 +316,10 @@ def build_run_manifest(
         "validation_interval": int(args.validation_interval),
         "learning_rate": float(args.learning_rate),
         "warmup_steps": int(args.warmup_steps),
+        "lr_scheduler_type": str(args.lr_scheduler),
+        "final_learning_rate": float(args.final_learning_rate),
+        "lr_schedule_steps": (
+            int(args.num_steps) if args.lr_scheduler == "cosine" else None),
         "seed": int(args.seed),
         "gradient_accumulation_steps": int(args.gradient_accumulation_steps),
         "effective_batch": EXPECTED_WORLD_SIZE
@@ -347,6 +389,9 @@ def parse_args(argv=None):
         help="micro-batches per optimizer step; effective batch is "
         "world_size * this value",
     )
+    parser.add_argument(
+        "--lr-scheduler", choices=("constant", "cosine"), default="constant")
+    parser.add_argument("--final-learning-rate", type=float, default=0.0)
     parser.add_argument("--resume-from", default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--wandb-project", default="zero-wam-so101")
@@ -406,6 +451,9 @@ def _build_config(args, rank, local_rank, world, stack):
     config.beta2 = 0.95
     config.weight_decay = 0.01
     config.warmup_steps = int(args.warmup_steps)
+    config.validation_interval = int(args.validation_interval)
+    config.lr_scheduler_type = args.lr_scheduler
+    config.final_learning_rate = float(args.final_learning_rate)
     config.batch_size = 1
     config.gradient_accumulation_steps = int(args.gradient_accumulation_steps)
     config.drop_icl = 0.1
@@ -587,6 +635,8 @@ def main(argv=None):
         learning_rate=float(args.learning_rate),
         warmup_steps=int(args.warmup_steps),
         validation_interval=int(args.validation_interval),
+        lr_scheduler_type=str(args.lr_scheduler),
+        final_learning_rate=float(args.final_learning_rate),
     )
     config_sha = config_sha256(payload)
 
@@ -628,6 +678,21 @@ def main(argv=None):
             dist.barrier()
 
         trainer = stack["Trainer"](config)
+
+        # replace upstream scheduler unconditionally: LambdaLR with the frozen
+        # one-indexed warmup + constant/cosine schedule (before any resume load)
+        from torch.optim.lr_scheduler import LambdaLR
+
+        peak_lr = float(config.learning_rate)
+        final_lr = float(args.final_learning_rate)
+        scheduler_type = str(args.lr_scheduler)
+        warmup = int(config.warmup_steps)
+        total = int(config.num_steps)
+        trainer.lr_scheduler = LambdaLR(
+            trainer.optimizer,
+            lr_lambda=lambda step: lr_multiplier(
+                step, scheduler_type=scheduler_type, warmup_steps=warmup,
+                total_steps=total, peak_lr=peak_lr, final_lr=final_lr))
 
         from zero_wam.training_checkpoint import (
             install_resumable_checkpointing,
