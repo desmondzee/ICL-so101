@@ -119,6 +119,15 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
       validation through the exact deployment cache/inference path: seeded Gaussian
       action noise, 50 action-denoising steps, and no target actions beyond previously
       executed history available at the chunk boundary.
+- [ ] Match deployment chunk-causal attention exactly:
+      - keep the full, separate human ICL demonstration visible;
+      - cache only held-out robot observations and executed actions strictly before the
+        scoring boundary;
+      - hide all held-out robot observations and actions at or after the boundary;
+      - initialize the next 16 action tokens from Gaussian noise;
+      - allow those 16 noisy tokens to attend bidirectionally within the jointly
+        denoised chunk;
+      - reveal the 16 target actions only after generation, for metric computation.
 - [ ] Freeze sample/chunk anchors and noise seeds in an immutable manifest. Compare
       each generated 16-control chunk against the held-out demonstration and report
       normalized and per-channel physical MAE/RMSE, offsets 0-15, per-task aggregates,
