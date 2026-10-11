@@ -67,6 +67,15 @@ def lr_multiplier(step, *, scheduler_type, warmup_steps, total_steps,
         math.pi * progress))
 
 
+def parse_validation_extra_steps(value):
+    if not value:
+        return []
+    steps = sorted({int(item.strip()) for item in str(value).split(",")})
+    if any(step <= 0 for step in steps):
+        raise ValueError("validation extra steps must be positive")
+    return steps
+
+
 # run-dir files the wrapper script legitimately creates before python starts
 _INFRA_FILES = {"run.log", "run.pid"}
 _RUN_SENTINELS = {
@@ -174,6 +183,7 @@ def config_identity_payload(
     validation_interval=500,
     lr_scheduler_type="constant",
     final_learning_rate=0.0,
+    validation_extra_steps=(),
     num_steps=None,
     save_interval=None,
     repo_root=REPO_ROOT,
@@ -233,6 +243,8 @@ def config_identity_payload(
             "gc_interval": 50,
             "save_interval": save_interval,
             "validation_interval": int(validation_interval),
+            "validation_extra_steps": [
+                int(step) for step in validation_extra_steps],
             "lr_scheduler_type": str(lr_scheduler_type),
             "final_learning_rate": float(final_learning_rate),
             "lr_schedule_steps": schedule_steps,
@@ -314,6 +326,8 @@ def build_run_manifest(
         "num_steps": int(args.num_steps),
         "save_interval": int(args.save_interval),
         "validation_interval": int(args.validation_interval),
+        "validation_extra_steps": parse_validation_extra_steps(
+            args.validation_extra_steps),
         "learning_rate": float(args.learning_rate),
         "warmup_steps": int(args.warmup_steps),
         "lr_scheduler_type": str(args.lr_scheduler),
@@ -380,6 +394,7 @@ def parse_args(argv=None):
     parser.add_argument("--num-steps", type=int, default=4000)
     parser.add_argument("--save-interval", type=int, default=500)
     parser.add_argument("--validation-interval", type=int, default=500)
+    parser.add_argument("--validation-extra-steps", default="")
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--warmup-steps", type=int, default=200)
     parser.add_argument(
@@ -635,6 +650,8 @@ def main(argv=None):
         learning_rate=float(args.learning_rate),
         warmup_steps=int(args.warmup_steps),
         validation_interval=int(args.validation_interval),
+        validation_extra_steps=parse_validation_extra_steps(
+            args.validation_extra_steps),
         lr_scheduler_type=str(args.lr_scheduler),
         final_learning_rate=float(args.final_learning_rate),
     )
@@ -729,6 +746,8 @@ def main(argv=None):
             latent_root=args.latent_root,
             run_dir=run_dir,
             validation_interval=args.validation_interval,
+            validation_extra_steps=parse_validation_extra_steps(
+                args.validation_extra_steps),
         )
 
         trainer.train()

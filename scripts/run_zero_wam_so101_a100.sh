@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Zero-WAM SO-101 ICL sim training launcher for the local 8xA100 node.
 #
-#   scripts/run_zero_wam_so101_a100.sh start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR]
-#   scripts/run_zero_wam_so101_a100.sh resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR]
+#   scripts/run_zero_wam_so101_a100.sh start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] [EXTRA_VAL_STEPS]
+#   scripts/run_zero_wam_so101_a100.sh resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] [EXTRA_VAL_STEPS]
 #   scripts/run_zero_wam_so101_a100.sh status RUN_ID
 #   scripts/run_zero_wam_so101_a100.sh stop RUN_ID
 #
@@ -20,7 +20,7 @@ RUN_BASE="$REPO/outputs/zero_wam/sim_training"
 PREFLIGHT="$REPO/outputs/zero_wam/a100_preflight"
 
 usage() {
-    echo "usage: $0 start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] | resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] | status RUN_ID | stop RUN_ID" >&2
+    echo "usage: $0 start RUN_ID [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] [EXTRA_VAL_STEPS] | resume RUN_ID CHECKPOINT_DIR [NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] [EXTRA_VAL_STEPS] | status RUN_ID | stop RUN_ID" >&2
     exit 2
 }
 
@@ -97,6 +97,7 @@ cmd_start() {
     local validation_interval="${6:-500}"
     local scheduler="${7:-constant}"
     local final_lr="${8:-0.0}"
+    local extra_val_steps="${9:-}"
     local run_dir="$RUN_BASE/$run_id"
     local pidfile
     pidfile=$(pid_file_for "$run_id")
@@ -127,7 +128,8 @@ cmd_start() {
         --warmup-steps "$warmup_steps" \
         --validation-interval "$validation_interval" \
         --lr-scheduler "$scheduler" \
-        --final-learning-rate "$final_lr"
+        --final-learning-rate "$final_lr" \
+        --validation-extra-steps "$extra_val_steps"
 }
 
 cmd_resume() {
@@ -140,6 +142,7 @@ cmd_resume() {
     local validation_interval="${7:-500}"
     local scheduler="${8:-constant}"
     local final_lr="${9:-0.0}"
+    local extra_val_steps="${10:-}"
     local run_dir="$RUN_BASE/$run_id"
     local pidfile
     pidfile=$(pid_file_for "$run_id")
@@ -201,7 +204,8 @@ cmd_resume() {
         --warmup-steps "$warmup_steps" \
         --validation-interval "$validation_interval" \
         --lr-scheduler "$scheduler" \
-        --final-learning-rate "$final_lr"
+        --final-learning-rate "$final_lr" \
+        --validation-extra-steps "$extra_val_steps"
 }
 
 cmd_status() {

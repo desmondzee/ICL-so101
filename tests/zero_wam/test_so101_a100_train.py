@@ -26,6 +26,7 @@ def _ns(**kw):
         resume_from=None, seed=42, wandb_project="p", wandb_group="g",
         disable_wandb=False, gradient_accumulation_steps=8,
         lr_scheduler="constant", final_learning_rate=0.0,
+        validation_extra_steps="",
     )
     base.update(kw)
     import argparse
@@ -144,6 +145,8 @@ def test_config_identity_changes_on_optimizer_and_validation_cadence(tmp_path):
         _identity(tmp_path, warmup_steps=10))
     assert base != tr.config_sha256(
         _identity(tmp_path, validation_interval=100))
+    assert base != tr.config_sha256(
+        _identity(tmp_path, validation_extra_steps=[250]))
 
 
 def test_config_identity_records_effective_batch(tmp_path):
@@ -220,6 +223,13 @@ def test_lr_multiplier_rejects_invalid():
         m(0, **{**kw, "warmup_steps": -1})
     with pytest.raises(ValueError):
         m(0, **{**kw, "scheduler_type": "linear"})
+
+
+def test_parse_validation_extra_steps():
+    assert tr.parse_validation_extra_steps("") == []
+    assert tr.parse_validation_extra_steps("250,100,250") == [100, 250]
+    with pytest.raises(ValueError):
+        tr.parse_validation_extra_steps("0")
 
 
 # ---- run-directory gating -----------------------------------------------------
@@ -339,11 +349,12 @@ def test_script_exists_and_contract():
     assert "--standalone --nproc_per_node=8" in s
     assert '--gradient-accumulation-steps "$accum_steps"' in s
     assert 'accum_steps="${3:-8}"' in s
-    assert '[NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR]' in s
+    assert '[NUM_STEPS] [ACCUM_STEPS] [LR] [WARMUP] [VAL_INTERVAL] [SCHEDULER] [FINAL_LR] [EXTRA_VAL_STEPS]' in s
     assert '--lr-scheduler "$scheduler"' in s
     assert '--final-learning-rate "$final_lr"' in s
     assert 'scheduler="${7:-constant}"' in s
     assert 'final_lr="${8:-0.0}"' in s
+    assert '--validation-extra-steps "$extra_val_steps"' in s
     assert "expandable_segments:True" in s
     assert "TOKENIZERS_PARALLELISM=false" in s
     assert "nohup" in s and "run.pid" in s

@@ -170,11 +170,15 @@ def distributed_validation_schedule(num_samples: int, world: int, rank: int):
     ]
 
 
-def validation_due(step: int, interval: int, validated_steps) -> bool:
+def validation_due(
+    step: int, interval: int, validated_steps, extra_steps=()
+) -> bool:
     return (
         int(step) > 0
-        and int(interval) > 0
-        and int(step) % int(interval) == 0
+        and (
+            (int(interval) > 0 and int(step) % int(interval) == 0)
+            or int(step) in extra_steps
+        )
         and int(step) not in validated_steps
     )
 
@@ -444,12 +448,17 @@ def evaluate_validation(trainer, dataset, manifest, output_dir, step: int):
 
 
 def install_validation(
-    trainer, loader_root, latent_root, run_dir, validation_interval=500
+    trainer, loader_root, latent_root, run_dir, validation_interval=500,
+    validation_extra_steps=(),
 ):
     """Run deterministic validation independently of checkpoint cadence."""
     validation_interval = int(validation_interval)
     if validation_interval <= 0:
         raise ValueError("validation_interval must be positive")
+    validation_extra_steps = {
+        int(step) for step in validation_extra_steps}
+    if any(step <= 0 for step in validation_extra_steps):
+        raise ValueError("validation_extra_steps must be positive")
     manifest_path = Path(run_dir) / "validation_manifest.json"
     if dist.get_rank() == 0:
         manifest = freeze_validation_manifest(loader_root, latent_root, manifest_path)
@@ -477,7 +486,10 @@ def install_validation(
 
     def validate_then_get_next_batch(self):
         step = int(self.step)
-        if validation_due(step, validation_interval, validated_steps):
+        if validation_due(
+            step, validation_interval, validated_steps,
+            validation_extra_steps,
+        ):
             evaluate_validation(self, dataset, manifest, output_dir, step)
             validated_steps.add(step)
         return original_get_next_batch()

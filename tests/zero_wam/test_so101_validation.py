@@ -141,3 +141,4 @@ def test_validation_due_interval_and_checkpoint_deduplication():
     validated.add(100)
     assert not validation_due(100, 100, validated)
     assert validation_due(500, 100, validated)
+    assert validation_due(250, 100, validated, {250})
