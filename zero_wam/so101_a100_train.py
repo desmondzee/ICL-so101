@@ -654,6 +654,7 @@ def main(argv=None):
             args.validation_extra_steps),
         lr_scheduler_type=str(args.lr_scheduler),
         final_learning_rate=float(args.final_learning_rate),
+        num_steps=int(args.num_steps),
     )
     config_sha = config_sha256(payload)
 
