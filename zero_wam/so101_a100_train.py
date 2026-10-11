@@ -76,6 +76,20 @@ def parse_validation_extra_steps(value):
     return steps
 
 
+def install_empty_cache_before_microstep(trainer):
+    """Release fragmented cached blocks before variable-length forward passes."""
+    import types
+    import torch
+
+    original_train_step = trainer._train_step
+
+    def memory_safe_train_step(self, batch, step_in_accumulation):
+        torch.cuda.empty_cache()
+        return original_train_step(batch, step_in_accumulation)
+
+    trainer._train_step = types.MethodType(memory_safe_train_step, trainer)
+
+
 # run-dir files the wrapper script legitimately creates before python starts
 _INFRA_FILES = {"run.log", "run.pid"}
 _RUN_SENTINELS = {
@@ -253,6 +267,7 @@ def config_identity_payload(
             "gradient_accumulation_steps": gradient_accumulation_steps,
             "effective_batch": world_size * gradient_accumulation_steps,
             "sync_every_microstep": True,
+            "empty_cache_before_microstep": True,
             "task_balanced_sampler": True,
         },
         "code": git_code_fingerprint(repo_root),
@@ -722,6 +737,7 @@ def main(argv=None):
         )
 
         install_every_microstep_gradient_sync(trainer)
+        install_empty_cache_before_microstep(trainer)
         install_task_balanced_loader(trainer, seed=args.seed)
         install_resumable_checkpointing(trainer, config_sha, wandb_run_id)
 

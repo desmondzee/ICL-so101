@@ -174,6 +174,13 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 
 ## V2 result record
 
+- First launch incident: rank 1 OOM after optimizer step 58 while constructing a
+  long-sequence flex-attention mask. PyTorch reported 59.47 GiB allocated,
+  13.26 GiB reserved-but-unallocated, and a failed 9.38 GiB allocation. No checkpoint
+  existed, so the first launch is not resumable.
+- Mitigation: release the CUDA allocator's unused cached blocks before every
+  variable-length training microstep. This is memory hygiene only; it does not change
+  samples, losses, optimizer math, effective batch, or LR schedule.
 - Step-250 equal-exposure comparison: `_______________________________________`
 - Step-500 checkpoint/validation: `___________________________________________`
 - Step-1,000 checkpoint/validation: `_________________________________________`
