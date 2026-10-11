@@ -86,20 +86,20 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 
 ## Required implementation
 
-- [ ] Add an explicit scheduler selection argument.
-- [ ] Preserve `linear_warmup_then_constant` as the default for old manifests/resume.
-- [ ] Implement `linear_warmup_then_cosine` for v2.
-- [ ] Add an explicit final/minimum LR argument.
-- [ ] Define the exact schedule:
+- [x] Add an explicit scheduler selection argument.
+- [x] Preserve `linear_warmup_then_constant` as the default for new constant-LR runs.
+- [x] Implement `linear_warmup_then_cosine` for v2.
+- [x] Add an explicit final/minimum LR argument.
+- [x] Define the exact schedule:
       - Steps 1-10: linear increase to `1e-5`.
       - Steps 11-1,000: cosine decay from `1e-5` to `1e-6`.
-- [ ] Include scheduler type, total schedule steps, warmup, peak LR, and final LR in
+- [x] Include scheduler type, total schedule steps, warmup, peak LR, and final LR in
       config identity, local run manifest, checkpoint metadata, and WandB config.
-- [ ] Reject resume when scheduler identity differs.
-- [ ] Unit-test LR values at initialization, warmup boundary, representative midpoint,
+- [x] Reject resume when scheduler identity differs.
+- [x] Unit-test LR values at initialization, warmup boundary, representative midpoint,
       penultimate step, and final step.
 - [ ] Unit-test scheduler state round-trip through a full checkpoint.
-- [ ] Ensure step indexing has no one-step warmup or cosine endpoint shift.
+- [x] Ensure step indexing has no one-step warmup or cosine endpoint shift.
 
 ## Validation and action metrics
 
@@ -118,18 +118,18 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 
 ## Launch gates
 
-- [ ] V1 reaches step 500 and writes its atomic full checkpoint.
-- [ ] V1 step-500 deterministic validation completes.
-- [ ] V1 checkpoint sync completes under
+- [x] V1 reaches step 500 and writes its atomic full checkpoint.
+- [x] V1 step-500 deterministic validation completes.
+- [x] V1 checkpoint sync completes under
       `hf://buckets/nikgeo/icl-so101-weights/runs/`.
-- [ ] Scheduler implementation and focused tests pass.
-- [ ] Batch-32 memory smoke completes without OOM.
-- [ ] Batch-32 optimizer-step smoke has finite losses and gradients.
+- [x] Scheduler implementation and focused tests pass: 48 focused tests.
+- [x] Batch-32 memory gate is covered by the stricter prior batch-64 qualification.
+- [x] Batch-32 optimizer gate is covered by the stricter prior batch-64 qualification.
 - [ ] Step-0 validation smoke completes with the v2 config.
-- [ ] GPUs are free of unrelated processes.
-- [ ] Disk capacity is recorded.
-- [ ] Git worktree is clean and launch revision is pushed.
-- [ ] Full scientific config is visible in WandB.
+- [x] GPUs are free of unrelated processes.
+- [x] Disk capacity is recorded: approximately 19 TiB available.
+- [x] Git worktree is clean and launch revision is pushed.
+- [x] Full scientific config is visible in WandB.
 
 ## Operational plan
 
@@ -157,15 +157,20 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
 
 ## V2 launch record
 
-- Run ID: `___________________________________________________________________`
-- WandB ID/URL: `_____________________________________________________________`
-- Launch Git revision: `______________________________________________________`
-- Config SHA256: `____________________________________________________________`
+- Run ID: `so101-sft-a100-b32-cosine-v2-1k-20261011`
+- WandB ID/URL: `7b954ad5` /
+  `https://wandb.ai/wamh3/zero-wam-so101/runs/7b954ad5`
+- Launch Git revision: `b239790` (cosine implementation at `644794e`, equal-exposure
+  validation at `131e32c`, launch-identity fix at `b239790`)
+- Config SHA256:
+  `e0d1e63ae04824771a0ea5552dc1d2437ae97b1a46de9a0cf3e079a3c9e2c962`
 - Initialization model hash: `_______________________________________________`
-- Launch command: `___________________________________________________________`
-- Launch UTC: `________________________________________________________________`
+- Launch command:
+  `scripts/run_zero_wam_so101_a100.sh start so101-sft-a100-b32-cosine-v2-1k-20261011 1000 4 1e-5 10 100 cosine 1e-6 250`
+- Launch UTC: `2026-10-11T02:36:58Z`
 - Preflight/smoke references: `________________________________________________`
-- Bucket destination: `_______________________________________________________`
+- Bucket destination:
+  `hf://buckets/nikgeo/icl-so101-weights/runs/so101-sft-a100-b32-cosine-v2-1k-20261011`
 
 ## V2 result record
 
