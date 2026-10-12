@@ -1,10 +1,3 @@
-"""Closed-loop SO-101 sim_val_v2 rollouts of a Zero-WAM checkpoint, conditioned on the paired human video.
-
-Mirrors upstream `evaluation/robotwin/eval_policy_client_openpi.py`: the first chunk executes only its second
-latent frame, later chunks execute both; a keyframe is observed every `action_per_frame // 4` controls and fed
-back with the executed actions through `compute_kv_cache`. Wrist frames use the val_v3 near-plane transform.
-"""
-
 from __future__ import annotations
 
 import json

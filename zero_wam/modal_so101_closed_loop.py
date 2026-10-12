@@ -1,16 +1,3 @@
-"""Closed-loop sim_val_v2 evaluation of an SO-101 Zero-WAM checkpoint on Modal H100s (sim + model in one container).
-
-Weights and val data stream from Hugging Face into the `icl-so101-closed-loop` volume; nothing is downloaded locally.
-
-    MODAL_PROFILE=desmond-zee modal run zero_wam/modal_so101_closed_loop.py::prepare
-    MODAL_PROFILE=desmond-zee modal run zero_wam/modal_so101_closed_loop.py --limit 1          # smoke
-    MODAL_PROFILE=desmond-zee modal run zero_wam/modal_so101_closed_loop.py                    # all 50
-    MODAL_PROFILE=desmond-zee modal volume get icl-so101-closed-loop results/<name> outputs/zero_wam/closed_loop/
-
-`--video-guidance-scale -1` (default) conditions on the human video and its detailed text only; a value > 1
-adds the short task instruction with text CFG, as in the chunk-causal validation.
-"""
-
 import json
 import math
 import os

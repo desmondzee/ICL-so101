@@ -36,3 +36,14 @@ v2b_step500/<task>/<episode>/
   result.json    success, first_success_control, controls, chunk timing, task_info
 smoke/mug_on_plate/episode_000/          first smoke run of the same episode/seed (same outcome; video only in the bucket copy)
 ```
+
+## Reproduce
+
+```sh
+MODAL_PROFILE=desmond-zee modal run zero_wam/modal_so101_closed_loop.py::prepare
+MODAL_PROFILE=desmond-zee modal run zero_wam/modal_so101_closed_loop.py --limit 1
+MODAL_PROFILE=desmond-zee modal run --detach zero_wam/modal_so101_closed_loop.py
+MODAL_PROFILE=desmond-zee modal volume get icl-so101-closed-loop results/<name> outputs/zero_wam/closed_loop/
+```
+
+`--video-steps/--action-steps` set the denoising steps, `--video-guidance-scale 5` adds the short task text, and `--tasks a,b` filters tasks.
