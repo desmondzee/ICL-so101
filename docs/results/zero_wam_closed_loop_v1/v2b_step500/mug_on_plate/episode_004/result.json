@@ -1,0 +1,22 @@
+{
+ "id": "mug_on_plate/episode_004",
+ "task": "mug_on_plate",
+ "seed": 4,
+ "sample_seed": 20261016,
+ "instruction": "Put the red mug on the blue plate.",
+ "success": false,
+ "first_success_control": null,
+ "controls": 952,
+ "max_controls": 948,
+ "oracle_controls": 474,
+ "chunks": 60,
+ "mean_chunk_infer_s": 19.83601209185001,
+ "wall_s": 1292.2,
+ "final_state_success": false,
+ "task_info": {
+  "mug_upright": false,
+  "mug_on_white_plate": false,
+  "mug_on_blue_plate": false
+ },
+ "wrist_transform": 0.02425
+}

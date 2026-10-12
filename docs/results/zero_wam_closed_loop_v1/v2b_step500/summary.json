@@ -1,0 +1,129 @@
+{
+ "name": "so101-sft-a100-b32-cosine-v2b-1k-20261011-step500-v50a50-tcfg-1",
+ "status": "partial: 5 of 50 episodes; Modal workspace disabled mid-run (spend limit)",
+ "checkpoint": "hf://buckets/nikgeo/icl-so101-weights/runs/so101-sft-a100-b32-cosine-v2b-1k-20261011/checkpoints/checkpoint_step_500",
+ "base_model": "Robbyant-Research/zero-wam-pretrain@7040c4195df216c900334ef62d5fdcf05c0601aa",
+ "code_revision": "814ab1c",
+ "video_steps": 50,
+ "action_steps": 50,
+ "video_guidance_scale": -1.0,
+ "icl_guidance_scale": 5.0,
+ "horizon_x_oracle": 2.0,
+ "sample_seed_base": 20261012,
+ "completed": {
+  "success": 0,
+  "episodes": 5
+ },
+ "episodes": [
+  {
+   "id": "mug_on_plate/episode_000",
+   "task": "mug_on_plate",
+   "seed": 0,
+   "sample_seed": 20261012,
+   "instruction": "Put the red mug on the blue plate.",
+   "success": false,
+   "first_success_control": null,
+   "controls": 1128,
+   "max_controls": 1120,
+   "oracle_controls": 560,
+   "chunks": 71,
+   "mean_chunk_infer_s": 14.73973295076057,
+   "wall_s": 1163.0,
+   "final_state_success": false,
+   "task_info": {
+    "mug_upright": true,
+    "mug_on_white_plate": false,
+    "mug_on_blue_plate": false
+   },
+   "wrist_transform": 0.02425
+  },
+  {
+   "id": "mug_on_plate/episode_002",
+   "task": "mug_on_plate",
+   "seed": 2,
+   "sample_seed": 20261014,
+   "instruction": "Put the red mug on the blue plate.",
+   "success": false,
+   "first_success_control": null,
+   "controls": 1016,
+   "max_controls": 1006,
+   "oracle_controls": 503,
+   "chunks": 64,
+   "mean_chunk_infer_s": 16.193317927203125,
+   "wall_s": 1151.8,
+   "final_state_success": false,
+   "task_info": {
+    "mug_upright": false,
+    "mug_on_white_plate": false,
+    "mug_on_blue_plate": false
+   },
+   "wrist_transform": 0.02425
+  },
+  {
+   "id": "mug_on_plate/episode_004",
+   "task": "mug_on_plate",
+   "seed": 4,
+   "sample_seed": 20261016,
+   "instruction": "Put the red mug on the blue plate.",
+   "success": false,
+   "first_success_control": null,
+   "controls": 952,
+   "max_controls": 948,
+   "oracle_controls": 474,
+   "chunks": 60,
+   "mean_chunk_infer_s": 19.83601209185001,
+   "wall_s": 1292.2,
+   "final_state_success": false,
+   "task_info": {
+    "mug_upright": false,
+    "mug_on_white_plate": false,
+    "mug_on_blue_plate": false
+   },
+   "wrist_transform": 0.02425
+  },
+  {
+   "id": "mug_on_plate/episode_008",
+   "task": "mug_on_plate",
+   "seed": 8,
+   "sample_seed": 20261020,
+   "instruction": "Put the red mug on the blue plate.",
+   "success": false,
+   "first_success_control": null,
+   "controls": 1128,
+   "max_controls": 1124,
+   "oracle_controls": 562,
+   "chunks": 71,
+   "mean_chunk_infer_s": 15.652558173521129,
+   "wall_s": 1185.1,
+   "final_state_success": false,
+   "task_info": {
+    "mug_upright": false,
+    "mug_on_white_plate": false,
+    "mug_on_blue_plate": false
+   },
+   "wrist_transform": 0.02425
+  },
+  {
+   "id": "mug_on_plate/episode_009",
+   "task": "mug_on_plate",
+   "seed": 9,
+   "sample_seed": 20261021,
+   "instruction": "Put the red mug on the white plate.",
+   "success": false,
+   "first_success_control": null,
+   "controls": 1032,
+   "max_controls": 1022,
+   "oracle_controls": 511,
+   "chunks": 65,
+   "mean_chunk_infer_s": 13.77428883224616,
+   "wall_s": 960.4,
+   "final_state_success": false,
+   "task_info": {
+    "mug_upright": true,
+    "mug_on_white_plate": false,
+    "mug_on_blue_plate": false
+   },
+   "wrist_transform": 0.02425
+  }
+ ]
+}

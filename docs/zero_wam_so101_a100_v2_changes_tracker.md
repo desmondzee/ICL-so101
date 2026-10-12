@@ -233,3 +233,9 @@ V2 must be compared with v1 by episode exposure, not only optimizer step:
   MAEs but regresses wrist-roll and gripper MAE relative to V1.
 - Full report:
   `docs/results/zero_wam_chunk_causal_validation/report.md`
+
+### Closed-loop sim rollouts (zero-shot, human-video prompted)
+
+- Protocol: `sim_val_v2` scenes reset from the index seed. Conditioning is the paired human ICL latent and its detailed text, ICL CFG 5, short task text absent. 50/50 denoise steps. Time limit 2x oracle length. Upstream RoboTwin chunk loop on Modal H100s (`zero_wam/modal_so101_closed_loop.py`).
+- V2b step 500: **0/5 so far, partial**. Only mug_on_plate episodes 000, 002, 004, 008 and 009 ran before the Modal workspace was disabled (spend limit). The arm reaches the mug but does not grasp it; 3 of 5 knock it over. About 15 s per chunk, about 20 min per episode.
+- Full report and rollout videos: `docs/results/zero_wam_closed_loop_v1/README.md`
