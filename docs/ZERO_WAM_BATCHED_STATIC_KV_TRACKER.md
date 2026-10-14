@@ -370,3 +370,196 @@ python scripts/run_so101_batched_static_smoke.py --dry-run --batch-size 2 \
 - No per-slot named cache regions; contiguous prefix + mask compaction only.
 - No early-finish slot masking exercised end-to-end at model level.
 - Closed-loop artifacts (videos/telemetry/success) from a batched run: none.
+
+## Closed-loop coordinator + memory findings (2026-10-13, third pass)
+
+New files touched only; sequential path untouched.
+
+### Implemented
+
+- Per-slot `WanVAEStreamingWrapper` (own `feat_cache`, shared immutable VAE
+  modules) — `_encode_initial_obs_slot` / `_encode_obs_slot` never touch
+  another slot's cache; real multi-frame keyframe continuation works
+  (verified chunk-1 cache_update on the real model).
+- `_encode_obs_slot` encodes both cams batched (feat_cache tails are B=2)
+  in <=4-frame temporal pieces to cap encode activation spikes.
+- `@torch.no_grad()` on `reset`/`infer`/`cache_update` — **the real OOM
+  cause**: without it, VAE `encode_chunk` tails retained autograd graphs
+  across chunks (~tens of GiB).
+- `SlotResetSpec.active`: padding slots get masked (-1) zero ICL/text
+  placeholders, no encodes, frozen `chunk_idx`.
+- `scripts/run_so101_batched_validation.py` rewritten for 25 episodes in
+  7 fixed groups of 4 (last group 1 real + 3 padding), sample seeds
+  20261014+global index, `ceil(2*robot_frames)` horizons, EMA alpha flag,
+  per-packed-chunk `summary.json` checkpoints with cache occupancy,
+  batch_manifest.json, per-episode artifacts identical to `run_episode`
+  (+ `commanded_motion` metric added).
+
+### Memory budget verdict — batch-4 full horizon does NOT fit 80 GB
+
+- Static bytes/token = 368,640 B (24 heads x 128 x 2 B x K+V x 30 blocks).
+- Measured occupancy (b4 reversal diag): 13,312 tokens after 2 chunks;
+  ~1.2k ICL + obs grows ~4-5k tokens per packed chunk.
+- Steady-state need: obs window keeps `|frame_id - next| <= 64` -> ~32
+  chunks x ~64 latent frames x 504 tok/frame duplicated CFG branches
+  ~129k obs + ~5k ICL + ~3k actions + preds ~4k -> **~145-170k tokens**
+  -> 53-60 GiB static.
+- Model resident (post-T5-offload): 21.4 GiB; VAE/feat_caches/working
+  ~8-14 GiB -> total ~84-90 GiB > 79.2.
+- `check_static_budget` correctly refused `--max-tokens 155648` at
+  safety 0.92 (55.2 + 21.4 = 76.6 > 72.8). The largest capacity that
+  passes (~141k tokens) still under-provisions the obs window and leaves
+  <1 GiB activation headroom -> mid-run `CacheOverflowError`/OOM is
+  expected, not a bug.
+- Earlier empirical evidence: batch-4 packed lifecycle ran chunk 1 fully
+  (infer 12.4 s, cache_update ~1.2 s, 8 controls/slot) at 77.4 GiB peak
+  *before* the no_grad fix; post-fix transient drops ~20-30 GiB, which
+  moves the binding constraint from activation spikes to the structural
+  capacity arithmetic above.
+
+### Options (lead decision)
+
+- Packed batch-2 full horizon: ~73-85k tokens (~27-31 GiB static) -> est
+  total ~70-76 GiB — borderline feasible; the settled protocol says not
+  to fall back silently, so this needs an explicit go.
+- Batch-4 bounded horizon (~<=32 chunks, e.g. <=512 controls): fits
+  capacity ~60k tokens; produces real packed closed-loop artifacts.
+- CPU/offload strategies for the VAE feat_caches or static stores would
+  trade wall-clock for capacity; not implemented.
+- Tests: 63 passed (51 in test_batched_static_cache.py incl. per-slot VAE
+  isolation, padding-slot reset masking, commanded-history writes,
+  inactive-slot continuation, EMA alpha=0.9 formula, runner schema).
+
+### Correction — no_grad removed the memory wall (same day, bounded run)
+
+The "@torch.no_grad() on engine entry methods" fix removed ~30 GiB of
+retained autograd graphs (post-reset free went 7.6 -> 37.2 GiB), and the
+bounded `--max-controls 64` 25-episode run showed real occupancy growth of
+only ~2.2k tokens per packed chunk (~544/slot/chunk) — NOT the ~4-5k
+estimated above (obs video writes are not CFG-duplicated the way the
+conservative math assumed).  Extrapolated steady state: ~78k tokens
+(~27 GiB static) at peak vs ~40.9 GiB measured peak during the bounded
+run — full-horizon batch-4 is feasible after all, with `--max-tokens`
+~98-130k for margin.  The infeasibility verdict above is superseded.
+
+## Final padding-slot fix + 25/25 full-horizon completion (2026-10-14)
+
+- Root cause of the last-run crash: padded `SlotResetSpec` construction in the
+  runner missed the required `icl_latent_path` positional; plus inactive slots
+  left `target_prompt_embeds=None`, which `_pack_action_stream`'s
+  encoder-seq-id build dereferenced directly.  Both fixed:
+  - `SlotResetSpec`: `icl_latent_path`/`seed` optional; runner passes
+    `active=False` specs explicitly.
+  - `_pack_action_stream` encoder ids now use `self._slot_emb(...).shape[1]`
+    (same shape-only zeros fallback as `text_emb`); `_slot_emb` derives its
+    dim from a sibling slot's live embeds.
+- `--episode-id` selector (repeatable, canonical order, exact-match errors);
+  merge-safe checkpoints (`episodes_done` rebuilt from on-disk result.json).
+- Tests: 65 passed (incl. 1-active+3-padding lifecycle and selector).
+- Completed run: `stack_bowls/episode_004` solo group (1 real + 3 masked
+  padding), seed 20261038, horizon 864 -> 872 controls, 55 chunks, 19.0 min,
+  peak 58.2 GiB, occupancy plateau 21,376/98,304 after window prune
+  (per-slot steady-state ~21k -> batch-4 ~74-85k: `max_tokens 98304` fits).
+- Result: 25/25 episodes with identical artifacts
+  (`result.json`+`actions.npy`+`telemetry.jsonl`+`rollout.mp4`);
+  `stack_bowls/episode_004` video 437 frames / 29.13s; actions/telemetry
+  rows == controls; `success=False`.
+- Full artifacts: `outputs/zero_wam/validation_batch_v2b_5x5_full_b4_alpha090/`
+  (24 from the group run + 1 from the padded solo run); log
+  `/tmp/so101_validation_b4_alpha090_final.log`.
+
+## Train-episode replay probe (2026-10-14)
+
+- New opt-in runner `scripts/run_so101_batched_train_replay.py`: six
+  sim_train_v1 episodes (ball_between_cans ep000/001, block_in_bowl
+  ep000/001, push_cube_into_tape_square ep000/001) packed in groups of 4
+  (group 1 = 2 real + 2 masked padding), alpha 0.9, commanded-history
+  cache, full ceil(2*robot_frames) horizons.
+- `TrainSim` mirrors `rebuild_wrist_v2._make_env`: `load_train_task ->
+  env_cls(render_images=False, visual_config=VisualConfig.from_dict(...))`,
+  `configure_clean_wrist`, `env.reset(seed=index seed)`; start-pose gate
+  compares env.object_poses() vs packaged object_poses_start on
+  task_def.task_objects (fail episode pre-model if max |xyz| > 2 mm).
+- Data root `data/hf_bucket_ICL-so101/train_replay_probe/`:
+  index/manifest/episode.json+source.json (local staging), six
+  generated_video.pth downloaded from zero_wam_latents_v1/train, and
+  cohort_manifest.json (remote paths, seeds, instructions, frames,
+  visual_config hashes).
+- Sample seeds: 20261101 + global cohort index (recorded in manifest).
+- Tests: 70 passed (adds cohort loading/selector, visual_config/seed
+  propagation via fake env, 2-real+2-pad grouping, start-pose check).
+- c64 smoke (deleted after verification): 4/4 episodes, start-pose
+  max_err=0.0, artifact alignment OK, peak 58.4 GiB.
+- Full run launched in background (PID in log); summary.json checkpoints
+  each packed chunk; batch_manifest.json at completion.
+
+## Diagnostics batch (2026-10-14) — train-replay cohort
+
+- Batch-4 replay completed: 6/6 episodes, EXIT_OK, wall 5108s,
+  peak 58.79GiB — `outputs/zero_wam/train_replay_v2b_b4_alpha090_3tasks_2seeds/`.
+  All start-pose gates passed (max_err 0.0). No successes in either
+  packed run; controls match horizons + overshoot.
+- Sequential control (A): `push_cube_into_tape_square/episode_000` via
+  original VA_Server path, alpha 1.0, seed 20261105 — 1016 controls,
+  64 chunks, success=False, jitter 0.00226 —
+  `outputs/zero_wam/train_replay_diagnostics/sequential_raw_v2b/`.
+- Leakage-safe causal (B): frozen manifest
+  `train_replay_probe/chunk_causal_manifest.json` (prefix [0:8] GT,
+  predict [8:24], obs {0,2,4,6,8}, corrected train_v2 wrist).
+  `--video-guidance-scale` flag added to
+  `run_zero_wam_chunk_causal_validation.py` (default 5.0 preserved).
+  Prefix/target hashes identical across all three runs.
+  - v2b cfg-1: MAE 0.2958 RMSE 0.4373 (vs persistence 0.6835/1.2145)
+  - v2b cfg5:  MAE 0.2970 RMSE 0.4342 (same persistence)
+  - base pretrain cfg-1: MAE 12.9857 RMSE 20.9874 — off-scale
+    (gripper channel MAE 35.77) -> SFT checkpoint carries the action
+    capability; base init not a viable comparator for task metrics.
+- Exposure audit (C): `exposure_audit.json` — cohort ledger counts
+  [7,13,11,14,28,25] match expected; step_0000/step_0500 validation
+  JSONs persisted with sha256 + source URIs.
+- Config audit (D): `config_audit.json` — 15 machine checks, all pass
+  (camera order, 224x288 resize, chunk2/apf8, dim30, channels, norm-stat
+  hash, wrist near 0.02425, icl 448, text-conditioning semantics,
+  commanded history).
+- Env note: `.venv-zero-wam` opencv-python was broken (cv2 module
+  files missing); reinstalled 4.11.0.86 --no-deps.
+
+## Train-replay diagnosis (2026-10-14)
+
+- Sequential raw control also failed on exact
+  `push_cube_into_tape_square/episode_000` (alpha 1.0, original `VA_Server`):
+  0/1 success, 1,016 controls, cube displaced 2.12 cm. This rules out batch-4
+  packing and EMA as the sole task-level cause.
+- Phase-spanning teacher-forced evaluation completed at 30 leakage-safe
+  boundaries (five per episode, full recorded history cached). V2b cfg -1:
+  MAE 0.4294 / RMSE 0.6784 versus persistence 2.9467 / 4.8351; V2b beats
+  persistence at 25/30 boundaries. Error is highest around the 50-70% dynamic
+  manipulation phases.
+- Autonomous action MAE grows several-fold in the first 64 controls, while
+  next-chunk prediction remains accurate with recorded history. The
+  best-supported diagnosis is behavior-cloning distribution drift and weak
+  recovery, with transition error, 16-control open-loop execution, checkpoint
+  maturity and sampling noise as plausible contributors.
+- All six exact episodes were exposed 7-28 times; all 1,109 training episodes
+  were seen. Step-0 to step-500 deterministic validation action loss fell
+  72.5%, and video loss fell 14.9%.
+- Full analysis, caveats and recommended experiments:
+  `docs/results/zero_wam_train_replay_diagnostics/report.md`.
+
+## Multi-boundary teacher-forced diagnostic (2026-10-14)
+
+- New opt-in `scripts/run_so101_multi_boundary_validation.py` + frozen
+  `train_replay_probe/multi_boundary_manifest.json` (sha 30d73912a304fe07):
+  boundaries b=8+16k at fractions [0.1..0.9] of N-24, 30 total.
+  Per boundary: fresh reset (paired human latent/detailed text, cfg -1),
+  full GT history teacher-forced (first-chunk prefix protocol + 16-control
+  GT blocks with obs every 2 controls), one seeded 16-control chunk,
+  targets to scorer only.
+- Fake-model tests assert exact cache-call cadence/frames/action blocks
+  and absence of scorer fields in any infer payload (75 tests pass).
+- Result `outputs/zero_wam/train_replay_diagnostics/multi_boundary_v2b_cfgneg1.json`:
+  model MAE 0.4353 RMSE 0.6853 vs persistence MAE 2.9467 RMSE 4.8351.
+  Per-task model MAE: ball 0.471, block 0.372, push 0.463.
+  Per-fraction: 0.1->0.317 (pers 4.44), 0.3->0.278 (0.57), 0.5->0.625
+  (2.85), 0.7->0.614 (1.62), 0.9->0.342 (5.26).  Worst: push_ep000@b344
+  1.686, ball_ep001@b328 1.606 (mid-episode action transitions).

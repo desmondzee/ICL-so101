@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import types
 
+import math
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
@@ -762,14 +765,27 @@ def test_prune_preserves_four_packed_seq_ids():
 # Engine validation with fake server components
 # ---------------------------------------------------------------------------
 
-class _FakeVae:
-    def __init__(self):
-        self.config = type("c", (), {"latents_mean": [0.0] * 48,
-                                     "latents_std": [1.0] * 48})()
-        self.cleared = 0
+class _FakeEncoder(nn.Module):
+    """Deterministic encoder: [B,3,T,H,W] -> [B,96,T,H/16,W/16] (48ch mu/var)."""
 
-    def clear_cache(self):
-        self.cleared += 1
+    def forward(self, x, feat_cache=None, feat_idx=None):
+        import torch.nn.functional as F
+        pooled = F.avg_pool3d(x.float(), (1, 16, 16)).to(x.dtype)
+        base = pooled.mean(1, keepdim=True)  # [B,1,T,h,w]
+        return torch.cat([base, base * 0.5], dim=1).repeat(
+            1, 48, 1, 1, 1)  # [B,96,T,h,w] -> chunk(2) gives [B,48,...]
+
+
+class _FakeVae(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.config = type("c", (), {"latents_mean": [0.0] * 48,
+                                     "latents_std": [1.0] * 48,
+                                     "patch_size": None})()
+        self.encoder = _FakeEncoder()
+        self.quant_conv = nn.Identity()
+        self.dtype = torch.bfloat16
+        self._p = nn.Parameter(torch.zeros(1))
 
 
 class _FakeStreamingVae:
@@ -834,7 +850,15 @@ def _fake_server(heads=4, head_dim=24):
         1, 48, 1, 4, 12, generator=g, dtype=torch.float32
     ).to(torch.bfloat16)
     server.postprocess_action = lambda a: a.detach().float().cpu().numpy()
+    server.normalize_latents = lambda mu, mean, std: (
+        (mu.float() - mean.view(1, -1, 1, 1, 1)) * std.view(1, -1, 1, 1, 1)
+    ).to(mu.dtype)
     return server
+
+
+def _fake_obs(h=64, w=96):
+    return {"cam_a": np.zeros((h, w, 3), dtype=np.uint8),
+            "cam_b": np.zeros((h, w, 3), dtype=np.uint8)}
 
 
 def test_engine_lifecycle_with_fake_server(monkeypatch):
@@ -875,11 +899,11 @@ def test_engine_lifecycle_with_fake_server(monkeypatch):
     cts = set(server.transformer.cache_type_ids_cache.tolist())
     assert cts == {2}  # ICL_CACHE_TYPE only
 
-    out = engine.infer([{"obs": {}}, {"obs": {}}])
+    out = engine.infer([{"obs": _fake_obs()}, {"obs": _fake_obs()}])
     assert len(out) == 2
     assert engine.calls["video"] == 4  # 3 steps + final
     assert engine.calls["action"] == 2
-    engine.cache_update([{"obs": [{}]}, {"obs": [{}]}])
+    engine.cache_update([{"obs": [_fake_obs()]}, {"obs": [_fake_obs()]}])
     assert engine.calls["obs_video"] == 1 and engine.calls["obs_action"] == 1
     out2 = engine.infer()
     assert len(out2) == 2
@@ -918,3 +942,573 @@ def test_engine_rejects_non_icl_server():
     server.use_icl_model = False
     with pytest.raises(ValueError):
         BatchedStaticEngine(server, max_tokens=4096)
+
+
+# ---------------------------------------------------------------------------
+# Per-slot VAE wrappers, inactive slots, commanded history
+# ---------------------------------------------------------------------------
+
+def test_per_slot_vae_wrappers_share_modules_but_not_cache():
+    from wan_va.modules.utils import WanVAEStreamingWrapper
+
+    vae = _FakeVae()
+    a = WanVAEStreamingWrapper(vae)
+    b = WanVAEStreamingWrapper(vae)
+    assert a.encoder is b.encoder is vae.encoder
+    assert a.quant_conv is b.quant_conv is vae.quant_conv
+    assert a.feat_cache is not b.feat_cache
+    if a.feat_cache:
+        a.feat_cache[0] = torch.zeros(1)
+        assert b.feat_cache[0] is None
+
+
+def test_engine_creates_independent_slot_vae_caches():
+    from zero_wam.batched_static_engine import BatchedStaticEngine
+
+    server = _fake_server()
+    engine = BatchedStaticEngine(server, max_tokens=4096)
+    assert engine.slots[0].vae is not engine.slots[1].vae
+    assert engine.slots[0].vae.encoder is engine.slots[1].vae.encoder
+    assert engine.slots[0].vae.feat_cache is not engine.slots[1].vae.feat_cache
+
+
+def test_engine_inactive_slot_continues_through_lifecycle(monkeypatch):
+    """Deactivate slot 1 mid-lifecycle; slot 0 still produces finite output."""
+    import wan_va.modules.icl_model as icl
+    from torch.nn.attention.flex_attention import flex_attention
+    from zero_wam.batched_static_engine import (
+        BatchedStaticEngine,
+        SlotResetSpec,
+    )
+
+    monkeypatch.setattr(
+        icl, "_compiled_flex_attention",
+        lambda q, k, v, **kw: flex_attention(
+            q, k, v, block_mask=kw.get("block_mask")))
+    server = _fake_server()
+    engine = BatchedStaticEngine(
+        server, max_tokens=4096,
+        video_guidance_scale=-1.0, icl_guidance_scale=5.0)
+    engine.reset([SlotResetSpec("x", "a", 1), SlotResetSpec("x", "b", 2)])
+    out0 = engine.infer([{"obs": _fake_obs()}, {"obs": _fake_obs()}])
+    engine.set_active(1, False)
+    assert engine.slots[1].active is False
+    ci = engine.slots[1].chunk_idx
+    engine.cache_update(
+        [{"obs": [_fake_obs()]}, None],
+        [None, None],
+    )
+    assert engine.slots[1].chunk_idx == ci  # frozen
+    # packed stream masks inactive slot to -1
+    lat = torch.zeros(1, 48, 2, 4, 12, dtype=torch.bfloat16)
+    d, _ = engine._pack_video_stream([lat, lat], 500.0, 1)
+    seqs = d["current_seq_ids"].tolist()
+    assert all(v in (0, 1, -1) for v in seqs)
+    out1 = engine.infer()
+    assert len(out1) == 2
+    assert np.isfinite(out1[0]).all()
+    # inactive slot's chunk index did not advance; active did
+    assert engine.slots[0].chunk_idx == 1
+    assert engine.slots[1].chunk_idx == 0
+
+
+def test_commanded_history_cache_write_shapes(monkeypatch):
+    """cache_update accepts [1,C,F+1,H,1] normalized commanded histories."""
+    import wan_va.modules.icl_model as icl
+    from torch.nn.attention.flex_attention import flex_attention
+    from zero_wam.batched_static_engine import (
+        BatchedStaticEngine,
+        SlotResetSpec,
+    )
+
+    monkeypatch.setattr(
+        icl, "_compiled_flex_attention",
+        lambda q, k, v, **kw: flex_attention(
+            q, k, v, block_mask=kw.get("block_mask")))
+    server = _fake_server()
+    engine = BatchedStaticEngine(
+        server, max_tokens=4096,
+        video_guidance_scale=-1.0, icl_guidance_scale=5.0)
+    engine.reset([SlotResetSpec("x", "a", 1), SlotResetSpec("x", "b", 2)])
+    engine.infer([{"obs": _fake_obs()}, {"obs": _fake_obs()}])
+    hist = [torch.zeros(1, 6, 3, 2, 1, dtype=torch.bfloat16),
+            torch.ones(1, 6, 3, 2, 1, dtype=torch.bfloat16)]
+    engine.cache_update([{"obs": [_fake_obs()]}, {"obs": [_fake_obs()]}], hist)
+    assert engine.calls["obs_video"] == 1 and engine.calls["obs_action"] == 1
+    # action tokens for the commanded history: F+1=3 frames x apf=2 = 6/slot
+    meta = server.transformer.cache_type_ids_cache
+    assert (meta == 0).any()  # OBSERVATION entries present
+
+
+def test_ema_alpha09_formula():
+    from zero_wam.so101_closed_loop import smooth_action
+
+    prev = np.zeros(6)
+    pred = np.ones(6)
+    got = smooth_action(pred, prev, 0.9)
+    assert np.allclose(got, 0.9)
+    got2 = smooth_action(pred, got, 0.9)
+    assert np.allclose(got2, 0.9 + 0.09)
+    with pytest.raises(ValueError):
+        smooth_action(pred, prev, 0.0)
+
+
+def test_pack_metadata_masks_inactive_in_batch4():
+    from zero_wam.packed_batch import pack_metadata, slot_metadata
+
+    metas = [
+        slot_metadata(
+            PackedSlot(i, active=(i != 3), chunk_idx=0, seed=i),
+            4, torch.zeros(4, dtype=torch.int), 0, 0, "cpu", cfg_branch=0)
+        for i in range(4)
+    ]
+    m = pack_metadata(*metas)
+    assert m["seq_ids"].tolist() == [0] * 4 + [2] * 4 + [4] * 4 + [-1] * 4
+
+
+def test_batched_validation_runner_schema():
+    """The separate runner must import, pin the group protocol, and not be
+    imported by existing runners."""
+    import importlib
+
+    mod = importlib.import_module("scripts.run_so101_batched_validation")
+    assert mod.GROUP_SIZE == 4
+    assert mod.SAMPLE_SEED_BASE == 20261014
+    # 25 episodes -> 7 groups of 4 with one padded group
+    assert math.ceil(25 / mod.GROUP_SIZE) == 7
+    # runner must not be imported by existing entry points
+    from pathlib import Path
+
+    seq_src = (
+        Path("scripts/run_so101_validation_batch.py").read_text()
+        + Path("zero_wam/so101_closed_loop.py").read_text()
+    )
+    assert "run_so101_batched_validation" not in seq_src
+    assert "batched_static" not in seq_src
+
+
+def test_reset_with_padding_slot(monkeypatch):
+    """active=False spec -> masked ICL/encoder ids, no prompt/ICL encode."""
+    import wan_va.modules.icl_model as icl
+    from torch.nn.attention.flex_attention import flex_attention
+    from zero_wam.batched_static_engine import (
+        BatchedStaticEngine,
+        SlotResetSpec,
+    )
+
+    monkeypatch.setattr(
+        icl, "_compiled_flex_attention",
+        lambda q, k, v, **kw: flex_attention(
+            q, k, v, block_mask=kw.get("block_mask")))
+    server = _fake_server()
+    engine = BatchedStaticEngine(
+        server, max_tokens=4096,
+        video_guidance_scale=-1.0, icl_guidance_scale=5.0)
+    specs = [
+        SlotResetSpec("pick", "lat_a.pth", 101, active=True),
+        SlotResetSpec("pad", None, 0, active=False),
+    ]
+    engine.reset(specs)
+    assert engine.slots[1].active is False
+    assert engine.slots[1].prompt_embeds is None
+    meta = server.transformer.seq_ids_cache
+    # padding slot tokens masked to -1; only slot0 seq 0 appears
+    assert set(meta.tolist()) <= {0, -1}
+    assert (meta == 0).any()
+
+
+def test_episode_selector_preserves_canonical_order_and_seeds():
+    from scripts.run_so101_batched_validation import select_episode_rows
+
+    rows = [{"id": f"task/ep_{i:03d}"} for i in range(25)]
+    assert select_episode_rows(rows, []) == rows
+    chosen = select_episode_rows(rows, ["task/ep_024", "task/ep_003"])
+    assert [r["id"] for r in chosen] == ["task/ep_003", "task/ep_024"]
+    with pytest.raises(ValueError):
+        select_episode_rows(rows, ["task/ep_999"])
+
+
+def test_engine_one_active_three_padding_slots(monkeypatch):
+    """1 real + 3 inactive padding slots: infer/cache_update never deref
+    None prompt embeds; packed metadata masks pads to -1."""
+    import wan_va.modules.icl_model as icl
+    from torch.nn.attention.flex_attention import flex_attention
+    from zero_wam.batched_static_engine import (
+        BatchedStaticEngine,
+        SlotResetSpec,
+    )
+
+    monkeypatch.setattr(
+        icl, "_compiled_flex_attention",
+        lambda q, k, v, **kw: flex_attention(
+            q, k, v, block_mask=kw.get("block_mask")))
+    server = _fake_server()
+    engine = BatchedStaticEngine(
+        server, max_tokens=4096, batch_size=4,
+        video_guidance_scale=-1.0, icl_guidance_scale=5.0)
+    specs = [
+        SlotResetSpec("pick", "lat_a.pth", 101, active=True),
+        SlotResetSpec("pad", None, 0, active=False),
+        SlotResetSpec("pad", None, 0, active=False),
+        SlotResetSpec("pad", None, 0, active=False),
+    ]
+    engine.reset(specs)
+    assert [s.active for s in engine.slots] == [True, False, False, False]
+    assert engine.slots[1].prompt_embeds is None
+    obs0 = [{"obs": _fake_obs()}, None, None, None]
+    out = engine.infer(obs0)
+    assert len(out) == 4 and np.isfinite(out[0]).all()
+    engine.cache_update([{"obs": [_fake_obs()]}, None, None, None],
+                        [None, None, None, None])
+    out2 = engine.infer()
+    assert np.isfinite(out2[0]).all()
+    # all pad tokens masked
+    seqs = set(server.transformer.seq_ids_cache.tolist())
+    assert seqs <= {0, 1, -1}
+
+
+# ---------------------------------------------------------------------------
+# Train-replay coordinator
+# ---------------------------------------------------------------------------
+
+def test_train_replay_cohort_loading():
+    from scripts.run_so101_batched_train_replay import load_cohort
+
+    rows = load_cohort()
+    assert [r["id"] for r in rows] == [
+        "ball_between_cans/episode_000", "ball_between_cans/episode_001",
+        "block_in_bowl/episode_000", "block_in_bowl/episode_001",
+        "push_cube_into_tape_square/episode_000",
+        "push_cube_into_tape_square/episode_001",
+    ]
+    assert [r["seed"] for r in rows] == [
+        100000, 100001, 100000, 100001, 100000, 100003]
+    for r in rows:
+        assert Path(r["human_latent"]).is_file()
+        assert r["visual_config"]["config_hash"]
+        assert r["object_poses_start"]
+
+
+def test_train_replay_selector():
+    from scripts.run_so101_batched_train_replay import (
+        COHORT_IDS, load_cohort, select_episode_rows)
+
+    rows = load_cohort()
+    assert select_episode_rows(rows, []) == rows
+    sel = select_episode_rows(
+        rows, [COHORT_IDS[4], COHORT_IDS[0]])
+    assert [r["id"] for r in sel] == [COHORT_IDS[0], COHORT_IDS[4]]
+    with pytest.raises(ValueError):
+        select_episode_rows(rows, ["nope/episode_999"])
+
+
+def test_train_replay_groups_of_four_with_padding():
+    import scripts.run_so101_batched_train_replay as mod
+    from scripts.run_so101_batched_train_replay import GROUP_SIZE
+
+    rows = mod.load_cohort()
+    groups = [rows[i:i + GROUP_SIZE] for i in range(0, len(rows), GROUP_SIZE)]
+    assert len(groups) == 2 and len(groups[0]) == 4 and len(groups[1]) == 2
+    # padding spec construction is valid and masked
+    from zero_wam.batched_static_engine import SlotResetSpec
+    pad = SlotResetSpec(prompt="pad", icl_latent_path=None, seed=0,
+                        active=False)
+    assert pad.active is False and pad.icl_latent_path is None
+
+
+class _FakeTrainEnv:
+    """records ctor kwargs/reset seed; provides the ValEnv API surface."""
+
+    instances = []
+
+    def __init__(self, render_images=False, visual_config=None):
+        self.render_images = render_images
+        self.visual_config = visual_config
+        self.reset_seed = None
+        self.objects = {"ball": np.array([0.1, 0.2, 0.03]),
+                        "can_a": np.array([0.4, 0.0, 0.03])}
+        self.model = None
+        _FakeTrainEnv.instances.append(self)
+
+    def reset(self, seed=None):
+        self.reset_seed = seed
+
+    def success(self):
+        return False
+
+    def object_pos(self, name):
+        return self.objects[name]
+
+    def object_poses(self):
+        return {k: [float(v[0]), float(v[1]), float(v[2]), 1, 0, 0, 0]
+                for k, v in self.objects.items()}
+
+
+def test_train_sim_propagates_visual_config_and_seed(monkeypatch):
+    import scripts.run_so101_batched_train_replay as mod
+
+    fake_def = type("TD", (), {
+        "task_objects": ("ball",),
+        "load_classes": lambda self: (_FakeTrainEnv, None),
+    })()
+    monkeypatch.setattr(
+        "sim.train.tasks.catalog.load_train_task", lambda name: fake_def)
+    monkeypatch.setattr(
+        "sim.rebuild_wrist_v2.configure_clean_wrist",
+        lambda model: {"near_meters": 0.0})
+    monkeypatch.setattr(
+        "sim.rebuild_wrist_v2.clean_wrist_option", lambda: None)
+
+    _FakeTrainEnv.instances.clear()
+    vc = types.SimpleNamespace(config_hash="abc")  # pre-built VisualConfig
+    sim = mod.TrainSim("ball_between_cans", 100000, vc)
+    env = _FakeTrainEnv.instances[-1]
+    assert env.reset_seed == 100000
+    assert env.render_images is False
+    assert getattr(env.visual_config, "config_hash", None) == "abc"
+    assert sim.task_objects == ("ball",)
+
+
+def test_start_pose_check(monkeypatch):
+    import scripts.run_so101_batched_train_replay as mod
+
+    fake_def = type("TD", (), {
+        "task_objects": ("ball",),
+        "load_classes": lambda self: (_FakeTrainEnv, None),
+    })()
+    monkeypatch.setattr(
+        "sim.train.tasks.catalog.load_train_task", lambda name: fake_def)
+    monkeypatch.setattr(
+        "sim.rebuild_wrist_v2.configure_clean_wrist",
+        lambda model: {"near_meters": 0.0})
+    monkeypatch.setattr(
+        "sim.rebuild_wrist_v2.clean_wrist_option", lambda: None)
+
+    sim = mod.TrainSim("ball_between_cans", 100000,
+                       types.SimpleNamespace(config_hash="x"))
+    frozen = {"ball": [0.1, 0.2, 0.03, 1, 0, 0, 0]}
+    ok = mod.check_start_poses(sim, frozen)
+    assert ok["pass"] and ok["max_abs_error_m"] == 0.0
+    bad = mod.check_start_poses(sim, {"ball": [0.11, 0.2, 0.03, 1, 0, 0, 0]})
+    assert not bad["pass"] and abs(bad["max_abs_error_m"] - 0.01) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# Sequential train-replay + causal-guidance flag
+# ---------------------------------------------------------------------------
+
+def test_sequential_replay_runner_import_and_defaults():
+    import importlib
+
+    mod = importlib.import_module("scripts.run_so101_sequential_train_replay")
+    assert mod.TrainSim is not None
+    assert callable(mod.run_episode_train)
+    # isolation: existing runners must not import the sequential replay
+    from pathlib import Path
+    src = Path("zero_wam/so101_closed_loop.py").read_text()
+    assert "train_replay" not in src
+
+
+def test_chunk_causal_guidance_flag_and_custom_manifest():
+    import importlib
+    import json as _json
+
+    mod = importlib.import_module(
+        "scripts.run_zero_wam_chunk_causal_validation")
+    # default preserves existing behavior
+    import sys
+    old = sys.argv
+    try:
+        sys.argv = ["x", "--checkpoint", "c", "--base-model", "b",
+                    "--loader-root", "l", "--latent-root", "lt",
+                    "--output", "o"]
+        args = mod.parse_args()
+        assert args.video_guidance_scale == 5.0
+        sys.argv.append("--video-guidance-scale"); sys.argv.append("-1.0")
+        assert mod.parse_args().video_guidance_scale == -1.0
+    finally:
+        sys.argv = old
+    # custom manifest validates with canonical hash + files
+    from zero_wam.chunk_causal_validation import (
+        canonical_sha256, validate_manifest_files)
+    m = _json.loads(Path(
+        "data/hf_bucket_ICL-so101/train_replay_probe/chunk_causal_manifest.json"
+    ).read_text())
+    expected = m.pop("manifest_sha256")
+    assert canonical_sha256(m) == expected
+    validate_manifest_files(m)
+    assert len(m["samples"]) == 6
+    assert all(s["target_control_start"] == 8 and s["target_control_end"] == 24
+               for s in m["samples"])
+    assert all(s["observation_frame_indices"] == [0, 2, 4, 6, 8]
+               for s in m["samples"])
+
+
+# ---------------------------------------------------------------------------
+# Multi-boundary teacher-forced protocol
+# ---------------------------------------------------------------------------
+
+def test_boundary_selection_and_seed():
+    from scripts.run_so101_multi_boundary_validation import (
+        boundary_seed, select_boundaries)
+
+    bounds = select_boundaries(507)
+    assert [b for b, _ in bounds] == [56, 152, 248, 344, 440]
+    assert all((b - 8) % 16 == 0 and b + 16 <= 507 for b, _ in bounds)
+    assert len({b for b, _ in bounds}) == len(bounds)
+    s1 = boundary_seed("task__ep", 56)
+    s2 = boundary_seed("task__ep", 56)
+    s3 = boundary_seed("task__ep", 72)
+    assert s1 == s2 != s3
+
+
+class _FakeTFModel:
+    """records infer payloads to assert full-history caching, no leakage."""
+
+    def __init__(self):
+        self.calls = []
+        self.last_predicted_actions = None
+        self.normalized_writes = []  # last_predicted_actions per cache step
+        self.device = torch.device("cpu")
+        self.dtype = torch.float32
+        self.action_mask = torch.zeros(1, 30, dtype=torch.bool)
+        self.action_mask[0, :6] = True
+
+    @property
+    def _last(self):
+        return self._last_pa
+
+    @_last.setter
+    def _last(self, v):
+        self._last_pa = v
+
+    def preprocess_action(self, block):
+        out = torch.zeros(1, 30, 2, 8, dtype=torch.float32)
+        out[:, :6] = torch.tensor(np.asarray(block, dtype=np.float32))
+        return out
+
+    def infer(self, payload):
+        self.calls.append(dict(payload))
+        if payload.get("reset"):
+            return {}
+        if payload.get("compute_kv_cache"):
+            return {}
+        return {"action": np.zeros((6, 2, 8), dtype=np.float32)}
+
+
+def test_multi_boundary_full_history_teacher_force():
+    import importlib
+
+    mod = importlib.import_module(
+        "scripts.run_so101_multi_boundary_validation")
+    model = _FakeTFModel()
+    actions = np.arange(300 * 6, dtype=np.float32).reshape(300, 6)
+    states = np.zeros((300, 6), dtype=np.float32)
+    captured = {}
+
+    def obs_by_frame(f):
+        return {"observation.images.front": np.full((2, 2, 3), f, np.uint8),
+                "observation.images.wrist": np.full((2, 2, 3), f, np.uint8),
+                "observation.state": np.asarray(states[f], np.float32)}
+
+    seen = []
+    boundary = 120  # 8 + 16*7
+    writes = []
+    def record(block, zero_first=False):
+        norm = model.preprocess_action(block)
+        norm[:, ~model.action_mask[0]] = 0
+        if zero_first:
+            norm[:, :, 0] = 0
+        writes.append((norm.clone(), zero_first))
+        return norm
+    result, n_calls = mod.teacher_force_to_boundary(
+        model, obs_by_frame, actions, boundary, record, seen.append)
+
+    cache_calls = [c for c in model.calls if c.get("compute_kv_cache")]
+    # 1 prefix call + (120-8)//16 = 7 GT blocks
+    assert n_calls == 8 and len(cache_calls) == 8
+    # prefix call: 4 obs at frames 2,4,6,8
+    assert len(cache_calls[0]["obs"]) == 4
+    # deployment chunk-0 semantics: first normalized token zeroed only on
+    # the initial 0:8 prefix block; GT blocks are never zero_first
+    assert len(writes) == 8
+    assert writes[0][1] is True
+    assert torch.all(writes[0][0][:, :, 0] == 0)
+    for j, (norm, zf) in enumerate(writes[1:], start=1):
+        assert zf is False
+        c0 = 8 + 16 * (j - 1)
+        np.testing.assert_array_equal(
+            norm[0, :6].numpy().reshape(6, 16).T,
+            actions[c0:c0 + 16])
+    # GT block j=1..7: 8 keyframes every 2 controls starting at c0+2
+    for j, call in enumerate(cache_calls[1:], start=1):
+        c0 = 8 + 16 * (j - 1)
+        states_seen = [o["observation.state"][0] for o in call["obs"]]
+        frames_expected = [c0 + 2 * m for m in range(1, 9)]
+        # state values are all zeros here; verify obs count + cadence via
+        # the frames baked into pixel values
+        pix = [int(o["observation.images.front"][0, 0, 0]) for o in call["obs"]]
+        assert pix == frames_expected
+        assert len(call["obs"]) == 8
+        # teacher-forced action block = actions[c0:c0+16]
+        hist = call["state"]
+        np.testing.assert_array_equal(
+            np.asarray(hist).reshape(6, 16).T,
+            actions[c0:c0 + 16])
+    # final infer obs = boundary frame 120
+    last = model.calls[-1]
+    assert not last.get("compute_kv_cache") and not last.get("reset")
+    assert int(last["obs"]["observation.images.front"][0, 0, 0]) == 120
+    # no scorer fields ever cross into inference payloads
+    forbidden = {"target_actions", "future_actions", "target_control_start",
+                 "target_control_end", "metrics", "target"}
+    for call in model.calls:
+        assert not (forbidden & set(call.keys()))
+        obs_list = call.get("obs")
+        if isinstance(obs_list, list):
+            for o in obs_list:
+                assert not (forbidden & set(o.keys()))
+
+
+def test_multi_boundary_manifest_hash_roundtrip():
+    import json as _json
+
+    from zero_wam.chunk_causal_validation import (
+        canonical_sha256, validate_manifest_files)
+    m = _json.loads(Path(
+        "data/hf_bucket_ICL-so101/train_replay_probe/"
+        "multi_boundary_manifest.json").read_text())
+    expected = m.pop("manifest_sha256")
+    assert canonical_sha256(m) == expected
+    validate_manifest_files(m)
+    assert sum(len(s["boundaries"]) for s in m["samples"]) == 30
+    for s in m["samples"]:
+        for b in s["boundaries"]:
+            assert (b["boundary"] - 8) % 16 == 0
+            assert b["target_control_end"] <= s["num_controls"]
+
+
+def test_multi_boundary_aggregate_no_collision():
+    from scripts.run_so101_multi_boundary_validation import aggregate_multi
+
+    def row(sid, b, model, pers):
+        return {"sample_id": sid, "task": sid.split("__")[0],
+                "boundary": b, "fraction": 0.5,
+                "metrics": {
+                    "model": {"overall_physical_mae": model,
+                              "overall_physical_rmse": model},
+                    "persistence": {"overall_physical_mae": pers,
+                                    "overall_physical_rmse": pers}}}
+
+    # same numeric boundary in two episodes must not collide
+    rows = [row("task_a__ep0", 56, 0.3, 0.5), row("task_b__ep0", 56, 1.0, 0.2),
+            row("task_a__ep0", 72, 0.1, 0.9)]
+    agg = aggregate_multi(rows)
+    assert agg["num_boundaries"] == 3
+    assert agg["model_beats_persistence_count"] == 2
+    pb = agg["per_boundary_model_mae"]
+    assert len(pb) == 3 and {(x["sample_id"], x["boundary"]) for x in pb} == {
+        ("task_a__ep0", 56), ("task_b__ep0", 56), ("task_a__ep0", 72)}
+    keyed = {f"{x['sample_id']}@{x['boundary']}": x for x in pb}
+    assert keyed["task_b__ep0@56"]["model_mae"] == 1.0
+    assert not keyed["task_b__ep0@56"]["model_beats_persistence"]

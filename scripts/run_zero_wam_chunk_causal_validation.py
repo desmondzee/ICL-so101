@@ -48,6 +48,9 @@ def parse_args():
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--sample-offset", type=int, default=0)
     parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--video-guidance-scale", type=float, default=5.0,
+                        help="video CFG scale passed to infer; 5.0 preserves "
+                             "the held-out protocol default")
     return parser.parse_args()
 
 
@@ -162,7 +165,7 @@ def _observation(front, wrist, state):
     }
 
 
-def _predict_one(model, sample):
+def _predict_one(model, sample, video_guidance_scale=5.0):
     actions, states = _episode_arrays(sample["robot_parquet"])
     if len(actions) < PREFIX_CONTROLS + CHUNK_CONTROLS:
         raise ValueError(f"episode too short: {sample['sample_id']}")
@@ -187,7 +190,7 @@ def _predict_one(model, sample):
         "prompt": payload["target_text"],
         "use_icl": True,
         "icl_latent_path": payload["human_latent"],
-        "video_guidance_scale": 5.0,
+        "video_guidance_scale": video_guidance_scale,
     })
 
     # Deployment's first chunk observes frame zero and executes only its second
@@ -262,7 +265,7 @@ def main():
             print(
                 f"[{index}/{len(selected)}] {sample['sample_id']}",
                 flush=True)
-            rows.append(_predict_one(model, sample))
+            rows.append(_predict_one(model, sample, args.video_guidance_scale))
             torch.cuda.empty_cache()
     report = {
         "schema": 1,
@@ -275,6 +278,7 @@ def main():
         ).hexdigest(),
         "model_load": load_evidence,
         "inference": {
+            "video_guidance_scale": args.video_guidance_scale,
             "video_steps": int(config.num_inference_steps),
             "action_steps": int(config.action_num_inference_steps),
             "frame_chunk_size": int(config.frame_chunk_size),

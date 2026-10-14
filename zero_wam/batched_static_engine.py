@@ -46,9 +46,10 @@ class SlotResetSpec:
     """One rollout's reset inputs; geometry/steps must match across slots."""
 
     prompt: str
-    icl_latent_path: str
-    seed: int
+    icl_latent_path: Optional[str] = None
+    seed: int = 0
     icl_video_path: str = ""
+    active: bool = True
 
 
 @dataclass
@@ -60,6 +61,7 @@ class _SlotState:
     prompt_embeds: Optional[torch.Tensor] = None
     negative_prompt_embeds: Optional[torch.Tensor] = None
     target_prompt_embeds: Optional[torch.Tensor] = None
+    vae: Any = None  # per-slot WanVAEStreamingWrapper (own feat_cache)
     chunk_idx: int = 0
     init_latent: Optional[torch.Tensor] = None
     last_predicted_latents: Optional[torch.Tensor] = None
@@ -123,6 +125,14 @@ class BatchedStaticEngine:
             self.tf, self.config, safety_fraction=safety_fraction
         )
         self.slots = [_SlotState() for _ in range(batch_size)]
+        # Per-slot streaming-VAE state: wrappers share the immutable
+        # encoder/quant_conv modules but own independent feat_caches, so
+        # temporal continuation is correct per slot and no slot's cache is
+        # ever cleared by another slot's encode.
+        from wan_va.modules.utils import WanVAEStreamingWrapper
+
+        for slot in self.slots:
+            slot.vae = WanVAEStreamingWrapper(server.streaming_vae.vae)
         self.calls = {
             "icl_pack": 0,
             "video": 0,
@@ -181,18 +191,109 @@ class BatchedStaticEngine:
             action=False,
         ).to(self.device)
 
+    def set_active(self, slot_index: int, active: bool) -> None:
+        """Deactivate/reactivate a slot; masked regions use INVALID_ID."""
+        self.slots[slot_index].active = bool(active)
+
+    # ------------------------------------------------------------------
+    # per-slot VAE encoders (each slot's own feat_cache; sharing the same
+    # immutable encoder modules through WanVAEStreamingWrapper)
+    # ------------------------------------------------------------------
+
+    def _encode_initial_obs_slot(self, slot, obs):
+        """_encode_initial_obs semantics on slot.vae (fresh 1-frame encode)."""
+        import torch.nn.functional as F
+
+        image = obs["obs"]
+        if isinstance(image, list):
+            if len(image) != 1:
+                raise ValueError(
+                    "The initial observation must contain exactly one frame"
+                )
+            image = image[0]
+        slot.vae.clear_cache()  # fresh stream — only this slot's cache
+        videos = []
+        for key in self.jc.obs_cam_keys:
+            current = (
+                torch.from_numpy(image[key].copy())
+                .float()
+                .to(self.device)
+            )
+            current = current / 255.0 * 2.0 - 1.0
+            current = current.permute(2, 0, 1).unsqueeze(0)
+            current = F.interpolate(
+                current, size=(self.height, self.width),
+                mode="bilinear", align_corners=False,
+            )
+            videos.append(current.unsqueeze(2))
+        video = torch.cat(videos, dim=0).to(self.server.vae.dtype)
+        encoded = slot.vae.encode_chunk(video)
+        mu, _ = torch.chunk(encoded, 2, dim=1)
+        mean = torch.tensor(
+            self.server.vae.config.latents_mean, device=mu.device
+        )
+        std = torch.tensor(
+            self.server.vae.config.latents_std, device=mu.device
+        )
+        mu = self.server.normalize_latents(mu, mean, 1.0 / std)
+        return torch.cat(mu.split(1, dim=0), dim=-1).to(self.device)
+
+    def _encode_obs_slot(self, slot, obs):
+        """_encode_obs semantics on slot.vae (continuation; no clear)."""
+        import torch.nn.functional as F
+        import numpy as np
+
+        images = obs["obs"]
+        if not isinstance(images, list):
+            images = [images]
+        if len(images) < 1:
+            return None
+        # Encode both cams together (feat_cache tails are batch=2) in <=4-frame
+        # temporal pieces: streaming continuation stays identical while each
+        # encode_chunk's transient activation stays small enough for batch-4
+        # VRAM headroom.
+        vae_device = next(slot.vae.vae.parameters()).device
+        piece = 4
+        videos = []
+        for k in self.jc.obs_cam_keys:
+            history = torch.from_numpy(
+                np.stack([each[k] for each in images])
+            ).float().permute(3, 0, 1, 2)
+            history = F.interpolate(
+                history, size=(self.height, self.width),
+                mode="bilinear", align_corners=False,
+            ).unsqueeze(0)
+            videos.append(history)
+        videos = torch.cat(videos, dim=0) / 255.0 * 2.0 - 1.0
+        mus = []
+        for t0 in range(0, videos.shape[2], piece):
+            chunk = videos[:, :, t0 : t0 + piece].to(vae_device).to(self.dtype)
+            enc_out = slot.vae.encode_chunk(chunk)
+            mu, _ = torch.chunk(enc_out, 2, dim=1)
+            mus.append(mu)
+        mu_all = torch.cat(mus, dim=2)
+        mean = torch.tensor(
+            self.server.vae.config.latents_mean, device=mu_all.device
+        )
+        std = torch.tensor(
+            self.server.vae.config.latents_std, device=mu_all.device
+        )
+        mu_norm = self.server.normalize_latents(mu_all, mean, 1.0 / std)
+        return torch.cat(mu_norm.split(1, dim=0), dim=-1).to(self.device)
+
     # ------------------------------------------------------------------
     # reset
     # ------------------------------------------------------------------
 
+    @torch.no_grad()
     def reset(self, specs: Sequence[SlotResetSpec]):
         """Multi-slot reset: sequential text/ICL encode, ONE packed ICL write."""
         if len(specs) != self.batch_size:
             raise ValueError(
                 f"reset requires {self.batch_size} specs, got {len(specs)}"
             )
-        if any(not s.prompt for s in specs):
-            raise ValueError("every slot requires a prompt")
+        if any(not s.prompt for s in specs if s.active):
+            raise ValueError("every active slot requires a prompt")
         self._shared_reset_state()
         self.tf.clear_cache(CACHE_NAME)
         self.server.streaming_vae.clear_cache()
@@ -207,10 +308,19 @@ class BatchedStaticEngine:
             slot.init_latent = None
             slot.last_predicted_latents = None
             slot.last_predicted_actions = None
-            slot.active = True
+            slot.active = spec.active
             slot.generator = torch.Generator(device=self.device)
             slot.generator.manual_seed(int(spec.seed))
             slot.scheduler, slot.action_scheduler = self._make_schedulers()
+
+            if not slot.active:
+                # Padding slot: masked (-1) placeholders only; nothing is
+                # encoded and nothing of it is attendable.
+                slot.prompt_embeds = None
+                slot.negative_prompt_embeds = None
+                slot.target_prompt_embeds = None
+                icl_parts.append(None)  # filled after real latents are known
+                continue
 
             prompt_emb, neg_emb = self.server.encode_prompt(
                 prompt=spec.prompt,
@@ -248,6 +358,26 @@ class BatchedStaticEngine:
         if self.server.streaming_vae_half is not None:
             self.server.streaming_vae_half.clear_cache()
 
+        ref = next(p for p in icl_parts if p is not None)
+        text_dim = (
+            self.server.empty_text_emb.shape[-1]
+            if self.server.empty_text_emb is not None
+            else ref[1].shape[-1]
+        )
+        for i, part in enumerate(icl_parts):
+            if part is None:  # padding slot — masked zeros, same geometry
+                icl_parts[i] = (
+                    torch.zeros(
+                        1, ref[0].shape[1], 1,
+                        ref[0].shape[3], ref[0].shape[4],
+                        device=self.device, dtype=self.dtype,
+                    ),
+                    torch.zeros(
+                        1, 1, text_dim, device=self.device,
+                        dtype=self.dtype,
+                    ),
+                )
+
         # One packed ICL-prefix cache write: slot s under seq id 2s
         # (cond branch; uncond branches see no ICL — same as sequential
         # _pack_icl_cfg where the uncond stream keeps seq id 1 without ICL).
@@ -272,7 +402,9 @@ class BatchedStaticEngine:
         seq_ids = torch.cat(
             [
                 torch.full(
-                    (n,), slot_seq_id(i, COND_BRANCH),
+                    (n,),
+                    slot_seq_id(i, COND_BRANCH)
+                    if self.slots[i].active else INVALID_ID,
                     dtype=torch.int, device=self.device,
                 )
                 for i, n in enumerate(t_counts)
@@ -297,7 +429,8 @@ class BatchedStaticEngine:
                 [
                     torch.full(
                         (icl_parts[i][1].shape[1],),
-                        slot_seq_id(i, COND_BRANCH),
+                        slot_seq_id(i, COND_BRANCH)
+                        if self.slots[i].active else INVALID_ID,
                         dtype=torch.int, device=self.device,
                     )
                     for i in range(self.batch_size)
@@ -314,6 +447,20 @@ class BatchedStaticEngine:
     # ------------------------------------------------------------------
     # packed stream builders
     # ------------------------------------------------------------------
+
+
+    def _slot_emb(self, slot, key):
+        emb = getattr(slot, key)
+        if emb is None:  # inactive padding slot — masked, shape only
+            sibling = next(
+                getattr(s, key) for s in self.slots
+                if getattr(s, key) is not None
+            )
+            emb = torch.zeros(
+                1, 1, sibling.shape[-1],
+                device=self.device, dtype=self.dtype,
+            )
+        return emb
 
     def _pack_video_stream(self, latents, timestep, cache_type):
         """Pack per-slot [cond, uncond] video chunks (seq 2s / 2s+1)."""
@@ -360,12 +507,12 @@ class BatchedStaticEngine:
                 # _pack_icl_cfg duplicates text per branch for every cache
                 # type (the uncond branch's text depends on the CFG mode).
                 emb = (
-                    slot.target_prompt_embeds
+                    self._slot_emb(slot, "target_prompt_embeds")
                     if branch == COND_BRANCH
                     else (
-                        slot.target_prompt_embeds
+                        self._slot_emb(slot, "target_prompt_embeds")
                         if self.use_icl_cfg
-                        else slot.negative_prompt_embeds
+                        else self._slot_emb(slot, "negative_prompt_embeds")
                     )
                 )
                 text_parts.append(emb.to(self.dtype))
@@ -432,7 +579,9 @@ class BatchedStaticEngine:
                 torch.full([n], cache_type, dtype=torch.int, device=self.device)
             )
         text_parts = [
-            self.slots[i].target_prompt_embeds.to(self.dtype)
+            self._slot_emb(self.slots[i], "target_prompt_embeds").to(
+                self.dtype
+            )
             for i in range(self.batch_size)
         ]
         input_dict = {
@@ -448,7 +597,11 @@ class BatchedStaticEngine:
             "encoder_seq_ids": torch.cat(
                 [
                     torch.full(
-                        [self.slots[i].target_prompt_embeds.shape[1]],
+                        [
+                            self._slot_emb(
+                                self.slots[i], "target_prompt_embeds"
+                            ).shape[1]
+                        ],
                         slot_seq_id(i, COND_BRANCH)
                         if self.slots[i].active else INVALID_ID,
                         dtype=torch.int, device=self.device,
@@ -463,6 +616,7 @@ class BatchedStaticEngine:
     # inference (one packed transformer call per timestep)
     # ------------------------------------------------------------------
 
+    @torch.no_grad()
     def infer(self, obs_list=None):
         """Packed inference for all slots; returns a list of action arrays."""
         jc = self.jc
@@ -474,29 +628,44 @@ class BatchedStaticEngine:
             )
         for i, obs in enumerate(obs_list):
             slot = self.slots[i]
-            if slot.chunk_idx == 0:
-                slot.init_latent = self.server._encode_initial_obs(obs)
-                self.server.streaming_vae.clear_cache()
+            if slot.chunk_idx == 0 and slot.active:
+                slot.init_latent = self._encode_initial_obs_slot(slot, obs)
 
-        latents = [
-            torch.randn(
-                1, 48, self.frame_chunk_size,
-                self.latent_height, self.latent_width,
-                generator=slot.generator, device=self.device, dtype=self.dtype,
-            )
-            for slot in self.slots
-        ]
-        actions = [
-            torch.randn(
-                1, jc.action_dim, self.frame_chunk_size,
-                self.action_per_frame, 1,
-                generator=slot.generator, device=self.device, dtype=self.dtype,
-            )
-            for slot in self.slots
-        ]
+        latents = []
+        for slot in self.slots:
+            if slot.active:
+                latents.append(torch.randn(
+                    1, 48, self.frame_chunk_size,
+                    self.latent_height, self.latent_width,
+                    generator=slot.generator, device=self.device,
+                    dtype=self.dtype,
+                ))
+            else:
+                latents.append(torch.zeros(
+                    1, 48, self.frame_chunk_size,
+                    self.latent_height, self.latent_width,
+                    device=self.device, dtype=self.dtype,
+                ))
+        actions = []
+        for slot in self.slots:
+            if slot.active:
+                actions.append(torch.randn(
+                    1, jc.action_dim, self.frame_chunk_size,
+                    self.action_per_frame, 1,
+                    generator=slot.generator, device=self.device,
+                    dtype=self.dtype,
+                ))
+            else:
+                actions.append(torch.zeros(
+                    1, jc.action_dim, self.frame_chunk_size,
+                    self.action_per_frame, 1,
+                    device=self.device, dtype=self.dtype,
+                ))
         # Consume inactive-channel noise per slot exactly like the sequential
         # path (seeded determinism across chunks).
         for i, slot in enumerate(self.slots):
+            if not slot.active:
+                continue
             _ = torch.randn(
                 actions[i].shape, generator=slot.generator,
                 device=self.device, dtype=self.dtype,
@@ -521,7 +690,7 @@ class BatchedStaticEngine:
             latent_inputs = []
             for i, slot in enumerate(self.slots):
                 li = latents[i].clone()
-                if slot.chunk_idx == 0:
+                if slot.chunk_idx == 0 and slot.init_latent is not None:
                     li[:, :, :1] = slot.init_latent[:, :, :1]
                 latent_inputs.append(li)
             input_dict, _ = self._pack_video_stream(
@@ -567,7 +736,7 @@ class BatchedStaticEngine:
                 latents[i] = slot.scheduler.step(
                     n, timestep, latents[i], return_dict=False
                 )
-                if slot.chunk_idx == 0:
+                if slot.chunk_idx == 0 and slot.init_latent is not None:
                     latents[i][:, :, :1] = slot.init_latent[:, :, :1]
 
         for timestep in self.slots[0].action_scheduler.timesteps:
@@ -625,29 +794,59 @@ class BatchedStaticEngine:
     # cache update (one packed video write + one packed action write)
     # ------------------------------------------------------------------
 
-    def cache_update(self, obs_list):
+    @torch.no_grad()
+    def cache_update(self, obs_list, commanded_histories=None):
+        """Packed obs/action cache write for all slots in one call per stream.
+
+        `obs_list[i]` is slot i's keyframe payload (``{"obs": [frames]}``) or
+        None for inactive/finished slots, which get masked zero placeholders
+        without touching their VAE state.  `commanded_histories[i]` is the
+        slot's normalized commanded-action history `[1,C,F+1,H,1]` (the same
+        shape `preprocess_action` produces); None → `last_predicted_actions`.
+        """
         self.tf.clear_prediction_cache(-1, CACHE_NAME)
         self.calls["prune"] += 1
         if len(obs_list) != self.batch_size:
             raise ValueError(
                 f"obs_list must have {self.batch_size} entries, got {len(obs_list)}"
             )
+        if commanded_histories is not None and (
+            len(commanded_histories) != self.batch_size
+        ):
+            raise ValueError("commanded_histories length mismatch")
         latent_inputs = []
         for i, obs in enumerate(obs_list):
             slot = self.slots[i]
-            # Fresh encode per slot: the streaming VAE's residual feat_cache
-            # would otherwise see a mismatched frame count.
-            self.server.streaming_vae.clear_cache()
-            lat = self.server._encode_obs(obs)
+            if not slot.active or obs is None:
+                # masked placeholder: never attendable (seq -1), minimal size
+                latent_inputs.append(torch.zeros(
+                    1, 48, 1, self.latent_height, self.latent_width,
+                    device=self.device, dtype=self.dtype,
+                ))
+                continue
+            lat = self._encode_obs_slot(slot, obs)  # continuation on slot.vae
             if slot.chunk_idx == 0:
                 lat = torch.cat([slot.init_latent, lat], dim=2)
-            self.server.streaming_vae.clear_cache()
             latent_inputs.append(lat)
+        action_inputs = []
         for i, slot in enumerate(self.slots):
-            if slot.last_predicted_actions is None:
-                raise RuntimeError(
-                    f"slot {i}: action history requested before first inference"
+            hist = (
+                commanded_histories[i]
+                if commanded_histories is not None
+                else None
+            )
+            if hist is None:
+                hist = slot.last_predicted_actions
+            if hist is None:
+                if slot.active:
+                    raise RuntimeError(
+                        f"slot {i}: action history requested before first inference"
+                    )
+                hist = torch.zeros(
+                    1, self.jc.action_dim, 1, self.action_per_frame, 1,
+                    device=self.device, dtype=self.dtype,
                 )
+            action_inputs.append(hist)
         video_dict, _ = self._pack_video_stream(
             latent_inputs, 0, OBSERVATION_CACHE_TYPE
         )
@@ -656,10 +855,7 @@ class BatchedStaticEngine:
                     mode="forward_latent_only")
         self.calls["obs_video"] += 1
         action_dict, _ = self._pack_action_stream(
-            [
-                self.slots[i].last_predicted_actions.to(latent_inputs[i])
-                for i in range(self.batch_size)
-            ],
+            [a.to(latent_inputs[i]) for i, a in enumerate(action_inputs)],
             0,
             OBSERVATION_CACHE_TYPE,
         )
@@ -668,7 +864,8 @@ class BatchedStaticEngine:
                     mode="forward_action_only", clean_window_cache=True)
         self.calls["obs_action"] += 1
         for slot in self.slots:
-            slot.chunk_idx += 1
+            if slot.active:
+                slot.chunk_idx += 1
         return dict()
 
     def diagnostics(self) -> dict[str, Any]:
