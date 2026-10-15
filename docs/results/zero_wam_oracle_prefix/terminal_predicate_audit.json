@@ -1,0 +1,292 @@
+{
+  "episodes": [
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.14937,
+            0.17384,
+            0.02405,
+            0.17231,
+            -0.43941,
+            -0.63214,
+            0.61452
+          ],
+          "position_error_xyz_m": [
+            0.008737275821685181,
+            -0.007244354263100439,
+            0.005809314929672099
+          ],
+          "position_pass": true,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": true,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": false
+        }
+      },
+      "id": "block_in_bowl/episode_000__prefix_0000",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.17106,
+            -0.01774,
+            0.01389,
+            0.42677,
+            0.0,
+            -0.0,
+            0.90436
+          ],
+          "position_error_xyz_m": [
+            0.03043253660682388,
+            -0.19881947274442852,
+            -0.004347755418479973
+          ],
+          "position_pass": false,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": false,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_000__prefix_0096",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.2086,
+            0.02435,
+            0.01389,
+            0.91653,
+            -0.0,
+            0.0,
+            0.39997
+          ],
+          "position_error_xyz_m": [
+            0.06796781046427,
+            -0.1567379321764249,
+            -0.0043477554188379175
+          ],
+          "position_pass": false,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": false,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_000__prefix_0176",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": true,
+          "object_pose": [
+            0.14048,
+            0.18053,
+            0.01905,
+            0.61614,
+            -0.00214,
+            0.00448,
+            0.78762
+          ],
+          "position_error_xyz_m": [
+            -0.0001547364403904905,
+            -0.0005493892937435685,
+            0.0008106699417044436
+          ],
+          "position_pass": true,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": true,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_000__prefix_0288",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": true
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.12923,
+            0.22709,
+            0.01389,
+            0.10128,
+            0.0,
+            0.0,
+            -0.99486
+          ],
+          "position_error_xyz_m": [
+            0.008147494025971785,
+            0.40090017456410376,
+            -0.004347755418926605
+          ],
+          "position_pass": false,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": false,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_001__prefix_0000",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.2678,
+            0.10625,
+            0.01389,
+            -0.28775,
+            0.0,
+            -0.0,
+            -0.95771
+          ],
+          "position_error_xyz_m": [
+            0.1467104935492373,
+            0.28005700552782803,
+            -0.004347755418513717
+          ],
+          "position_pass": false,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": false,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_001__prefix_0152",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": false,
+          "object_pose": [
+            0.1882,
+            -0.0677,
+            0.01389,
+            -0.64399,
+            0.0,
+            0.0,
+            -0.76503
+          ],
+          "position_error_xyz_m": [
+            0.06711855700658034,
+            0.10611147915441296,
+            -0.0043477554215593725
+          ],
+          "position_pass": false,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": false,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_001__prefix_0232",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": false
+    },
+    {
+      "goals": {
+        "block": {
+          "goal_holds": true,
+          "object_pose": [
+            0.12346,
+            -0.17122,
+            0.01928,
+            -0.80129,
+            -0.04126,
+            0.009,
+            -0.59679
+          ],
+          "position_error_xyz_m": [
+            0.0023702116340339058,
+            0.0025845896578971517,
+            0.0010352682383945287
+          ],
+          "position_pass": true,
+          "position_tolerance_m": [
+            0.018,
+            0.018,
+            0.006
+          ],
+          "released_pass": true,
+          "settled_pass": true,
+          "support": "bowl",
+          "support_pass": true,
+          "upright_cos": 0.984807753012208,
+          "upright_pass": true
+        }
+      },
+      "id": "block_in_bowl/episode_001__prefix_0368",
+      "state_reproduction_max_abs_error": 0.0,
+      "success": true
+    }
+  ]
+}

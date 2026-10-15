@@ -16,6 +16,9 @@ runs+=(
   train_replay_v2b_partial8_forecast4_ensemble_full_conditioning_3tasks_2seeds_scenev2_b4
   partial_batch4_reference_history
   partial_batch4_f4_ensemble_padding
+  oracle_command_replay_scenev2
+  block_prefix_smoke_scenev2
+  block_prefix_handover_scenev2_b4
 )
 while true; do
   failed=0
@@ -31,6 +34,10 @@ while true; do
   if ! timeout 120 /root/.local/bin/hf buckets cp docs/ZERO_WAM_PARTIAL_CHUNK_REPLAY_TRACKER.md "$base/partial_chunk_replay_plan/ZERO_WAM_PARTIAL_CHUNK_REPLAY_TRACKER.md"; then failed=1; fi
   if [[ -d docs/results/zero_wam_partial_chunk_replay ]]; then
     if ! timeout 240 /root/.local/bin/hf buckets sync docs/results/zero_wam_partial_chunk_replay "$base/partial_chunk_replay_analysis" --no-delete --quiet; then failed=1; fi
+  fi
+  if [[ -d docs/results/zero_wam_oracle_prefix ]]; then
+    if ! timeout 240 /root/.local/bin/hf buckets sync docs/results/zero_wam_oracle_prefix "$base/oracle_prefix_analysis" --no-delete --quiet; then failed=1; fi
+    if ! timeout 120 /root/.local/bin/hf buckets cp docs/ZERO_WAM_ORACLE_PREFIX_TRACKER.md "$base/oracle_prefix_analysis/ZERO_WAM_ORACLE_PREFIX_TRACKER.md"; then failed=1; fi
   fi
   echo "$(date -u +%FT%TZ) pass finished failed=$failed next=300s"
   sleep 300

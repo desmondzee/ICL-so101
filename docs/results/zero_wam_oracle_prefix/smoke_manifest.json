@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "task": "block_in_bowl",
+  "conditions": [
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "prefix_controls": 0,
+      "prefix_stage": "smoke",
+      "source_parquet_sha256": "802b1b192a1bc8b562ba4bb9dcb61dbdf5048ffe84e6c933a9d5b61da92f4c7b",
+      "expected_handover": {
+        "state": [
+          -0.0020666495671217405,
+          -99.00265636221856,
+          90.0236062441374,
+          60.00297070177332,
+          -0.002303972952352491,
+          0.9110950069032462
+        ],
+        "tcp": [
+          0.1955678195146121,
+          -0.0009742934798315222,
+          0.03657852681216758
+        ],
+        "objects": {
+          "block": {
+            "xyz": [
+              0.11770676687306067,
+              -0.10226901373795876,
+              0.01389224457898464
+            ],
+            "grasped": false
+          }
+        },
+        "goals": {
+          "block": {
+            "xyz": [
+              0.1406308443081419,
+              0.1810835531582832,
+              0.01824
+            ],
+            "error_xyz": [
+              -0.022924077435081236,
+              -0.28335256689624194,
+              -0.00434775542101536
+            ],
+            "holds": false
+          }
+        },
+        "success": false
+      }
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "prefix_controls": 8,
+      "prefix_stage": "smoke",
+      "source_parquet_sha256": "802b1b192a1bc8b562ba4bb9dcb61dbdf5048ffe84e6c933a9d5b61da92f4c7b",
+      "expected_handover": {
+        "state": [
+          -0.0020606720468497636,
+          -99.0027558071286,
+          90.0459012916591,
+          60.00650430704941,
+          -0.0023027103859375236,
+          22.317892341813245
+        ],
+        "tcp": [
+          0.19552579860594976,
+          -0.0009743127413267217,
+          0.036478014158483826
+        ],
+        "objects": {
+          "block": {
+            "xyz": [
+              0.11770676687306067,
+              -0.10226901373795864,
+              0.01389224458146763
+            ],
+            "grasped": false
+          }
+        },
+        "goals": {
+          "block": {
+            "xyz": [
+              0.1406308443081419,
+              0.1810835531582832,
+              0.01824
+            ],
+            "error_xyz": [
+              -0.022924077435081236,
+              -0.28335256689624183,
+              -0.0043477554185323685
+            ],
+            "holds": false
+          }
+        },
+        "success": false
+      }
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "prefix_controls": 16,
+      "prefix_stage": "smoke",
+      "source_parquet_sha256": "802b1b192a1bc8b562ba4bb9dcb61dbdf5048ffe84e6c933a9d5b61da92f4c7b",
+      "expected_handover": {
+        "state": [
+          0.24203365887105463,
+          -98.71283055322688,
+          89.79593803994425,
+          60.13689238317694,
+          -0.15700676121448728,
+          25.267406117303864
+        ],
+        "tcp": [
+          0.19522069764318617,
+          -0.001733192523197528,
+          0.036659286865446034
+        ],
+        "objects": {
+          "block": {
+            "xyz": [
+              0.11770676687306067,
+              -0.10226901373795864,
+              0.013892244581485967
+            ],
+            "grasped": false
+          }
+        },
+        "goals": {
+          "block": {
+            "xyz": [
+              0.1406308443081419,
+              0.1810835531582832,
+              0.01824
+            ],
+            "error_xyz": [
+              -0.022924077435081236,
+              -0.28335256689624183,
+              -0.0043477554185140325
+            ],
+            "holds": false
+          }
+        },
+        "success": false
+      }
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "prefix_controls": 24,
+      "prefix_stage": "smoke",
+      "source_parquet_sha256": "802b1b192a1bc8b562ba4bb9dcb61dbdf5048ffe84e6c933a9d5b61da92f4c7b",
+      "expected_handover": {
+        "state": [
+          3.658687614554755,
+          -94.39454377066703,
+          86.26252761950809,
+          61.892194825252496,
+          -2.248477063135521,
+          25.266921793951376
+        ],
+        "tcp": [
+          0.19076534459815433,
+          -0.011474975804193318,
+          0.03861869332569452
+        ],
+        "objects": {
+          "block": {
+            "xyz": [
+              0.11770676687306067,
+              -0.10226901373795873,
+              0.013892244581084293
+            ],
+            "grasped": false
+          }
+        },
+        "goals": {
+          "block": {
+            "xyz": [
+              0.1406308443081419,
+              0.1810835531582832,
+              0.01824
+            ],
+            "error_xyz": [
+              -0.022924077435081236,
+              -0.28335256689624194,
+              -0.004347755418915706
+            ],
+            "holds": false
+          }
+        },
+        "success": false
+      }
+    }
+  ],
+  "oracle_summary_sha256": "ee27ab536641ce3736dcad65b0409325fd582fe82dc26d075baeb20dda77faf1",
+  "schedule": "F2 raw, execute8, CFG5, full paired ICL, noEMA; original global2x horizon",
+  "prefix_method": "physically execute recorded prefix, infer/discard to preserve noise schedule, cache commanded history"
+}

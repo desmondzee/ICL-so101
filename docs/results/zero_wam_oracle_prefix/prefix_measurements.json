@@ -1,0 +1,284 @@
+{
+  "analysis_source_sha256": "aa7f311481d04be5151dce74e7b07df9690e70b8d60a032896a167c00998b4ae",
+  "conditions": [
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "stage": "zero",
+      "prefix_controls": 0,
+      "controls": 1152,
+      "policy_controls": 1152,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 333,
+      "policy_grasp_intervals": [
+        [
+          98,
+          99
+        ],
+        [
+          101,
+          123
+        ],
+        [
+          125,
+          432
+        ]
+      ],
+      "first_loss_after_held_handover": null,
+      "max_policy_lift_cm": 11.701235209416911,
+      "min_policy_goal_distance_cm": 1.1785837553637215,
+      "final_goal_error_xyz_cm": [
+        0.8737275821685181,
+        -0.7244354263100439,
+        0.5809314929672099
+      ],
+      "policy_controls_inside_position_tolerance": 713,
+      "first_policy8_arm_mae_vs_oracle_deg": 1.0992718026041985,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.8818233460187912,
+      "result_sha256": "ef7c1b8b94474f60b43345ccabbcb5ad4fb0d32e5a755974bde225d4b900e0c0",
+      "telemetry_sha256": "9d49bc07d1d8cf75445deb063f0cfba43f1488c09d7fb574183513f42a07bb4a"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "stage": "pre_closure",
+      "prefix_controls": 96,
+      "controls": 1152,
+      "policy_controls": 1056,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 167,
+      "policy_grasp_intervals": [
+        [
+          108,
+          274
+        ]
+      ],
+      "first_loss_after_held_handover": null,
+      "max_policy_lift_cm": 8.111236943398044,
+      "min_policy_goal_distance_cm": 20.088457910061866,
+      "final_goal_error_xyz_cm": [
+        3.043253660682388,
+        -19.88194727444285,
+        -0.43477554184799727
+      ],
+      "policy_controls_inside_position_tolerance": 0,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.25621709823608396,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.29874300956726074,
+      "result_sha256": "1cdf7d0a05256084d7a0b227093549ac20eb22ba14d191d4aca713aaeb7d18f4",
+      "telemetry_sha256": "a7296334ef10a8ebf23841f252eacba879efa3fbbdeeb8a8ec720dbb45ebe12b"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "stage": "held_after_lift",
+      "prefix_controls": 176,
+      "controls": 1152,
+      "policy_controls": 976,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 139,
+      "policy_grasp_intervals": [
+        [
+          177,
+          315
+        ]
+      ],
+      "first_loss_after_held_handover": {
+        "control": 316,
+        "seconds_after_handover": 4.666666666666667,
+        "goal_error_xyz_m": [
+          0.06759233951159666,
+          -0.15389868114575628,
+          0.007600945913824878
+        ],
+        "height_above_initial_m": 0.011948701334840238
+      },
+      "max_policy_lift_cm": 9.144371219560758,
+      "min_policy_goal_distance_cm": 16.438859955369644,
+      "final_goal_error_xyz_cm": [
+        6.796781046427,
+        -15.67379321764249,
+        -0.43477554188379175
+      ],
+      "policy_controls_inside_position_tolerance": 0,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.3116814136505127,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.040642306208610535,
+      "result_sha256": "f999ef853e9302f0839767153873745a0520ef7e0aef11cf3ac9127d2c7b7255",
+      "telemetry_sha256": "8b7b7b9f97b6b19143693763cf4d6a8edfb26afd771d5fdd0a305e456701c9f2"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_000",
+      "stage": "held_above_bowl",
+      "prefix_controls": 288,
+      "controls": 336,
+      "policy_controls": 48,
+      "success": true,
+      "first_success_control": 329,
+      "final_success": true,
+      "policy_grasp_controls": 40,
+      "policy_grasp_intervals": [
+        [
+          289,
+          328
+        ]
+      ],
+      "first_loss_after_held_handover": {
+        "control": 329,
+        "seconds_after_handover": 1.3666666666666667,
+        "goal_error_xyz_m": [
+          0.0001359693357533276,
+          0.0009334816659357648,
+          -0.0010025429362697236
+        ],
+        "height_above_initial_m": 0.003345212484745636
+      },
+      "max_policy_lift_cm": 5.899861347335096,
+      "min_policy_goal_distance_cm": 0.08216759944230688,
+      "final_goal_error_xyz_cm": [
+        -0.01547364403904905,
+        -0.05493892937435685,
+        0.08106699417044436
+      ],
+      "policy_controls_inside_position_tolerance": 30,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.247361159324646,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.06914927810430527,
+      "result_sha256": "eb0fd4fece7b929952e848ea0d0ffc462a1397e7bca8483140dcd72161aaf87b",
+      "telemetry_sha256": "5783e47f4ad5b803e33295885cc21d49e843c938f26eaabee0aa97084951a0ed"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_001",
+      "stage": "zero",
+      "prefix_controls": 0,
+      "controls": 1288,
+      "policy_controls": 1288,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 0,
+      "policy_grasp_intervals": [],
+      "first_loss_after_held_handover": null,
+      "max_policy_lift_cm": 2.7669568025689983e-10,
+      "min_policy_goal_distance_cm": 40.10065268815573,
+      "final_goal_error_xyz_cm": [
+        0.8147494025971785,
+        40.09001745641038,
+        -0.43477554189266054
+      ],
+      "policy_controls_inside_position_tolerance": 0,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.3569878830690868,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.8014938682317734,
+      "result_sha256": "0925aa193c2e75959f44b2f2e915e1c9ef933d8a88d84637acf05bdd18cd72e9",
+      "telemetry_sha256": "db90c61a3018157011b5a72cbb6f3f9b3ec9894be1943806008e3b0b336a635e"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_001",
+      "stage": "pre_closure",
+      "prefix_controls": 152,
+      "controls": 1288,
+      "policy_controls": 1136,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 197,
+      "policy_grasp_intervals": [
+        [
+          167,
+          363
+        ]
+      ],
+      "first_loss_after_held_handover": null,
+      "max_policy_lift_cm": 8.065667335512257,
+      "min_policy_goal_distance_cm": 31.031159760488197,
+      "final_goal_error_xyz_cm": [
+        14.67104935492373,
+        28.005700552782802,
+        -0.4347755418513717
+      ],
+      "policy_controls_inside_position_tolerance": 0,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.15174534320831298,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.1589975357055664,
+      "result_sha256": "776d4c242981acf3d66cad255b84d52fb5e2c1a0825d3a36d74885eb87829e62",
+      "telemetry_sha256": "c258fc53d70184b9524650d999af427855a1075a9bca51cc20f71005b66b40ed"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_001",
+      "stage": "held_after_lift",
+      "prefix_controls": 232,
+      "controls": 1288,
+      "policy_controls": 1056,
+      "success": false,
+      "first_success_control": null,
+      "final_success": false,
+      "policy_grasp_controls": 141,
+      "policy_grasp_intervals": [
+        [
+          233,
+          373
+        ]
+      ],
+      "first_loss_after_held_handover": {
+        "control": 374,
+        "seconds_after_handover": 4.733333333333333,
+        "goal_error_xyz_m": [
+          0.0671984878821536,
+          0.10518028457232742,
+          0.0037637580468024012
+        ],
+        "height_above_initial_m": 0.00811151346781773
+      },
+      "max_policy_lift_cm": 7.6989258964276885,
+      "min_policy_goal_distance_cm": 12.12759690823127,
+      "final_goal_error_xyz_cm": [
+        6.711855700658035,
+        10.611147915441297,
+        -0.4347755421559373
+      ],
+      "policy_controls_inside_position_tolerance": 0,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.11879472732543946,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.0548957921564579,
+      "result_sha256": "8a68b4d5c47445769faa4ae5abd0002d673e448bf99e4dc2d47b6b93a54a25c8",
+      "telemetry_sha256": "f69d24f7b36513a13370dc2a766a554567640ba4867b7d3360e6f493d3b2d7f6"
+    },
+    {
+      "source_episode_id": "block_in_bowl/episode_001",
+      "stage": "held_above_bowl",
+      "prefix_controls": 368,
+      "controls": 416,
+      "policy_controls": 48,
+      "success": true,
+      "first_success_control": 410,
+      "final_success": true,
+      "policy_grasp_controls": 41,
+      "policy_grasp_intervals": [
+        [
+          369,
+          409
+        ]
+      ],
+      "first_loss_after_held_handover": {
+        "control": 410,
+        "seconds_after_handover": 1.4,
+        "goal_error_xyz_m": [
+          0.0021420462252061956,
+          0.002634063193243885,
+          0.0010087478653526653
+        ],
+        "height_above_initial_m": 0.005356503286367994
+      },
+      "max_policy_lift_cm": 5.682612515467655,
+      "min_policy_goal_distance_cm": 0.3368198779319666,
+      "final_goal_error_xyz_cm": [
+        0.23702116340339058,
+        0.25845896578971517,
+        0.10352682383945287
+      ],
+      "policy_controls_inside_position_tolerance": 32,
+      "first_policy8_arm_mae_vs_oracle_deg": 0.511222381144762,
+      "first_policy8_gripper_mae_vs_oracle_points": 0.1281379796564579,
+      "result_sha256": "b2663bf2a2d482785b8bbbae67f2c0e88fb80247d92704bb8768b7efd4e62f63",
+      "telemetry_sha256": "f1f71ae847077417a47aa7af213fdc281940faf142247f668b99cb88c67ef774"
+    }
+  ]
+}

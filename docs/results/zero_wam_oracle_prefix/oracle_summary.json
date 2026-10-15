@@ -1,0 +1,1397 @@
+{
+  "episodes": [
+    {
+      "controls": 550,
+      "final": {
+        "goals": {
+          "ball": {
+            "error_xyz": [
+              0.0021352120257002727,
+              0.0006990388393863789,
+              -0.0003671818446062281
+            ],
+            "holds": true,
+            "xyz": [
+              0.135471009525399,
+              0.15708656933517678,
+              0.014000000000000012
+            ]
+          }
+        },
+        "objects": {
+          "ball": {
+            "grasped": false,
+            "xyz": [
+              0.13760622155109928,
+              0.15778560817456316,
+              0.013632818155393784
+            ]
+          }
+        },
+        "state": [
+          -0.0017034384009443047,
+          -99.00106932933156,
+          90.02246010177807,
+          60.006985581042706,
+          -0.0025259176851860046,
+          0.9103701677106718
+        ],
+        "success": true,
+        "tcp": [
+          0.19555924954524206,
+          -0.0009753336802885985,
+          0.03657219438199939
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "ball": 6.442577635288884e-06
+      },
+      "final_success": true,
+      "first_success_control": 364,
+      "grasp_controls": {
+        "ball": 203
+      },
+      "id": "ball_between_cans/episode_000",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 3.9907314508535415e-05,
+      "pre_state_arm_max_abs_deg": 0.018999280875465985,
+      "pre_state_gripper_mae_points": 1.3591125176174142e-06,
+      "pre_state_gripper_max_abs_points": 1.6231720380233128e-05,
+      "scene_replay": {
+        "actual_object_poses": {
+          "ball": [
+            0.2436,
+            -0.11457,
+            0.01363,
+            0.68827,
+            0.0,
+            0.0,
+            0.72545
+          ],
+          "chocolate_pudding": [
+            0.24893,
+            0.17022,
+            0.00643,
+            0.16671,
+            0.0,
+            -0.0,
+            0.98601
+          ],
+          "cream_cheese": [
+            0.20425,
+            -0.20089,
+            0.00436,
+            0.73903,
+            0.0,
+            -0.0,
+            0.67367
+          ],
+          "popcorn": [
+            0.19939,
+            0.22526,
+            0.00489,
+            0.81336,
+            0.0,
+            -0.0,
+            -0.58176
+          ],
+          "sauce_can": [
+            0.09243,
+            0.19434,
+            0.01916,
+            0.77547,
+            -0.00117,
+            -0.00245,
+            -0.63138
+          ],
+          "soup_can": [
+            0.17807,
+            0.12064,
+            0.01916,
+            0.27039,
+            0.00273,
+            -3e-05,
+            0.96275
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 3,
+            "extra": [
+              "akita_black_bowl",
+              "butter",
+              "ramekin"
+            ],
+            "max_abs_pose_error": 0.0,
+            "missing": [
+              "chocolate_pudding",
+              "cream_cheese",
+              "popcorn"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "ball": 0.0,
+              "sauce_can": 0.0,
+              "soup_can": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 6,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "ball": 0.0,
+              "chocolate_pudding": 0.0,
+              "cream_cheese": 0.0,
+              "popcorn": 0.0,
+              "sauce_can": 0.0,
+              "soup_can": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 6,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "ball": 0.0,
+            "chocolate_pudding": 0.0,
+            "cream_cheese": 0.0,
+            "popcorn": 0.0,
+            "sauce_can": 0.0,
+            "soup_can": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "ball": [
+            0.2436,
+            -0.11457,
+            0.01363,
+            0.68827,
+            0.0,
+            0.0,
+            0.72545
+          ],
+          "chocolate_pudding": [
+            0.24893,
+            0.17022,
+            0.00643,
+            0.16671,
+            0.0,
+            -0.0,
+            0.98601
+          ],
+          "cream_cheese": [
+            0.20425,
+            -0.20089,
+            0.00436,
+            0.73903,
+            -0.0,
+            0.0,
+            0.67367
+          ],
+          "popcorn": [
+            0.19939,
+            0.22526,
+            0.00489,
+            0.81336,
+            0.0,
+            0.0,
+            -0.58176
+          ],
+          "sauce_can": [
+            0.09243,
+            0.19434,
+            0.01916,
+            0.77547,
+            -0.00117,
+            -0.00245,
+            -0.63138
+          ],
+          "soup_can": [
+            0.17807,
+            0.12064,
+            0.01916,
+            0.27039,
+            0.00273,
+            -3e-05,
+            0.96275
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "3bebc4b5597d20919d3efeafb13afa45d18a8a33f541d984d92fbc72b1f0f4f6",
+      "source_parquet_sha256": "b54d3b40a6d73f92e4da145ebd98d2d33a33c470b00f41bfaabd479864a87d79",
+      "success": true
+    },
+    {
+      "controls": 673,
+      "final": {
+        "goals": {
+          "ball": {
+            "error_xyz": [
+              -0.0032077610595787343,
+              -0.0018001604527815573,
+              -0.0003671818445587175
+            ],
+            "holds": true,
+            "xyz": [
+              0.1566516962478739,
+              0.19394072989742445,
+              0.014000000000000012
+            ]
+          }
+        },
+        "objects": {
+          "ball": {
+            "grasped": false,
+            "xyz": [
+              0.15344393518829516,
+              0.1921405694446429,
+              0.013632818155441295
+            ]
+          }
+        },
+        "state": [
+          -0.000746624561560421,
+          -98.99828648470833,
+          90.02291835117384,
+          60.00654763339796,
+          0.0029500499132533117,
+          0.9109397633075709
+        ],
+        "success": true,
+        "tcp": [
+          0.19555557221586256,
+          -0.0009768064053404663,
+          0.03656500631016424
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "ball": 5.5033259912393894e-05
+      },
+      "final_success": true,
+      "first_success_control": 374,
+      "grasp_controls": {
+        "ball": 182
+      },
+      "id": "ball_between_cans/episode_001",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 0.00045334473257760177,
+      "pre_state_arm_max_abs_deg": 0.10836959487635056,
+      "pre_state_gripper_mae_points": 0.003661222306323179,
+      "pre_state_gripper_max_abs_points": 0.03595635512235518,
+      "scene_replay": {
+        "actual_object_poses": {
+          "akita_black_bowl": [
+            0.28183,
+            0.10359,
+            -0.00082,
+            0.77924,
+            0.0,
+            0.00021,
+            -0.62673
+          ],
+          "ball": [
+            0.13391,
+            -0.17724,
+            0.01363,
+            0.99465,
+            0.0,
+            -0.0,
+            -0.10335
+          ],
+          "sauce_can": [
+            0.10852,
+            0.15678,
+            0.01916,
+            0.72412,
+            -0.00135,
+            -0.00235,
+            -0.68966
+          ],
+          "soup_can": [
+            0.20292,
+            0.2324,
+            0.01916,
+            0.23845,
+            -0.00239,
+            -0.00131,
+            -0.97115
+          ],
+          "white_bowl": [
+            0.27998,
+            -0.04801,
+            -0.00039,
+            0.22758,
+            0.00056,
+            0.00024,
+            -0.97376
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 3,
+            "extra": [
+              "popcorn",
+              "ramekin"
+            ],
+            "max_abs_pose_error": 0.0,
+            "missing": [
+              "akita_black_bowl",
+              "white_bowl"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "ball": 0.0,
+              "sauce_can": 0.0,
+              "soup_can": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 5,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "akita_black_bowl": 0.0,
+              "ball": 0.0,
+              "sauce_can": 0.0,
+              "soup_can": 0.0,
+              "white_bowl": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 5,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "akita_black_bowl": 0.0,
+            "ball": 0.0,
+            "sauce_can": 0.0,
+            "soup_can": 0.0,
+            "white_bowl": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "akita_black_bowl": [
+            0.28183,
+            0.10359,
+            -0.00082,
+            0.77924,
+            0.0,
+            0.00021,
+            -0.62673
+          ],
+          "ball": [
+            0.13391,
+            -0.17724,
+            0.01363,
+            0.99465,
+            0.0,
+            -0.0,
+            -0.10335
+          ],
+          "sauce_can": [
+            0.10852,
+            0.15678,
+            0.01916,
+            0.72412,
+            -0.00135,
+            -0.00235,
+            -0.68966
+          ],
+          "soup_can": [
+            0.20292,
+            0.2324,
+            0.01916,
+            0.23845,
+            -0.00239,
+            -0.00131,
+            -0.97115
+          ],
+          "white_bowl": [
+            0.27998,
+            -0.04801,
+            -0.00039,
+            0.22758,
+            0.00056,
+            0.00024,
+            -0.97376
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "a35c3217905fa912e06bbb8abfe4e7c9bdedb36f6acced3bdbc7af3e1f0e0256",
+      "source_parquet_sha256": "70ab965a0a28d384137e07e630b90b3c0ce9baa55610209ed6ed9e812a783717",
+      "success": true
+    },
+    {
+      "controls": 576,
+      "final": {
+        "goals": {
+          "block": {
+            "error_xyz": [
+              0.0013665907728150628,
+              -0.00017642627737851635,
+              0.0014533584793730708
+            ],
+            "holds": true,
+            "xyz": [
+              0.1406308443081419,
+              0.1810835531582832,
+              0.01824
+            ]
+          }
+        },
+        "objects": {
+          "block": {
+            "grasped": false,
+            "xyz": [
+              0.14199743508095697,
+              0.18090712688090468,
+              0.01969335847937307
+            ]
+          }
+        },
+        "state": [
+          -0.0023934094134355167,
+          -98.99752259388116,
+          90.021811139168,
+          60.007032399748745,
+          0.0031245655241518852,
+          0.9113729524512494
+        ],
+        "success": true,
+        "tcp": [
+          0.195555293882955,
+          -0.0009722655469953203,
+          0.03656707472689076
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "block": 5.110088720597832e-06
+      },
+      "final_success": true,
+      "first_success_control": 337,
+      "grasp_controls": {
+        "block": 224
+      },
+      "id": "block_in_bowl/episode_000",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 5.198555994249798e-05,
+      "pre_state_arm_max_abs_deg": 0.02260366348119902,
+      "pre_state_gripper_mae_points": 6.160079816546351e-06,
+      "pre_state_gripper_max_abs_points": 9.094708812895647e-05,
+      "scene_replay": {
+        "actual_object_poses": {
+          "alphabet_soup": [
+            0.25617,
+            -0.13443,
+            0.01916,
+            0.83018,
+            0.00206,
+            -0.0018,
+            0.55749
+          ],
+          "block": [
+            0.11771,
+            -0.10227,
+            0.01389,
+            0.99907,
+            0.0,
+            -0.0,
+            0.04322
+          ],
+          "bowl": [
+            0.14063,
+            0.18108,
+            0.0,
+            0.00107,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "butter": [
+            0.28026,
+            0.0812,
+            0.00425,
+            0.82047,
+            0.0,
+            -0.0,
+            0.57168
+          ],
+          "red_bowl": [
+            0.10588,
+            -0.26111,
+            -0.00039,
+            0.0121,
+            0.0006,
+            0.00011,
+            -0.99993
+          ],
+          "tomato_sauce": [
+            0.28575,
+            -0.04118,
+            0.01916,
+            0.92858,
+            0.00158,
+            -0.00221,
+            0.37113
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 5,
+            "extra": [
+              "akita_black_bowl"
+            ],
+            "max_abs_pose_error": 0.80112,
+            "missing": [
+              "red_bowl"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "alphabet_soup": 0.2146,
+              "block": 0.0,
+              "bowl": 0.0,
+              "butter": 0.524,
+              "tomato_sauce": 0.80112
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 6,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "alphabet_soup": 0.0,
+              "block": 0.0,
+              "bowl": 0.0,
+              "butter": 0.0,
+              "red_bowl": 0.0,
+              "tomato_sauce": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 6,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "alphabet_soup": 0.0,
+            "block": 0.0,
+            "bowl": 0.0,
+            "butter": 0.0,
+            "red_bowl": 0.0,
+            "tomato_sauce": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "alphabet_soup": [
+            0.25617,
+            -0.13443,
+            0.01916,
+            0.83018,
+            0.00206,
+            -0.0018,
+            0.55749
+          ],
+          "block": [
+            0.11771,
+            -0.10227,
+            0.01389,
+            0.99907,
+            -0.0,
+            0.0,
+            0.04322
+          ],
+          "bowl": [
+            0.14063,
+            0.18108,
+            0.0,
+            0.00107,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "butter": [
+            0.28026,
+            0.0812,
+            0.00425,
+            0.82047,
+            -0.0,
+            0.0,
+            0.57168
+          ],
+          "red_bowl": [
+            0.10588,
+            -0.26111,
+            -0.00039,
+            0.0121,
+            0.0006,
+            0.00011,
+            -0.99993
+          ],
+          "tomato_sauce": [
+            0.28575,
+            -0.04118,
+            0.01916,
+            0.92858,
+            0.00158,
+            -0.00221,
+            0.37113
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "860ec38109aeb628d67dbf41137fbbd5ca6e6fe11cc64296074f80d2b7b957a8",
+      "source_parquet_sha256": "802b1b192a1bc8b562ba4bb9dcb61dbdf5048ffe84e6c933a9d5b61da92f4c7b",
+      "success": true
+    },
+    {
+      "controls": 641,
+      "final": {
+        "goals": {
+          "block": {
+            "error_xyz": [
+              0.0011610890504050175,
+              0.000546632072274178,
+              0.0012407196974081117
+            ],
+            "holds": true,
+            "xyz": [
+              0.12108540694021017,
+              -0.1738077593992921,
+              0.01824
+            ]
+          }
+        },
+        "objects": {
+          "block": {
+            "grasped": false,
+            "xyz": [
+              0.12224649599061518,
+              -0.17326112732701793,
+              0.01948071969740811
+            ]
+          }
+        },
+        "state": [
+          0.002944427334472047,
+          -98.99998653772475,
+          90.02216735479234,
+          60.00574964137149,
+          0.0009656929254281982,
+          0.9113238233289902
+        ],
+        "success": true,
+        "tcp": [
+          0.19556066365375258,
+          -0.0009873175220055153,
+          0.03657343476473296
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "block": 3.750588264987073e-06
+      },
+      "final_success": true,
+      "first_success_control": 413,
+      "grasp_controls": {
+        "block": 244
+      },
+      "id": "block_in_bowl/episode_001",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 0.00024116493977984976,
+      "pre_state_arm_max_abs_deg": 0.08403660805864632,
+      "pre_state_gripper_mae_points": 1.3219355122409383e-05,
+      "pre_state_gripper_max_abs_points": 0.00015873046603331886,
+      "scene_replay": {
+        "actual_object_poses": {
+          "akita_black_bowl": [
+            0.06429,
+            0.1569,
+            -0.00082,
+            0.53605,
+            7e-05,
+            0.0002,
+            -0.84419
+          ],
+          "alphabet_soup": [
+            0.15886,
+            0.13551,
+            0.01916,
+            0.29123,
+            0.00273,
+            -9e-05,
+            0.95665
+          ],
+          "block": [
+            0.12923,
+            0.22709,
+            0.01389,
+            0.10128,
+            0.0,
+            0.0,
+            -0.99486
+          ],
+          "bowl": [
+            0.12109,
+            -0.17381,
+            0.0,
+            0.94382,
+            0.0,
+            0.0,
+            -0.33045
+          ],
+          "cream_cheese": [
+            0.24394,
+            0.14668,
+            0.00436,
+            0.70086,
+            -0.0,
+            0.0,
+            -0.71329
+          ],
+          "tomato_sauce": [
+            0.28935,
+            0.02993,
+            0.01916,
+            0.02883,
+            0.00266,
+            0.00057,
+            0.99958
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 3,
+            "extra": [
+              "chocolate_pudding",
+              "popcorn",
+              "red_bowl"
+            ],
+            "max_abs_pose_error": 0.0,
+            "missing": [
+              "akita_black_bowl",
+              "cream_cheese",
+              "tomato_sauce"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "alphabet_soup": 0.0,
+              "block": 0.0,
+              "bowl": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 6,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "akita_black_bowl": 0.0,
+              "alphabet_soup": 0.0,
+              "block": 0.0,
+              "bowl": 0.0,
+              "cream_cheese": 0.0,
+              "tomato_sauce": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 6,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "akita_black_bowl": 0.0,
+            "alphabet_soup": 0.0,
+            "block": 0.0,
+            "bowl": 0.0,
+            "cream_cheese": 0.0,
+            "tomato_sauce": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "akita_black_bowl": [
+            0.06429,
+            0.1569,
+            -0.00082,
+            0.53605,
+            7e-05,
+            0.0002,
+            -0.84419
+          ],
+          "alphabet_soup": [
+            0.15886,
+            0.13551,
+            0.01916,
+            0.29123,
+            0.00273,
+            -9e-05,
+            0.95665
+          ],
+          "block": [
+            0.12923,
+            0.22709,
+            0.01389,
+            0.10128,
+            0.0,
+            -0.0,
+            -0.99486
+          ],
+          "bowl": [
+            0.12109,
+            -0.17381,
+            0.0,
+            0.94382,
+            0.0,
+            0.0,
+            -0.33045
+          ],
+          "cream_cheese": [
+            0.24394,
+            0.14668,
+            0.00436,
+            0.70086,
+            0.0,
+            0.0,
+            -0.71329
+          ],
+          "tomato_sauce": [
+            0.28935,
+            0.02993,
+            0.01916,
+            0.02883,
+            0.00266,
+            0.00057,
+            0.99958
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "e625cca4cd48a40e97c3da11f5363da92f8ea1c78aac21c65c175c0452cd91ff",
+      "source_parquet_sha256": "3a593e974fb17b8e617a0858c13854ef4e2537ea4fc58c6a4d4adaad9dcfb098",
+      "success": true
+    },
+    {
+      "controls": 507,
+      "final": {
+        "goals": {
+          "cube": {
+            "error_xyz": [
+              -0.003168153061375467,
+              0.0006660021100713398,
+              -0.0014914319047160812
+            ],
+            "holds": true,
+            "xyz": [
+              0.14462472446208144,
+              0.15960844752565143,
+              0.015000000000000013
+            ]
+          }
+        },
+        "objects": {
+          "cube": {
+            "grasped": false,
+            "xyz": [
+              0.14145657140070597,
+              0.16027444963572277,
+              0.013508568095283932
+            ]
+          }
+        },
+        "state": [
+          -0.002071673928121735,
+          -99.00206788026416,
+          90.0233109604727,
+          60.00680342759093,
+          0.002627852562483178,
+          0.9061968375760528
+        ],
+        "success": true,
+        "tcp": [
+          0.19555973858384101,
+          -0.0009732492388564811,
+          0.036571197137072076
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "cube": 0.00039659894788953326
+      },
+      "final_success": true,
+      "first_success_control": 259,
+      "grasp_controls": {
+        "cube": 0
+      },
+      "id": "push_cube_into_tape_square/episode_000",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 0.0001690588133952699,
+      "pre_state_arm_max_abs_deg": 0.02674549423415229,
+      "pre_state_gripper_mae_points": 3.0520141748523855e-06,
+      "pre_state_gripper_max_abs_points": 0.00010158996127007658,
+      "scene_replay": {
+        "actual_object_poses": {
+          "chocolate_pudding": [
+            0.30706,
+            0.00313,
+            0.00643,
+            0.92465,
+            0.0,
+            -0.0,
+            0.38083
+          ],
+          "confounder": [
+            0.1453,
+            -0.22621,
+            0.0004,
+            0.90283,
+            0.0,
+            0.0,
+            -0.42999
+          ],
+          "cube": [
+            0.14674,
+            0.08096,
+            0.0135,
+            0.99448,
+            -0.0,
+            0.0,
+            -0.10494
+          ],
+          "red_bowl": [
+            0.28026,
+            0.0812,
+            -0.00039,
+            0.82047,
+            -0.00043,
+            0.00043,
+            0.57168
+          ],
+          "target": [
+            0.14462,
+            0.15961,
+            0.0004,
+            0.00107,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "white_bowl": [
+            0.26083,
+            -0.15335,
+            -0.00039,
+            0.63551,
+            -0.00053,
+            0.0003,
+            0.77209
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 4,
+            "extra": [
+              "cream_cheese",
+              "ramekin"
+            ],
+            "max_abs_pose_error": 0.51646,
+            "missing": [
+              "chocolate_pudding",
+              "white_bowl"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "confounder": 0.0,
+              "cube": 0.0,
+              "red_bowl": 0.51646,
+              "target": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 6,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "chocolate_pudding": 0.0,
+              "confounder": 0.0,
+              "cube": 0.0,
+              "red_bowl": 0.0,
+              "target": 0.0,
+              "white_bowl": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 6,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "chocolate_pudding": 0.0,
+            "confounder": 0.0,
+            "cube": 0.0,
+            "red_bowl": 0.0,
+            "target": 0.0,
+            "white_bowl": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "chocolate_pudding": [
+            0.30706,
+            0.00313,
+            0.00643,
+            0.92465,
+            -0.0,
+            0.0,
+            0.38083
+          ],
+          "confounder": [
+            0.1453,
+            -0.22621,
+            0.0004,
+            0.90283,
+            0.0,
+            0.0,
+            -0.42999
+          ],
+          "cube": [
+            0.14674,
+            0.08096,
+            0.0135,
+            0.99448,
+            -0.0,
+            0.0,
+            -0.10494
+          ],
+          "red_bowl": [
+            0.28026,
+            0.0812,
+            -0.00039,
+            0.82047,
+            -0.00043,
+            0.00043,
+            0.57168
+          ],
+          "target": [
+            0.14462,
+            0.15961,
+            0.0004,
+            0.00107,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "white_bowl": [
+            0.26083,
+            -0.15335,
+            -0.00039,
+            0.63551,
+            -0.00053,
+            0.0003,
+            0.77209
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "209bb71086c1d6f99f01c8d57f2bb23806ec939dc2f95af26edb184e1379f730",
+      "source_parquet_sha256": "426cf53f003fb33c6c1e6f5d9b2c222081a893e0ab92a7f1a8021ad18f1b82ba",
+      "success": true
+    },
+    {
+      "controls": 831,
+      "final": {
+        "goals": {
+          "cube": {
+            "error_xyz": [
+              0.0009079790742350102,
+              -0.0021556243654940604,
+              -0.00149143190465768
+            ],
+            "holds": true,
+            "xyz": [
+              0.22181735282324702,
+              -0.07678911352920328,
+              0.015000000000000013
+            ]
+          }
+        },
+        "objects": {
+          "cube": {
+            "grasped": false,
+            "xyz": [
+              0.22272533189748203,
+              -0.07894473789469734,
+              0.013508568095342333
+            ]
+          }
+        },
+        "state": [
+          0.0024676026715240553,
+          -98.99774281173627,
+          90.02261709231995,
+          60.00730366579784,
+          -0.0024825724888593616,
+          0.9061499962179271
+        ],
+        "success": true,
+        "tcp": [
+          0.19555363975553985,
+          -0.0009867336315430154,
+          0.03656359026201565
+        ]
+      },
+      "final_object_xyz_error_m": {
+        "cube": 6.803615085392284e-06
+      },
+      "final_success": true,
+      "first_success_control": 305,
+      "grasp_controls": {
+        "cube": 0
+      },
+      "id": "push_cube_into_tape_square/episode_001",
+      "original_final_success": true,
+      "pre_state_arm_mae_deg": 0.0002995733662342079,
+      "pre_state_arm_max_abs_deg": 0.10761303989285409,
+      "pre_state_gripper_mae_points": 4.860722281043094e-05,
+      "pre_state_gripper_max_abs_points": 0.00013289970112201344,
+      "scene_replay": {
+        "actual_object_poses": {
+          "chocolate_pudding": [
+            0.19017,
+            -0.2367,
+            0.00643,
+            0.96537,
+            -0.0,
+            -0.0,
+            0.2609
+          ],
+          "confounder": [
+            0.14587,
+            0.23095,
+            0.0004,
+            0.47026,
+            0.0,
+            0.0,
+            -0.88253
+          ],
+          "cube": [
+            0.15548,
+            -0.12465,
+            0.0135,
+            0.25917,
+            0.0,
+            -0.0,
+            0.96583
+          ],
+          "ramekin": [
+            0.22995,
+            0.1622,
+            -0.00034,
+            0.72449,
+            0.0,
+            0.0,
+            -0.68928
+          ],
+          "target": [
+            0.22182,
+            -0.07679,
+            0.0004,
+            0.65892,
+            0.0,
+            0.0,
+            0.75221
+          ]
+        },
+        "attempts": [
+          {
+            "compared": 3,
+            "extra": [
+              "alphabet_soup",
+              "popcorn"
+            ],
+            "max_abs_pose_error": 0.0,
+            "missing": [
+              "chocolate_pudding",
+              "ramekin"
+            ],
+            "pass": false,
+            "per_object_pose_error": {
+              "confounder": 0.0,
+              "cube": 0.0,
+              "target": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "current_weighted",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          },
+          {
+            "compared": 5,
+            "extra": [],
+            "max_abs_pose_error": 0.0,
+            "missing": [],
+            "pass": true,
+            "per_object_pose_error": {
+              "chocolate_pudding": 0.0,
+              "confounder": 0.0,
+              "cube": 0.0,
+              "ramekin": 0.0,
+              "target": 0.0
+            },
+            "pose_precision_decimals": 5,
+            "sampler": "legacy_permutation",
+            "scope": "all active bodies; xyz and quaternion",
+            "tolerance": 1e-09
+          }
+        ],
+        "check": {
+          "compared": 5,
+          "extra": [],
+          "max_abs_pose_error": 0.0,
+          "missing": [],
+          "pass": true,
+          "per_object_pose_error": {
+            "chocolate_pudding": 0.0,
+            "confounder": 0.0,
+            "cube": 0.0,
+            "ramekin": 0.0,
+            "target": 0.0
+          },
+          "pose_precision_decimals": 5,
+          "scope": "all active bodies; xyz and quaternion",
+          "tolerance": 1e-09
+        },
+        "expected_object_poses": {
+          "chocolate_pudding": [
+            0.19017,
+            -0.2367,
+            0.00643,
+            0.96537,
+            -0.0,
+            0.0,
+            0.2609
+          ],
+          "confounder": [
+            0.14587,
+            0.23095,
+            0.0004,
+            0.47026,
+            0.0,
+            0.0,
+            -0.88253
+          ],
+          "cube": [
+            0.15548,
+            -0.12465,
+            0.0135,
+            0.25917,
+            0.0,
+            -0.0,
+            0.96583
+          ],
+          "ramekin": [
+            0.22995,
+            0.1622,
+            -0.00034,
+            0.72449,
+            0.0,
+            0.0,
+            -0.68928
+          ],
+          "target": [
+            0.22182,
+            -0.07679,
+            0.0004,
+            0.65892,
+            0.0,
+            0.0,
+            0.75221
+          ]
+        },
+        "legacy_sampler_source": "sim.val.env.ValEnv.place_distractors",
+        "sampler": "legacy_permutation"
+      },
+      "source_episode_sha256": "465ace0e5ba67a4f7da5468b063b41d46b01db5b44eead9ca412ba066bfb5724",
+      "source_parquet_sha256": "8f4f32e724dd8b9eb804a1ee577d8471c6942e6d169fb6e5b5c47e8eb15968d6",
+      "success": true
+    }
+  ]
+}

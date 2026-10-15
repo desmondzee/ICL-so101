@@ -422,3 +422,20 @@ def test_partial_ctor_guards():
     server.job_config.frame_chunk_size = 4
     with pytest.raises(ValueError):   # batch_size must be 4
         BatchedPartialChunkEngine(server, batch_size=2)
+
+
+def test_oracle_prefix_handover_rejects_physical_mismatch():
+    import copy
+    from scripts.run_so101_batched_partial_replay import check_handover
+
+    expected = {"state": [0.] * 6, "objects": {
+        "block": {"xyz": [.1, .2, .08], "grasped": True}}, "success": False}
+    check_handover(expected, expected)
+    shifted = copy.deepcopy(expected)
+    shifted["objects"]["block"]["xyz"][0] += .001
+    with pytest.raises(AssertionError):
+        check_handover(shifted, expected)
+    dropped = copy.deepcopy(expected)
+    dropped["objects"]["block"]["grasped"] = False
+    with pytest.raises(ValueError):
+        check_handover(dropped, expected)

@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 
 from scripts.run_so101_batched_train_replay import (
@@ -23,6 +24,30 @@ from zero_wam.so101_closed_loop import FRONT, WRIST, load_model
 REPO = Path(__file__).resolve().parents[1]
 
 
+def prefix_state(sim):
+    """Physical handover evidence; never contains future recorded observations."""
+    return {
+        "state": sim.env.lerobot_joints().astype(float).tolist(),
+        "objects": {n: {"xyz": sim.env.object_pos(n).astype(float).tolist(),
+                        "grasped": bool(sim.env.is_grasping(n))}
+                    for n in sim.task_objects},
+        "goals": {g.obj: {"target_xyz": sim.env.goal_target(g).astype(float).tolist(),
+                          "error_xyz": (sim.env.object_pos(g.obj)-sim.env.goal_target(g)).astype(float).tolist()}
+                  for g in sim.env.goals},
+        "success": bool(sim.env.success()),
+    }
+
+
+def check_handover(actual, expected):
+    np.testing.assert_allclose(actual["state"], expected["state"], atol=1e-5, rtol=0)
+    for name, obj in expected["objects"].items():
+        np.testing.assert_allclose(actual["objects"][name]["xyz"], obj["xyz"], atol=1e-7, rtol=0)
+        if actual["objects"][name]["grasped"] != obj["grasped"]:
+            raise ValueError("oracle-prefix grasp state did not reproduce")
+    if actual["success"] != expected["success"]:
+        raise ValueError("oracle-prefix success state did not reproduce")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--forecast-frames", type=int, choices=(2, 4), required=True)
@@ -32,6 +57,8 @@ def main():
     p.add_argument("--max-controls", type=int)
     p.add_argument("--reference-history", type=Path,
                    help="Diagnostic only: slot 0 follows recorded sequential commands.")
+    p.add_argument("--oracle-prefix-manifest", type=Path,
+                   help="Explicit block-task handovers; four conditions per original episode.")
     args = p.parse_args()
     if args.max_controls is not None and args.max_controls < 32:
         p.error("bounded runs require >=32 controls")
@@ -42,6 +69,24 @@ def main():
     from zero_wam.batched_static_engine import SlotResetSpec
     all_rows = load_cohort()
     selected = select_episode_rows(all_rows, args.episode_id)
+    prefix_plan = None
+    if args.oracle_prefix_manifest:
+        if args.reference_history or args.ensemble or args.forecast_frames != 2 or args.episode_id:
+            p.error("prefix experiment requires F2 raw and selects episodes through its manifest")
+        prefix_plan = json.loads(args.oracle_prefix_manifest.read_text())
+        selected = []
+        for condition in prefix_plan["conditions"]:
+            source = next(e for e in all_rows if e["id"] == condition["source_episode_id"])
+            b = condition["prefix_controls"]
+            if source["task"] != "block_in_bowl" or not isinstance(b, int) or b < 0 or b % 8:
+                raise ValueError("invalid block-task prefix boundary")
+            if b >= source["robot_frames"]:
+                raise ValueError("prefix must end before recorded trajectory")
+            if args.max_controls is not None and b >= args.max_controls:
+                raise ValueError("bounded horizon must include policy controls after handover")
+            selected.append({**source, **condition,
+                             "id": f"{source['id']}__prefix_{b:04d}"})
+    canonical_indices = {e["id"]: i for i, e in enumerate(all_rows)}
     reference = None
     if args.reference_history:
         ref_result = json.loads((args.reference_history / "result.json").read_text())
@@ -76,7 +121,8 @@ def main():
         "reference_history": str(args.reference_history) if args.reference_history else None,
         "reference_commands_sha256": sha256_file(args.reference_history / "telemetry.jsonl")
         if args.reference_history else None,
-        "sample_seeds": {e["id"]: 20261101 + all_rows.index(e) for e in selected},
+        "sample_seeds": {e["id"]: 20261101 + canonical_indices[e.get("source_episode_id", e["id"])]
+                         for e in selected},
         "cohort_sha256": sha256_file(DATA / "cohort_manifest.json"),
         "selected_episodes": selected,
         "human_latent_sha256": {e["id"]: sha256_file(e["human_latent"]) for e in selected},
@@ -86,6 +132,11 @@ def main():
         "git_revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip(),
     }
+    if prefix_plan is not None:
+        protocol["oracle_prefix_plan"] = prefix_plan
+        protocol["oracle_prefix_manifest_sha256"] = sha256_file(args.oracle_prefix_manifest)
+        protocol["prefix_noise_schedule"] = (
+            "infer every 8 controls during prefix and discard forecasts; per-source-episode seed shared")
     args.output.mkdir(parents=True, exist_ok=True)
     manifest = args.output / "manifest.json"
     if manifest.exists():
@@ -139,6 +190,17 @@ def main():
                 obs = sim.observe()
                 directory = args.output / ep["id"]
                 directory.mkdir(parents=True)
+                prefix_commands = None
+                if prefix_plan is not None:
+                    parquet = DATA / "episodes" / ep["source_episode_id"] / "robot_data.parquet"
+                    if sha256_file(parquet) != ep["source_parquet_sha256"]:
+                        raise ValueError("prefix parquet provenance changed")
+                    b = ep["prefix_controls"]
+                    prefix_commands = np.stack(pd.read_parquet(
+                        parquet, columns=["action"]).iloc[:b]["action"]) if b else np.empty((0, 6))
+                    prefix_commands = np.asarray(prefix_commands, dtype=np.float32)
+                    if not np.isfinite(prefix_commands).all():
+                        raise ValueError("nonfinite prefix commands")
                 rollouts.append({
                     "slot": slot, "episode": ep, "sim": sim, "first_obs": obs,
                     "start_pose_check": check_start_poses(sim, ep["object_poses_start"]),
@@ -149,7 +211,11 @@ def main():
                     "active": True, "forecasts": [], "directory": directory,
                     "target_starts": {n: sim.env.object_pos(n).copy() for n in sim.task_objects},
                     "started": time.monotonic(),
+                    "prefix_commands": prefix_commands,
+                    "handover": prefix_state(sim) if prefix_plan is not None and ep["prefix_controls"] == 0 else None,
                 })
+                if prefix_plan is not None and ep["prefix_controls"] == 0:
+                    check_handover(rollouts[-1]["handover"], ep["expected_handover"])
             infer_times = []
             try:
                 while any(r["active"] for r in rollouts):
@@ -175,11 +241,17 @@ def main():
                         commands, contributors = blend_at(r["forecasts"], r["controls"], args.ensemble)
                         if reference is not None and slot == 0 and group_id == 0:
                             commands = np.asarray(reference[r["controls"]:r["controls"]+8], dtype=np.float32)
+                        forced_prefix = (r["prefix_commands"] is not None and
+                                         r["controls"] < len(r["prefix_commands"]))
+                        if forced_prefix:
+                            commands = r["prefix_commands"][r["controls"]:r["controls"]+8]
+                            assert commands.shape == (8, 6)
                         with (r["directory"] / "forecasts.jsonl").open("a") as sink:
                             sink.write(json.dumps({
                                 **forecast, "selected_commands": commands.tolist(),
                                 "contributors": contributors, "initial_context_frame_skipped": first,
                                 "reference_commands_forced": reference is not None and slot == 0 and group_id == 0,
+                                "oracle_prefix_forced": forced_prefix,
                             })+"\n")
                         keyframes = []
                         for j, command in enumerate(commands):
@@ -204,6 +276,10 @@ def main():
                                 "task_info": {k: v for k, v in sim.env.task_info().items()
                                               if isinstance(v, (bool, int, float, str))},
                             })
+                            if prefix_plan is not None:
+                                r["telemetry"][-1].update(
+                                    control_source="oracle_prefix" if forced_prefix else "policy",
+                                    physical_state=prefix_state(sim))
                             if info["success"] and r["first_success"] is None:
                                 r["first_success"] = r["controls"]
                             if (j+1) % 2 == 0:
@@ -219,6 +295,9 @@ def main():
                         histories[slot] = hist.to(model.device, model.dtype)
                         observations[slot] = {"obs": keyframes}
                         r["chunk"] += 1
+                        if r["prefix_commands"] is not None and r["controls"] == len(r["prefix_commands"]):
+                            r["handover"] = prefix_state(sim)
+                            check_handover(r["handover"], r["episode"]["expected_handover"])
                         r["forecasts"] = [f for f in r["forecasts"]
                                          if f["start"]+len(f["actions"]) > r["controls"]]
                     # Commit all just-executed blocks before deactivating slots.
@@ -238,6 +317,14 @@ def main():
                                 ensemble=args.ensemble, video_guidance_scale=5.0,
                                 reference_history_diagnostic=reference is not None,
                                 cache_events=engine.cache_events)
+                            if prefix_plan is not None:
+                                result.update(
+                                    source_episode_id=r["episode"]["source_episode_id"],
+                                    prefix_controls=r["episode"]["prefix_controls"],
+                                    prefix_stage=r["episode"]["prefix_stage"],
+                                    handover=r["handover"],
+                                    final_physical_state=prefix_state(r["sim"]),
+                                    policy_controls=r["controls"]-r["episode"]["prefix_controls"])
                             verify_artifacts(r["directory"], result)
                             atomic_json(r["directory"] / "result.json", result)
                             rows.append(result)
