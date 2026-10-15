@@ -35,13 +35,18 @@ def _parse_args():
     p.add_argument("--base-model", default="data/models/zero-wam-pretrain")
     p.add_argument("--output",
                    default="outputs/zero_wam/train_replay_diagnostics/sequential_raw_v2b")
-    p.add_argument("--episode-id", action="append",
-                  default=["push_cube_into_tape_square/episode_000"])
-    p.add_argument("--sample-seed", type=int, default=20261105)
+    p.add_argument("--episode-id", action="append", default=[])
+    p.add_argument("--all-cohort", action="store_true")
+    p.add_argument("--sample-seed-base", type=int, default=20261101)
     p.add_argument("--alpha", type=float, default=1.0)
+    p.add_argument("--video-guidance-scale", type=float, default=-1.0)
     p.add_argument("--horizon-times-oracle", type=float, default=2.0)
     p.add_argument("--max-controls", type=int, default=None)
-    return p.parse_args()
+    args = p.parse_args()
+    if args.all_cohort == bool(args.episode_id):
+        p.error("exactly one mode required: --all-cohort or "
+                "repeated --episode-id")
+    return args
 
 
 def run_episode_train(model, episode, out_dir, *, max_controls, sample_seed,
@@ -59,7 +64,8 @@ def run_episode_train(model, episode, out_dir, *, max_controls, sample_seed,
     torch.manual_seed(sample_seed)
     torch.cuda.manual_seed_all(sample_seed)
     started = time.monotonic()
-    sim = TrainSim(episode["task"], episode["seed"], episode["visual_config"])
+    sim = TrainSim(episode["task"], episode["seed"], episode["visual_config"],
+                   recorded_poses=episode["object_poses_start"])
     check = check_start_poses(sim, episode["object_poses_start"])
     if not check["pass"]:
         raise ValueError(f"start_pose_mismatch: {check}")
@@ -187,6 +193,7 @@ def run_episode_train(model, episode, out_dir, *, max_controls, sample_seed,
             } for name in target_names
         } if telemetry else {},
         "start_pose_check": check,
+        "scene_replay": sim.scene_replay,
         "seen_in_training": True,
         "training_provenance": {
             "source_index": "sim_train_v1",
@@ -206,45 +213,94 @@ def run_episode_train(model, episode, out_dir, *, max_controls, sample_seed,
     return result
 
 
+def _result_matches(out_dir, ep, args, sample_seed):
+    """Valid complete result reusable for resume; else refuse overwrite."""
+    result_path = out_dir / "result.json"
+    if not result_path.is_file():
+        return False
+    result = json.loads(result_path.read_text())
+    ok = (
+        result.get("sample_seed") == sample_seed
+        and abs(result.get("action_ema_alpha", -9) - args.alpha) < 1e-9
+        and result.get("video_guidance_scale") == args.video_guidance_scale
+        and Path(args.checkpoint).name in str(
+            result.get("training_provenance", {}).get(
+                "checkpoint", args.checkpoint))
+        and (out_dir / "actions.npy").is_file()
+        and (out_dir / "telemetry.jsonl").is_file()
+        and (out_dir / "rollout.mp4").is_file()
+        and len(np.load(out_dir / "actions.npy")) == result["controls"]
+        and len((out_dir / "telemetry.jsonl").read_text()
+                .strip().split("\n")) == result["controls"])
+    if not ok:
+        raise RuntimeError(
+            f"{result_path} exists with mismatched config/alignment; "
+            "refusing to overwrite")
+    return True
+
+
 def main():
     args = _parse_args()
     from zero_wam.so101_closed_loop import load_model
 
     out_root = Path(args.output)
     all_rows = load_cohort()
-    selected = select_episode_rows(all_rows, args.episode_id)
+    selected = all_rows if args.all_cohort else select_episode_rows(
+        all_rows, args.episode_id)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    def write_summary(rows_done):
+        from zero_wam.prompt_sweep import atomic_json
+        atomic_json(out_root / "summary.json", {
+            "schema": 1,
+            "episodes": rows_done,
+            "selected": [ep["id"] for ep in selected],
+            "sample_seed_base": args.sample_seed_base,
+            "per_episode_sample_seeds": {
+                ep["id"]: args.sample_seed_base + all_rows.index(ep)
+                for ep in selected},
+            "alpha": args.alpha,
+            "video_guidance_scale": args.video_guidance_scale,
+            "checkpoint": args.checkpoint,
+            "episodes_done": [r["id"] for r in rows_done],
+        })
+
     with tempfile.TemporaryDirectory(prefix="so101-train-replay-model-") as temp:
         model, _ = load_model(args.base_model, args.checkpoint, temp, 50, 50)
         rows = []
         for ep in selected:
+            sample_seed = args.sample_seed_base + all_rows.index(ep)
+            ep_dir = out_root / ep["id"]
+            if _result_matches(ep_dir, ep, args, sample_seed):
+                rows.append(json.loads(
+                    (ep_dir / "result.json").read_text()))
+                print(f"[skip] {ep['id']} valid result exists", flush=True)
+                write_summary(rows)
+                continue
             max_controls = (
                 args.max_controls
                 if args.max_controls
                 else math.ceil(
                     args.horizon_times_oracle * ep["robot_frames"]))
             print(f"[replay] {ep['id']} seed={ep['seed']} "
+                  f"sample_seed={sample_seed} "
                   f"max_controls={max_controls}", flush=True)
             result = run_episode_train(
-                model, ep, out_root / ep["id"],
+                model, ep, ep_dir,
                 max_controls=max_controls,
-                sample_seed=args.sample_seed,
-                video_guidance_scale=-1.0,
+                sample_seed=sample_seed,
+                video_guidance_scale=args.video_guidance_scale,
                 action_ema_alpha=args.alpha,
             )
+            result["video_guidance_scale"] = args.video_guidance_scale
+            result["training_provenance"]["checkpoint"] = args.checkpoint
+            (ep_dir / "result.json").write_text(json.dumps(result, indent=1))
             rows.append(result)
+            write_summary(rows)
             print(f"  success={result['success']} "
                   f"controls={result['controls']} "
                   f"jitter={result['motion']['normalized_second_difference_rms']:.5f}",
                   flush=True)
-    summary = {
-        "schema": 1,
-        "episodes": rows,
-        "sample_seed": args.sample_seed,
-        "alpha": args.alpha,
-        "checkpoint": args.checkpoint,
-    }
-    out_root.mkdir(parents=True, exist_ok=True)
-    (out_root / "summary.json").write_text(json.dumps(summary, indent=1))
     print(f"EXIT_OK episodes={len(rows)}")
 
 

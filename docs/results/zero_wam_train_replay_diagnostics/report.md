@@ -1,5 +1,32 @@
 # Zero-WAM SO-101 training-replay diagnosis
 
+> **Correction: original autonomous replays did not reproduce the full training
+> scenes.** Investigation after visual review found that commit `7f8ce42`
+> changed distractor sampling from `ValEnv`'s permutation to `TrainEnv`'s
+> weighted-ranking procedure. Reusing the seed matched manipulated objects but
+> changed distractor identities/poses in all six episodes. The old start-position
+> gate checked only manipulated objects. Consequently, statements below that
+> describe these autonomous rollouts as exact-scene replays, rule out scene
+> mismatch, or attribute their failure primarily to distribution drift are
+> superseded. The teacher-forced measurements use recorded inputs and are not
+> invalidated by this simulator reset issue.
+>
+> The corrected replay selects a sampler only if every active object's recorded
+> identity, xyz and quaternion match. All six episodes reproduce their rounded
+> recorded poses with zero numerical error using the legacy sampler, with
+> matching visual-configuration hashes. Front/wrist comparison sheets confirm
+> the corrected layouts; recorded MP4 frames remain subject to compression and
+> first-frame timing differences. Evidence:
+> `outputs/zero_wam/train_replay_scene_audit/audit.json` and adjacent JPGs.
+> Corrected autonomous outputs use the `_scenev2` suffix and must be evaluated
+> before making a new causal diagnosis of task failure.
+>
+> **Completed follow-up (2026-10-15):** the corrected four-arm partial-execution
+> sweep finished 24/24 rollouts, with 0/24 successes. Temporal ensembling changes
+> motion smoothness and object interaction but does not yield completed tasks.
+> See [the detailed corrected-scene report](../zero_wam_partial_chunk_replay/report.md)
+> for scene-level results, limitations and the recommended oracle replay check.
+
 Date: 2026-10-14
 
 ## Executive conclusion

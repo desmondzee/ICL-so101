@@ -72,7 +72,7 @@ def select_episode_rows(all_rows, ids):
 class TrainSim:
     """so101_closed_loop.Sim equivalent for sim_train_v1 envs."""
 
-    def __init__(self, task, seed, visual_config):
+    def __init__(self, task, seed, visual_config, *, recorded_poses=None):
         from sim.rebuild_wrist_v2 import (
             WRIST_CAMERA,
             clean_wrist_option,
@@ -92,7 +92,12 @@ class TrainSim:
         self.wrist_camera = WRIST_CAMERA
         self.wrist_transform = configure_clean_wrist(self.env.model)
         self.option = clean_wrist_option()
-        self.env.reset(seed=seed)
+        self.scene_replay = None
+        if recorded_poses is None:
+            self.env.reset(seed=seed)
+        else:
+            from zero_wam.train_scene_replay import reset_recorded_scene
+            self.scene_replay = reset_recorded_scene(self.env, seed, recorded_poses)
         self.success = bool(self.env.success())
 
     @property
@@ -204,6 +209,7 @@ def _write_episode(out_dir, r, ep, sample_seed, alpha, infer_times,
             for name in target_names
         } if r["telemetry"] else {},
         "start_pose_check": r["start_pose_check"],
+        "scene_replay": r["scene_replay"],
         "seen_in_training": True,
         "training_provenance": {
             "source_index": "sim_train_v1",
@@ -324,7 +330,8 @@ def main():
 
         rollouts = []
         for s, (ep, gidx) in enumerate(zip(group, global_idx)):
-            sim = TrainSim(ep["task"], ep["seed"], ep["visual_config"])
+            sim = TrainSim(ep["task"], ep["seed"], ep["visual_config"],
+                           recorded_poses=ep["object_poses_start"])
             check = check_start_poses(sim, ep["object_poses_start"])
             log(f"  [slot {s}] {ep['id']} seed={ep['seed']} "
                 f"vc={ep.get('visual_config_hash')} start_poses: "
@@ -347,6 +354,7 @@ def main():
                 "sample_seed": SAMPLE_SEED_BASE + gidx,
                 "sim": sim,
                 "start_pose_check": check,
+                "scene_replay": sim.scene_replay,
                 "prev_command": first_obs["observation.state"].copy(),
                 "first_obs": first_obs,
                 "frames": [np.concatenate(

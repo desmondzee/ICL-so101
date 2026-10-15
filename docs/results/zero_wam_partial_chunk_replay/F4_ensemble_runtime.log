@@ -1,0 +1,384 @@
+[batch] group=0 controls=[8, 8, 8, 8] infer_s=18.48
+[batch] group=0 controls=[16, 16, 16, 16] infer_s=15.37
+[batch] group=0 controls=[24, 24, 24, 24] infer_s=15.52
+[batch] group=0 controls=[32, 32, 32, 32] infer_s=15.93
+[batch] group=0 controls=[40, 40, 40, 40] infer_s=16.35
+[batch] group=0 controls=[48, 48, 48, 48] infer_s=16.69
+[batch] group=0 controls=[56, 56, 56, 56] infer_s=17.11
+[batch] group=0 controls=[64, 64, 64, 64] infer_s=17.42
+[batch] group=0 controls=[72, 72, 72, 72] infer_s=17.68
+[batch] group=0 controls=[80, 80, 80, 80] infer_s=17.98
+[batch] group=0 controls=[88, 88, 88, 88] infer_s=18.32
+[batch] group=0 controls=[96, 96, 96, 96] infer_s=18.70
+[batch] group=0 controls=[104, 104, 104, 104] infer_s=19.14
+[batch] group=0 controls=[112, 112, 112, 112] infer_s=19.97
+[batch] group=0 controls=[120, 120, 120, 120] infer_s=19.76
+[batch] group=0 controls=[128, 128, 128, 128] infer_s=20.25
+[batch] group=0 controls=[136, 136, 136, 136] infer_s=20.39
+[batch] group=0 controls=[144, 144, 144, 144] infer_s=20.88
+[batch] group=0 controls=[152, 152, 152, 152] infer_s=21.21
+[batch] group=0 controls=[160, 160, 160, 160] infer_s=21.72
+[batch] group=0 controls=[168, 168, 168, 168] infer_s=22.08
+[batch] group=0 controls=[176, 176, 176, 176] infer_s=22.38
+[batch] group=0 controls=[184, 184, 184, 184] infer_s=22.80
+[batch] group=0 controls=[192, 192, 192, 192] infer_s=23.29
+[batch] group=0 controls=[200, 200, 200, 200] infer_s=23.80
+[batch] group=0 controls=[208, 208, 208, 208] infer_s=24.16
+[batch] group=0 controls=[216, 216, 216, 216] infer_s=24.62
+[batch] group=0 controls=[224, 224, 224, 224] infer_s=25.08
+[batch] group=0 controls=[232, 232, 232, 232] infer_s=25.56
+[batch] group=0 controls=[240, 240, 240, 240] infer_s=25.98
+[batch] group=0 controls=[248, 248, 248, 248] infer_s=26.45
+[batch] group=0 controls=[256, 256, 256, 256] infer_s=26.93
+[batch] group=0 controls=[264, 264, 264, 264] infer_s=27.28
+[batch] group=0 controls=[272, 272, 272, 272] infer_s=26.84
+[batch] group=0 controls=[280, 280, 280, 280] infer_s=26.84
+[batch] group=0 controls=[288, 288, 288, 288] infer_s=26.87
+[batch] group=0 controls=[296, 296, 296, 296] infer_s=26.92
+[batch] group=0 controls=[304, 304, 304, 304] infer_s=26.88
+[batch] group=0 controls=[312, 312, 312, 312] infer_s=26.88
+[batch] group=0 controls=[320, 320, 320, 320] infer_s=26.88
+[batch] group=0 controls=[328, 328, 328, 328] infer_s=26.86
+[batch] group=0 controls=[336, 336, 336, 336] infer_s=26.90
+[batch] group=0 controls=[344, 344, 344, 344] infer_s=26.95
+[batch] group=0 controls=[352, 352, 352, 352] infer_s=26.92
+[batch] group=0 controls=[360, 360, 360, 360] infer_s=26.88
+[batch] group=0 controls=[368, 368, 368, 368] infer_s=26.89
+[batch] group=0 controls=[376, 376, 376, 376] infer_s=26.86
+[batch] group=0 controls=[384, 384, 384, 384] infer_s=26.89
+[batch] group=0 controls=[392, 392, 392, 392] infer_s=26.88
+[batch] group=0 controls=[400, 400, 400, 400] infer_s=26.86
+[batch] group=0 controls=[408, 408, 408, 408] infer_s=27.13
+[batch] group=0 controls=[416, 416, 416, 416] infer_s=26.84
+[batch] group=0 controls=[424, 424, 424, 424] infer_s=26.94
+[batch] group=0 controls=[432, 432, 432, 432] infer_s=26.90
+[batch] group=0 controls=[440, 440, 440, 440] infer_s=26.88
+[batch] group=0 controls=[448, 448, 448, 448] infer_s=26.85
+[batch] group=0 controls=[456, 456, 456, 456] infer_s=26.82
+[batch] group=0 controls=[464, 464, 464, 464] infer_s=26.86
+[batch] group=0 controls=[472, 472, 472, 472] infer_s=26.89
+[batch] group=0 controls=[480, 480, 480, 480] infer_s=26.88
+[batch] group=0 controls=[488, 488, 488, 488] infer_s=26.91
+[batch] group=0 controls=[496, 496, 496, 496] infer_s=26.85
+[batch] group=0 controls=[504, 504, 504, 504] infer_s=26.87
+[batch] group=0 controls=[512, 512, 512, 512] infer_s=26.90
+[batch] group=0 controls=[520, 520, 520, 520] infer_s=26.85
+[batch] group=0 controls=[528, 528, 528, 528] infer_s=26.86
+[batch] group=0 controls=[536, 536, 536, 536] infer_s=26.86
+[batch] group=0 controls=[544, 544, 544, 544] infer_s=26.87
+[batch] group=0 controls=[552, 552, 552, 552] infer_s=27.17
+[batch] group=0 controls=[560, 560, 560, 560] infer_s=26.95
+[batch] group=0 controls=[568, 568, 568, 568] infer_s=26.89
+[batch] group=0 controls=[576, 576, 576, 576] infer_s=26.83
+[batch] group=0 controls=[584, 584, 584, 584] infer_s=26.90
+[batch] group=0 controls=[592, 592, 592, 592] infer_s=26.92
+[batch] group=0 controls=[600, 600, 600, 600] infer_s=26.84
+[batch] group=0 controls=[608, 608, 608, 608] infer_s=26.88
+[batch] group=0 controls=[616, 616, 616, 616] infer_s=26.89
+[batch] group=0 controls=[624, 624, 624, 624] infer_s=26.94
+[batch] group=0 controls=[632, 632, 632, 632] infer_s=26.88
+[batch] group=0 controls=[640, 640, 640, 640] infer_s=26.92
+[batch] group=0 controls=[648, 648, 648, 648] infer_s=26.92
+[batch] group=0 controls=[656, 656, 656, 656] infer_s=26.87
+[batch] group=0 controls=[664, 664, 664, 664] infer_s=26.89
+[batch] group=0 controls=[672, 672, 672, 672] infer_s=26.89
+[batch] group=0 controls=[680, 680, 680, 680] infer_s=26.89
+[batch] group=0 controls=[688, 688, 688, 688] infer_s=26.96
+[batch] group=0 controls=[696, 696, 696, 696] infer_s=26.86
+[batch] group=0 controls=[704, 704, 704, 704] infer_s=27.17
+[batch] group=0 controls=[712, 712, 712, 712] infer_s=26.88
+[batch] group=0 controls=[720, 720, 720, 720] infer_s=26.89
+[batch] group=0 controls=[728, 728, 728, 728] infer_s=26.91
+[batch] group=0 controls=[736, 736, 736, 736] infer_s=26.87
+[batch] group=0 controls=[744, 744, 744, 744] infer_s=26.88
+[batch] group=0 controls=[752, 752, 752, 752] infer_s=26.88
+[batch] group=0 controls=[760, 760, 760, 760] infer_s=26.90
+[batch] group=0 controls=[768, 768, 768, 768] infer_s=27.01
+[batch] group=0 controls=[776, 776, 776, 776] infer_s=26.92
+[batch] group=0 controls=[784, 784, 784, 784] infer_s=26.91
+[batch] group=0 controls=[792, 792, 792, 792] infer_s=26.87
+[batch] group=0 controls=[800, 800, 800, 800] infer_s=26.88
+[batch] group=0 controls=[808, 808, 808, 808] infer_s=26.87
+[batch] group=0 controls=[816, 816, 816, 816] infer_s=26.88
+[batch] group=0 controls=[824, 824, 824, 824] infer_s=26.86
+[batch] group=0 controls=[832, 832, 832, 832] infer_s=26.87
+[batch] group=0 controls=[840, 840, 840, 840] infer_s=26.91
+[batch] group=0 controls=[848, 848, 848, 848] infer_s=27.15
+[batch] group=0 controls=[856, 856, 856, 856] infer_s=26.86
+[batch] group=0 controls=[864, 864, 864, 864] infer_s=26.84
+[batch] group=0 controls=[872, 872, 872, 872] infer_s=26.91
+[batch] group=0 controls=[880, 880, 880, 880] infer_s=26.88
+[batch] group=0 controls=[888, 888, 888, 888] infer_s=26.86
+[batch] group=0 controls=[896, 896, 896, 896] infer_s=26.89
+[batch] group=0 controls=[904, 904, 904, 904] infer_s=26.92
+[batch] group=0 controls=[912, 912, 912, 912] infer_s=26.92
+[batch] group=0 controls=[920, 920, 920, 920] infer_s=26.89
+[batch] group=0 controls=[928, 928, 928, 928] infer_s=26.84
+[batch] group=0 controls=[936, 936, 936, 936] infer_s=26.90
+[batch] group=0 controls=[944, 944, 944, 944] infer_s=27.01
+[batch] group=0 controls=[952, 952, 952, 952] infer_s=26.94
+[batch] group=0 controls=[960, 960, 960, 960] infer_s=26.88
+[batch] group=0 controls=[968, 968, 968, 968] infer_s=26.90
+[batch] group=0 controls=[976, 976, 976, 976] infer_s=26.86
+[batch] group=0 controls=[984, 984, 984, 984] infer_s=26.87
+[batch] group=0 controls=[992, 992, 992, 992] infer_s=26.86
+[batch] group=0 controls=[1000, 1000, 1000, 1000] infer_s=27.19
+[batch] group=0 controls=[1008, 1008, 1008, 1008] infer_s=26.85
+[batch] group=0 controls=[1016, 1016, 1016, 1016] infer_s=26.91
+[batch] group=0 controls=[1024, 1024, 1024, 1024] infer_s=26.87
+[batch] group=0 controls=[1032, 1032, 1032, 1032] infer_s=26.99
+[batch] group=0 controls=[1040, 1040, 1040, 1040] infer_s=26.89
+[batch] group=0 controls=[1048, 1048, 1048, 1048] infer_s=26.88
+[batch] group=0 controls=[1056, 1056, 1056, 1056] infer_s=26.87
+[batch] group=0 controls=[1064, 1064, 1064, 1064] infer_s=26.89
+[batch] group=0 controls=[1072, 1072, 1072, 1072] infer_s=26.85
+[batch] group=0 controls=[1080, 1080, 1080, 1080] infer_s=26.87
+[batch] group=0 controls=[1088, 1088, 1088, 1088] infer_s=26.89
+[batch] group=0 controls=[1096, 1096, 1096, 1096] infer_s=26.90
+[done] ball_between_cans/episode_000 success=False controls=1104
+[batch] group=0 controls=[1104, 1104, 1104, 1104] infer_s=26.88
+[batch] group=0 controls=[1104, 1112, 1112, 1112] infer_s=24.59
+[batch] group=0 controls=[1104, 1120, 1120, 1120] infer_s=24.69
+[batch] group=0 controls=[1104, 1128, 1128, 1128] infer_s=24.81
+[batch] group=0 controls=[1104, 1136, 1136, 1136] infer_s=24.93
+[batch] group=0 controls=[1104, 1144, 1144, 1144] infer_s=25.40
+[done] block_in_bowl/episode_000 success=False controls=1152
+[batch] group=0 controls=[1104, 1152, 1152, 1152] infer_s=25.14
+[batch] group=0 controls=[1104, 1160, 1152, 1160] infer_s=23.24
+[batch] group=0 controls=[1104, 1168, 1152, 1168] infer_s=23.71
+[batch] group=0 controls=[1104, 1176, 1152, 1176] infer_s=24.06
+[batch] group=0 controls=[1104, 1184, 1152, 1184] infer_s=24.32
+[batch] group=0 controls=[1104, 1192, 1152, 1192] infer_s=24.83
+[batch] group=0 controls=[1104, 1200, 1152, 1200] infer_s=25.20
+[batch] group=0 controls=[1104, 1208, 1152, 1208] infer_s=25.59
+[batch] group=0 controls=[1104, 1216, 1152, 1216] infer_s=25.91
+[batch] group=0 controls=[1104, 1224, 1152, 1224] infer_s=26.25
+[batch] group=0 controls=[1104, 1232, 1152, 1232] infer_s=26.79
+[batch] group=0 controls=[1104, 1240, 1152, 1240] infer_s=27.32
+[batch] group=0 controls=[1104, 1248, 1152, 1248] infer_s=27.59
+[batch] group=0 controls=[1104, 1256, 1152, 1256] infer_s=28.13
+[batch] group=0 controls=[1104, 1264, 1152, 1264] infer_s=28.30
+[batch] group=0 controls=[1104, 1272, 1152, 1272] infer_s=28.66
+[batch] group=0 controls=[1104, 1280, 1152, 1280] infer_s=29.04
+[done] block_in_bowl/episode_001 success=False controls=1288
+[batch] group=0 controls=[1104, 1288, 1152, 1288] infer_s=29.37
+[batch] group=0 controls=[1104, 1296, 1152, 1288] infer_s=30.63
+[batch] group=0 controls=[1104, 1304, 1152, 1288] infer_s=31.15
+[batch] group=0 controls=[1104, 1312, 1152, 1288] infer_s=31.82
+[batch] group=0 controls=[1104, 1320, 1152, 1288] infer_s=32.26
+[batch] group=0 controls=[1104, 1328, 1152, 1288] infer_s=32.58
+[batch] group=0 controls=[1104, 1336, 1152, 1288] infer_s=33.18
+[batch] group=0 controls=[1104, 1344, 1152, 1288] infer_s=33.74
+[done] ball_between_cans/episode_001 success=False controls=1352
+[batch] group=0 controls=[1104, 1352, 1152, 1288] infer_s=34.12
+[batch] group=1 controls=[8, 8] infer_s=14.63
+[batch] group=1 controls=[16, 16] infer_s=14.92
+[batch] group=1 controls=[24, 24] infer_s=15.37
+[batch] group=1 controls=[32, 32] infer_s=15.83
+[batch] group=1 controls=[40, 40] infer_s=16.43
+[batch] group=1 controls=[48, 48] infer_s=16.82
+[batch] group=1 controls=[56, 56] infer_s=17.20
+[batch] group=1 controls=[64, 64] infer_s=18.11
+[batch] group=1 controls=[72, 72] infer_s=18.13
+[batch] group=1 controls=[80, 80] infer_s=18.54
+[batch] group=1 controls=[88, 88] infer_s=19.04
+[batch] group=1 controls=[96, 96] infer_s=19.55
+[batch] group=1 controls=[104, 104] infer_s=20.04
+[batch] group=1 controls=[112, 112] infer_s=20.45
+[batch] group=1 controls=[120, 120] infer_s=20.95
+[batch] group=1 controls=[128, 128] infer_s=21.50
+[batch] group=1 controls=[136, 136] infer_s=21.85
+[batch] group=1 controls=[144, 144] infer_s=22.32
+[batch] group=1 controls=[152, 152] infer_s=22.85
+[batch] group=1 controls=[160, 160] infer_s=23.28
+[batch] group=1 controls=[168, 168] infer_s=23.90
+[batch] group=1 controls=[176, 176] infer_s=24.30
+[batch] group=1 controls=[184, 184] infer_s=24.98
+[batch] group=1 controls=[192, 192] infer_s=25.45
+[batch] group=1 controls=[200, 200] infer_s=26.16
+[batch] group=1 controls=[208, 208] infer_s=26.63
+[batch] group=1 controls=[216, 216] infer_s=27.70
+[batch] group=1 controls=[224, 224] infer_s=27.93
+[batch] group=1 controls=[232, 232] infer_s=28.43
+[batch] group=1 controls=[240, 240] infer_s=29.02
+[batch] group=1 controls=[248, 248] infer_s=29.64
+[batch] group=1 controls=[256, 256] infer_s=30.18
+[batch] group=1 controls=[264, 264] infer_s=29.69
+[batch] group=1 controls=[272, 272] infer_s=20.06
+[batch] group=1 controls=[280, 280] infer_s=19.81
+[batch] group=1 controls=[288, 288] infer_s=20.98
+[batch] group=1 controls=[296, 296] infer_s=20.08
+[batch] group=1 controls=[304, 304] infer_s=20.12
+[batch] group=1 controls=[312, 312] infer_s=19.98
+[batch] group=1 controls=[320, 320] infer_s=20.02
+[batch] group=1 controls=[328, 328] infer_s=20.02
+[batch] group=1 controls=[336, 336] infer_s=19.98
+[batch] group=1 controls=[344, 344] infer_s=19.89
+[batch] group=1 controls=[352, 352] infer_s=19.89
+[batch] group=1 controls=[360, 360] infer_s=20.01
+[batch] group=1 controls=[368, 368] infer_s=20.23
+[batch] group=1 controls=[376, 376] infer_s=19.96
+[batch] group=1 controls=[384, 384] infer_s=19.89
+[batch] group=1 controls=[392, 392] infer_s=19.85
+[batch] group=1 controls=[400, 400] infer_s=19.93
+[batch] group=1 controls=[408, 408] infer_s=19.96
+[batch] group=1 controls=[416, 416] infer_s=19.88
+[batch] group=1 controls=[424, 424] infer_s=20.19
+[batch] group=1 controls=[432, 432] infer_s=19.91
+[batch] group=1 controls=[440, 440] infer_s=19.87
+[batch] group=1 controls=[448, 448] infer_s=19.86
+[batch] group=1 controls=[456, 456] infer_s=19.92
+[batch] group=1 controls=[464, 464] infer_s=19.87
+[batch] group=1 controls=[472, 472] infer_s=19.88
+[batch] group=1 controls=[480, 480] infer_s=19.85
+[batch] group=1 controls=[488, 488] infer_s=19.90
+[batch] group=1 controls=[496, 496] infer_s=19.90
+[batch] group=1 controls=[504, 504] infer_s=19.96
+[batch] group=1 controls=[512, 512] infer_s=20.43
+[batch] group=1 controls=[520, 520] infer_s=20.35
+[batch] group=1 controls=[528, 528] infer_s=20.16
+[batch] group=1 controls=[536, 536] infer_s=19.93
+[batch] group=1 controls=[544, 544] infer_s=19.97
+[batch] group=1 controls=[552, 552] infer_s=19.95
+[batch] group=1 controls=[560, 560] infer_s=19.89
+[batch] group=1 controls=[568, 568] infer_s=19.84
+[batch] group=1 controls=[576, 576] infer_s=19.95
+[batch] group=1 controls=[584, 584] infer_s=19.85
+[batch] group=1 controls=[592, 592] infer_s=19.84
+[batch] group=1 controls=[600, 600] infer_s=20.05
+[batch] group=1 controls=[608, 608] infer_s=20.07
+[batch] group=1 controls=[616, 616] infer_s=19.99
+[batch] group=1 controls=[624, 624] infer_s=19.86
+[batch] group=1 controls=[632, 632] infer_s=19.92
+[batch] group=1 controls=[640, 640] infer_s=19.96
+[batch] group=1 controls=[648, 648] infer_s=19.97
+[batch] group=1 controls=[656, 656] infer_s=20.10
+[batch] group=1 controls=[664, 664] infer_s=19.83
+[batch] group=1 controls=[672, 672] infer_s=20.28
+[batch] group=1 controls=[680, 680] infer_s=19.84
+[batch] group=1 controls=[688, 688] infer_s=19.87
+[batch] group=1 controls=[696, 696] infer_s=20.00
+[batch] group=1 controls=[704, 704] infer_s=20.10
+[batch] group=1 controls=[712, 712] infer_s=19.98
+[batch] group=1 controls=[720, 720] infer_s=20.03
+[batch] group=1 controls=[728, 728] infer_s=19.95
+[batch] group=1 controls=[736, 736] infer_s=19.90
+[batch] group=1 controls=[744, 744] infer_s=19.97
+[batch] group=1 controls=[752, 752] infer_s=19.88
+[batch] group=1 controls=[760, 760] infer_s=19.99
+[batch] group=1 controls=[768, 768] infer_s=19.90
+[batch] group=1 controls=[776, 776] infer_s=19.96
+[batch] group=1 controls=[784, 784] infer_s=19.83
+[batch] group=1 controls=[792, 792] infer_s=19.85
+[batch] group=1 controls=[800, 800] infer_s=19.84
+[batch] group=1 controls=[808, 808] infer_s=19.92
+[batch] group=1 controls=[816, 816] infer_s=20.29
+[batch] group=1 controls=[824, 824] infer_s=20.17
+[batch] group=1 controls=[832, 832] infer_s=20.16
+[batch] group=1 controls=[840, 840] infer_s=19.90
+[batch] group=1 controls=[848, 848] infer_s=19.94
+[batch] group=1 controls=[856, 856] infer_s=19.97
+[batch] group=1 controls=[864, 864] infer_s=19.92
+[batch] group=1 controls=[872, 872] infer_s=19.98
+[batch] group=1 controls=[880, 880] infer_s=19.90
+[batch] group=1 controls=[888, 888] infer_s=19.97
+[batch] group=1 controls=[896, 896] infer_s=19.95
+[batch] group=1 controls=[904, 904] infer_s=19.91
+[batch] group=1 controls=[912, 912] infer_s=19.87
+[batch] group=1 controls=[920, 920] infer_s=19.95
+[batch] group=1 controls=[928, 928] infer_s=19.90
+[batch] group=1 controls=[936, 936] infer_s=19.94
+[batch] group=1 controls=[944, 944] infer_s=19.83
+[batch] group=1 controls=[952, 952] infer_s=19.96
+[batch] group=1 controls=[960, 960] infer_s=20.03
+[batch] group=1 controls=[968, 968] infer_s=20.05
+[batch] group=1 controls=[976, 976] infer_s=20.49
+[batch] group=1 controls=[984, 984] infer_s=19.90
+[batch] group=1 controls=[992, 992] infer_s=19.84
+[batch] group=1 controls=[1000, 1000] infer_s=20.04
+[batch] group=1 controls=[1008, 1008] infer_s=19.97
+[done] push_cube_into_tape_square/episode_000 success=False controls=1016
+[batch] group=1 controls=[1016, 1016] infer_s=19.86
+[batch] group=1 controls=[1016, 1024] infer_s=17.98
+[batch] group=1 controls=[1016, 1032] infer_s=18.23
+[batch] group=1 controls=[1016, 1040] infer_s=18.21
+[batch] group=1 controls=[1016, 1048] infer_s=18.40
+[batch] group=1 controls=[1016, 1056] infer_s=18.46
+[batch] group=1 controls=[1016, 1064] infer_s=18.56
+[batch] group=1 controls=[1016, 1072] infer_s=18.49
+[batch] group=1 controls=[1016, 1080] infer_s=18.49
+[batch] group=1 controls=[1016, 1088] infer_s=18.68
+[batch] group=1 controls=[1016, 1096] infer_s=18.72
+[batch] group=1 controls=[1016, 1104] infer_s=19.06
+[batch] group=1 controls=[1016, 1112] infer_s=19.26
+[batch] group=1 controls=[1016, 1120] infer_s=19.11
+[batch] group=1 controls=[1016, 1128] infer_s=19.62
+[batch] group=1 controls=[1016, 1136] infer_s=19.26
+[batch] group=1 controls=[1016, 1144] infer_s=19.36
+[batch] group=1 controls=[1016, 1152] infer_s=19.38
+[batch] group=1 controls=[1016, 1160] infer_s=19.69
+[batch] group=1 controls=[1016, 1168] infer_s=19.57
+[batch] group=1 controls=[1016, 1176] infer_s=19.66
+[batch] group=1 controls=[1016, 1184] infer_s=19.77
+[batch] group=1 controls=[1016, 1192] infer_s=19.82
+[batch] group=1 controls=[1016, 1200] infer_s=19.86
+[batch] group=1 controls=[1016, 1208] infer_s=19.92
+[batch] group=1 controls=[1016, 1216] infer_s=20.11
+[batch] group=1 controls=[1016, 1224] infer_s=20.16
+[batch] group=1 controls=[1016, 1232] infer_s=20.25
+[batch] group=1 controls=[1016, 1240] infer_s=20.29
+[batch] group=1 controls=[1016, 1248] infer_s=20.30
+[batch] group=1 controls=[1016, 1256] infer_s=20.48
+[batch] group=1 controls=[1016, 1264] infer_s=20.57
+[batch] group=1 controls=[1016, 1272] infer_s=20.55
+[batch] group=1 controls=[1016, 1280] infer_s=20.98
+[batch] group=1 controls=[1016, 1288] infer_s=17.06
+[batch] group=1 controls=[1016, 1296] infer_s=17.20
+[batch] group=1 controls=[1016, 1304] infer_s=17.13
+[batch] group=1 controls=[1016, 1312] infer_s=17.16
+[batch] group=1 controls=[1016, 1320] infer_s=17.39
+[batch] group=1 controls=[1016, 1328] infer_s=17.21
+[batch] group=1 controls=[1016, 1336] infer_s=17.47
+[batch] group=1 controls=[1016, 1344] infer_s=17.22
+[batch] group=1 controls=[1016, 1352] infer_s=17.28
+[batch] group=1 controls=[1016, 1360] infer_s=17.24
+[batch] group=1 controls=[1016, 1368] infer_s=17.19
+[batch] group=1 controls=[1016, 1376] infer_s=17.14
+[batch] group=1 controls=[1016, 1384] infer_s=17.17
+[batch] group=1 controls=[1016, 1392] infer_s=17.19
+[batch] group=1 controls=[1016, 1400] infer_s=17.27
+[batch] group=1 controls=[1016, 1408] infer_s=17.24
+[batch] group=1 controls=[1016, 1416] infer_s=17.29
+[batch] group=1 controls=[1016, 1424] infer_s=17.22
+[batch] group=1 controls=[1016, 1432] infer_s=17.65
+[batch] group=1 controls=[1016, 1440] infer_s=17.25
+[batch] group=1 controls=[1016, 1448] infer_s=17.20
+[batch] group=1 controls=[1016, 1456] infer_s=17.27
+[batch] group=1 controls=[1016, 1464] infer_s=17.18
+[batch] group=1 controls=[1016, 1472] infer_s=17.19
+[batch] group=1 controls=[1016, 1480] infer_s=17.23
+[batch] group=1 controls=[1016, 1488] infer_s=17.36
+[batch] group=1 controls=[1016, 1496] infer_s=17.26
+[batch] group=1 controls=[1016, 1504] infer_s=17.31
+[batch] group=1 controls=[1016, 1512] infer_s=17.32
+[batch] group=1 controls=[1016, 1520] infer_s=17.22
+[batch] group=1 controls=[1016, 1528] infer_s=17.13
+[batch] group=1 controls=[1016, 1536] infer_s=17.31
+[batch] group=1 controls=[1016, 1544] infer_s=17.11
+[batch] group=1 controls=[1016, 1552] infer_s=17.12
+[batch] group=1 controls=[1016, 1560] infer_s=17.38
+[batch] group=1 controls=[1016, 1568] infer_s=17.33
+[batch] group=1 controls=[1016, 1576] infer_s=17.36
+[batch] group=1 controls=[1016, 1584] infer_s=17.35
+[batch] group=1 controls=[1016, 1592] infer_s=17.84
+[batch] group=1 controls=[1016, 1600] infer_s=17.12
+[batch] group=1 controls=[1016, 1608] infer_s=17.28
+[batch] group=1 controls=[1016, 1616] infer_s=17.13
+[batch] group=1 controls=[1016, 1624] infer_s=17.20
+[batch] group=1 controls=[1016, 1632] infer_s=17.20
+[batch] group=1 controls=[1016, 1640] infer_s=17.17
+[batch] group=1 controls=[1016, 1648] infer_s=17.14
+[batch] group=1 controls=[1016, 1656] infer_s=17.20
+[done] push_cube_into_tape_square/episode_001 success=False controls=1664
+[batch] group=1 controls=[1016, 1664] infer_s=17.14
+EXIT_OK episodes=6

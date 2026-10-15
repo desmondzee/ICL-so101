@@ -1,9 +1,38 @@
-"""Unit tests for the opt-in static-KV prototype (new files only)."""
+"""Unit tests for the opt-in static-KV prototype and replay utilities."""
 
 from __future__ import annotations
 
+
+def test_partial_replay_ensemble_uses_absolute_times_and_age_weights():
+    import numpy as np
+    from scripts.run_so101_partial_chunk_replay import blend_at
+    forecasts = [
+        {"start": start, "actions": [[float(start + j)] * 6 for j in range(32)]}
+        for start in (0, 8, 16, 24)
+    ]
+    commands, contributors = blend_at(forecasts, 24, True)
+    np.testing.assert_allclose(commands, np.repeat(np.arange(24, 32)[:, None], 6, axis=1))
+    np.testing.assert_allclose([c["weight"] for c in contributors],
+                               np.array([1, 3, 9, 27]) / 40)
+    commands, contributors = blend_at(forecasts, 24, False)
+    assert contributors == [{"forecast_start": 24, "age": 0, "weight": 1.0}]
+
+
+def test_partial_replay_two_forecast_weights_and_expired_tail():
+    import numpy as np
+    from scripts.run_so101_partial_chunk_replay import blend_at
+    old = {"start": 0, "actions": [[0.] * 6] * 16}
+    new = {"start": 8, "actions": [[4.] * 6] * 16}
+    commands, weights = blend_at([old, new], 8, True)
+    np.testing.assert_allclose(commands, 3.)
+    assert [x["weight"] for x in weights] == [0.25, 0.75]
+    commands, weights = blend_at([old, new], 16, True)
+    np.testing.assert_allclose(commands, 4.)
+    assert len(weights) == 1
+
 import types
 
+import json
 import math
 from pathlib import Path
 
@@ -1512,3 +1541,71 @@ def test_multi_boundary_aggregate_no_collision():
     keyed = {f"{x['sample_id']}@{x['boundary']}": x for x in pb}
     assert keyed["task_b__ep0@56"]["model_mae"] == 1.0
     assert not keyed["task_b__ep0@56"]["model_beats_persistence"]
+
+
+# ---------------------------------------------------------------------------
+# Sequential replay selection/resume semantics
+# ---------------------------------------------------------------------------
+
+def test_sequential_replay_selection_modes(monkeypatch):
+    import importlib
+    import sys
+
+    mod = importlib.import_module(
+        "scripts.run_so101_sequential_train_replay")
+    old = sys.argv
+    try:
+        sys.argv = ["x"]                    # neither mode -> error
+        with pytest.raises(SystemExit):
+            mod._parse_args()
+        sys.argv = ["x", "--all-cohort", "--episode-id", "a/b"]
+        with pytest.raises(SystemExit):
+            mod._parse_args()
+        sys.argv = ["x", "--all-cohort"]
+        assert mod._parse_args().all_cohort
+        sys.argv = ["x", "--episode-id", "a/b"]
+        assert mod._parse_args().episode_id == ["a/b"]
+    finally:
+        sys.argv = old
+
+
+def test_sequential_replay_seed_mapping_and_summary(tmp_path, monkeypatch):
+    import importlib
+
+    mod = importlib.import_module(
+        "scripts.run_so101_sequential_train_replay")
+    rows = mod.load_cohort()
+    # global canonical index preserved under filtering
+    assert rows.index(rows[5]) == 5
+    base = 20261101
+    seeds = {ep["id"]: base + rows.index(ep) for ep in rows[4:]}
+    assert seeds["push_cube_into_tape_square/episode_000"] == 20261105
+    assert seeds["push_cube_into_tape_square/episode_001"] == 20261106
+
+    # resume matching: valid complete result -> reuse; mismatch -> refuse
+    import argparse
+    args = argparse.Namespace(
+        checkpoint="data/models/checkpoints/v2b_step500",
+        alpha=1.0, video_guidance_scale=5.0)
+    ep_dir = tmp_path / "ball_between_cans" / "episode_000"
+    ep_dir.mkdir(parents=True)
+    good = {"sample_seed": 20261101, "action_ema_alpha": 1.0,
+            "video_guidance_scale": 5.0, "controls": 4,
+            "training_provenance": {
+                "checkpoint": "data/models/checkpoints/v2b_step500"}}
+    np.save(ep_dir / "actions.npy", np.zeros((4, 6), dtype=np.float32))
+    (ep_dir / "telemetry.jsonl").write_text("\n".join(["{}"] * 4) + "\n")
+    (ep_dir / "rollout.mp4").write_bytes(b"mp4")
+    (ep_dir / "result.json").write_text(json.dumps(good))
+    ep = rows[0]
+    assert mod._result_matches(ep_dir, ep, args, 20261101)
+    good["video_guidance_scale"] = -1.0
+    (ep_dir / "result.json").write_text(json.dumps(good))
+    with pytest.raises(RuntimeError):
+        mod._result_matches(ep_dir, ep, args, 20261101)
+    # missing artifacts -> refuse overwrite (mismatch counts as mismatch)
+    (ep_dir / "actions.npy").unlink()
+    good["video_guidance_scale"] = 5.0
+    (ep_dir / "result.json").write_text(json.dumps(good))
+    with pytest.raises(RuntimeError):
+        mod._result_matches(ep_dir, ep, args, 20261101)
